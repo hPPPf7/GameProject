@@ -60,8 +60,10 @@
 可支援的條件邏輯（未來可擴充）：
 
 - `fate_min`：命運值大於等於某數
+- `step_min`：前進步數需達到指定值
 - `has_item`：背包中擁有某道具
 - `flag_true`：某事件旗標為真
+- `flag_false`：某事件旗標為假（或未設定）
 - `sanity`：指定 Sanity 狀態必須符合
 - `sanity_in`：Sanity 狀態需在指定列表中
 

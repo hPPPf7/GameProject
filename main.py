@@ -10,6 +10,7 @@ pygame.font.init()
 from ui_manager import draw_main_ui
 from player_state import init_player_state
 from event_result_handler import handle_event_result
+from event_manager import get_available_options
 
 # 畫面設定
 screen = pygame.display.set_mode((512, 768))
@@ -118,6 +119,9 @@ while running:
                 ):
                     from event_manager import get_random_event
 
+                    # 前進一次，累積步數
+                    player["steps"] = player.get("steps", 0) + 1
+
                     current_event = get_random_event(player=player)
                     if current_event:
                         text_log.add(current_event["text"])
@@ -142,11 +146,12 @@ while running:
                     and current_event
                     and "options" in current_event
                 ):
+                    available_opts = get_available_options(current_event, player)
                     for i, rect in enumerate(UI_AREAS["options"]):
-                        if i >= len(current_event["options"]):
+                        if i >= len(available_opts):
                             continue
                         if rect.collidepoint(event.pos):
-                            chosen = current_event["options"][i]
+                            chosen = available_opts[i]
 
                             text_log.add(f"你選擇了：{chosen['text']}")
                             text_log.scroll_to_bottom()

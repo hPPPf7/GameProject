@@ -1,5 +1,6 @@
 import pygame
 import text_log
+from event_manager import get_available_options
 
 # 區塊尺寸與位置設定
 UI_AREAS = {
@@ -97,14 +98,15 @@ def draw_main_ui(
 
     elif sub_state == "show_event" and current_event:
         # ➤ 有事件時才顯示個別選項
+        opts = get_available_options(current_event, player)
         for i, rect in enumerate(UI_AREAS["options"]):
             is_hover = rect.collidepoint(mouse_pos)
 
-            if i < len(current_event["options"]):
+            if i < len(opts):
                 # 有對應選項的格子：顯示選項文字
                 color = COLORS["option_hover"] if is_hover else COLORS["option"]
                 pygame.draw.rect(screen, color, rect)
-                option_text = current_event["options"][i]["text"]
+                option_text = opts[i]["text"]
                 draw_text(screen, option_text, rect, font, center=True)
             else:
                 # 超出選項數的格子：灰色無效

@@ -15,6 +15,39 @@
       }
     ]
   },
+   {
+    "id": "EV-003",
+    "type": "conditional",
+    "condition": { "step_min": 3, "flag_false": "flag_heard_watcher_words" },
+    "text": "屋內坐著一名老村民喃喃低語，似乎提及湖邊的石像。你感到莫名熟悉。",
+    "options": [
+      {
+        "text": "你在說什麼湖邊？我沒來過這裡。",
+        "result": {
+          "text": "村民低聲回應：\"那你為何夢見過它？\"",
+          "effect": { "fate": 1 },
+          "flag_set": { "flag_question_identity": true, "flag_heard_watcher_words": true }
+        }
+      },
+      {
+        "text": "你認錯人了，告訴我你看見什麼。",
+        "result": {
+          "text": "他描述湖邊石像的詭異景象。",
+          "effect": { "fate": 2 },
+          "flag_set": { "flag_trust_made": true, "flag_heard_watcher_words": true }
+        }
+      },
+      {
+        "text": "吃掉他的聲音",
+        "condition": { "sanity_in": ["S2"] },
+        "result": {
+          "text": "畫面扭曲，村民化為模糊幻影，你陷入短暫失憶。",
+          "sanity_change": "S2",
+          "flag_set": { "flag_heard_watcher_words": true }
+        }
+      }
+    ]
+  },
   {
     "id": "EV-007",
     "type": "conditional",
