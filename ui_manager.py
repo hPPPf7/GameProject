@@ -81,6 +81,7 @@ def draw_main_ui(
         f"ATK: {player['atk']}",
         f"DEF: {player['def']}",
         f"SANITY: {player.get('sanity', 'S0')}",
+        f"FATE: {player.get('fate', 0)}",
     ]
     for i, line in enumerate(lines):
         draw_text(screen, line, UI_AREAS["status"], font, center=False, line_offset=i)
