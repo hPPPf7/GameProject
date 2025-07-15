@@ -3,11 +3,15 @@ theme:
   name: material
 nav:
   - 首頁: index.md
+  - 操作說明: controls.md
   - 角色: characters.md
   - 事件: events.md
+  - 遊戲畫面: ui.md
   - 地圖進程: maps.md
   - 時間線: timeline.md
   - 流程圖: flowchart.md
+  - 開發工具: dev_tools.md
+  - 參考文獻: references.md
 
 plugins:
   - search
