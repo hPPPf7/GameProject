@@ -1,0 +1,10 @@
+# 忽略虛擬環境資料夾
+myenv/
+.venv/
+
+# 忽略 Python 編譯快取
+__pycache__/
+*.py[cod]
+
+# 忽略 VS Code 使用者設定（選擇性）
+.vscode/

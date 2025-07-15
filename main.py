@@ -1,211 +1,201 @@
 import pygame
 import sys
-from player_state import Player
-from ui_manager import (
-    draw_scene,
-    draw_status_panel,
-    draw_buttons,
-    draw_text,
-)
-from event_manager import EventManager
-from battle_manager import run_battle
-from text_log import TextLogManager
-from inventory_panel import InventoryPanel
+import text_log
 
-# === 初始化 ===
+# 必須在 import 其他模組之前初始化
 pygame.init()
 pygame.font.init()
 
-# === 畫面設定 ===
-WIDTH, HEIGHT = 720, 960
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+# 初始化完再 import 其他模組（這樣 FONT 才能成功定義）
+from ui_manager import draw_main_ui
+from player_state import init_player_state
+from event_result_handler import handle_event_result
+
+# 畫面設定
+screen = pygame.display.set_mode((512, 768))
 pygame.display.set_caption("菜鳥調查隊日誌")
+
+# 設定視窗 icon（角色圖示）
+icon = pygame.image.load("assets/icon.png").convert_alpha()
+pygame.display.set_icon(icon)
+
 clock = pygame.time.Clock()
 
-# === 區塊定義（由上而下）===
-scene_panel = pygame.Rect(20, 20, 680, 200)
-msg_panel = pygame.Rect(20, 230, 680, 200)
-status_panel = pygame.Rect(20, 440, 340, 200)
-button_panel = pygame.Rect(360, 440, 340, 200)
-inventory_rect = pygame.Rect(20, 660, 680, 240)
-inventory_toggle_btn = pygame.Rect(600, 910, 100, 30)
+# 載入背景圖與 logo 圖（請放到 assets/）
+start_bg = pygame.image.load("assets/start_background.png")
+logo_image = pygame.image.load("assets/logo1.png").convert_alpha()
+logo_image = pygame.transform.scale(logo_image, (300, 300))
 
-# === 字型與物件 ===
-font = pygame.font.SysFont("Microsoft JhengHei", 22)
-player = Player()
-event_mgr = EventManager("story_data.json")
-background_image = pygame.image.load("starting_area.png").convert_alpha()
-background_scaled = pygame.transform.scale(
-    background_image, (scene_panel.width, scene_panel.height)
-)
-log_manager = TextLogManager(font, msg_panel)
-inventory = InventoryPanel(font, inventory_rect)
+player_image = pygame.image.load("assets/player_idle.png").convert_alpha()
+player_image = pygame.transform.scale(player_image, (96, 96))
 
-dummy_enemy = {"name": "???", "hp": 0, "max_hp": 0, "atk": 0, "desc": "未知的敵人..."}
-log_manager.add("你踏入了草原... 點擊上方背景區域以探索。", "system")
+current_enemy_image = None  # ➤ 目前事件用到的怪物圖片
 
-buttons = []
-button_rects = []
+# 字體
+FONT = pygame.font.Font("assets/Cubic_11.ttf", 20)
 
+# ➤ 等待清除事件用的旗標（在畫面更新後才清除 current_event）
+pending_clear_event = False
+log_has_been_drawn = False  # ➤ 確保 log 已畫出才清除事件
 
-def update_buttons(option_list):
-    global buttons, button_rects
-    buttons = option_list
-    button_rects.clear()
-    btn_h, spacing = 60, 10
-    for i in range(len(buttons)):
-        x = button_panel.x + 15
-        y = button_panel.y + 15 + i * (btn_h + spacing)
-        button_rects.append(pygame.Rect(x, y, button_panel.width - 30, btn_h))
+# ➤ 強制立即繪製畫面（為了馬上顯示 log 訊息）
+def force_draw_screen():
+    global log_has_been_drawn
+    text_log.scroll_to_bottom()
+    draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+    pygame.display.flip()
+    log_has_been_drawn = True
 
+# 遊戲狀態定義
+# 可擴充: start_menu, event_play, main_story, ending
+game_state = "start_menu"  # 開始畫面
+sub_state = "wait"          # 子狀態：等待點擊 or 顯示事件
+current_event = None        # 目前事件
 
-def load_next_event(event_id=None):
-    global current_event, event_active
-    current_event = (
-        event_mgr.get_event_by_id(event_id)
-        if event_id
-        else event_mgr.get_random_event()
-    )
-    if current_event:
-        event_active = True
-        if current_event["type"] == "battle":
-            log_manager.add(f"遭遇戰鬥：{current_event['enemy']['name']}！", "event")
-            result = run_battle(screen, player, current_event["enemy"], font, [])
-            outcome = (
-                current_event["win_result"]
-                if result["win"]
-                else current_event["lose_result"]
-            )
-            log_manager.add(outcome["text"], "event")
-            dummy_enemy.update(current_event["enemy"])
-            if "add_item" in outcome:
-                player.add_item(outcome["add_item"])
-                log_manager.add(f"獲得道具：{outcome['add_item']}", "gain")
-            if "fate_change" in outcome:
-                player.increase_fate(outcome["fate_change"])
-                log_manager.add(f"命運值 +{outcome['fate_change']}", "gain")
-            if "set_flag" in outcome:
-                player.set_flag(outcome["set_flag"])
-            if "ending" in outcome:
-                log_manager.add("你觸發了一個結局！", "system")
-                buttons.clear()
-            event_active = False
-        else:
-            log_manager.add(current_event["text"], "event")
-            update_buttons(current_event.get("options", []))
+# 按鈕設定
+start_button = pygame.Rect(156, 600, 200, 50)
+button_color = (70, 70, 70)
+start_text = FONT.render("開始冒險", True, (255, 255, 255))
+start_text_rect = start_text.get_rect(center=start_button.center)
+
+exit_button = pygame.Rect(156, 660, 200, 50)
+exit_text = FONT.render("離開遊戲", True, (255, 255, 255))
+exit_text_rect = exit_text.get_rect(center=exit_button.center)
 
 
-# === 開始畫面 ===
-def start_menu():
-    menu_font = pygame.font.SysFont("Microsoft JhengHei", 28)
-    title_font = pygame.font.SysFont("Microsoft JhengHei", 36, bold=True)
-    background = pygame.image.load("start_background.png").convert()
-    background = pygame.transform.scale(background, (WIDTH, HEIGHT))
+# 玩家狀態初始化
+player = init_player_state()
+inventory_open = False  # 背包是否展開
 
-    while True:
-        screen.blit(background, (0, 0))
-        title = title_font.render("菜鳥調查隊日誌", True, (255, 255, 255))
-        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
-
-        start_btn = pygame.Rect(260, 400, 200, 50)
-        quit_btn = pygame.Rect(260, 470, 200, 50)
-        mouse = pygame.mouse.get_pos()
-
-        pygame.draw.rect(
-            screen,
-            (70, 130, 220) if start_btn.collidepoint(mouse) else (60, 60, 70),
-            start_btn,
-        )
-        pygame.draw.rect(
-            screen,
-            (230, 60, 60) if quit_btn.collidepoint(mouse) else (60, 60, 70),
-            quit_btn,
-        )
-
-        draw_text(
-            screen,
-            "開始冒險",
-            (start_btn.x + 50, start_btn.y + 10),
-            (255, 255, 255),
-            menu_font,
-        )
-        draw_text(
-            screen,
-            "離開遊戲",
-            (quit_btn.x + 50, quit_btn.y + 10),
-            (255, 255, 255),
-            menu_font,
-        )
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if start_btn.collidepoint(event.pos):
-                    return
-                elif quit_btn.collidepoint(event.pos):
-                    pygame.quit()
-                    sys.exit()
-
-        pygame.display.flip()
-        clock.tick(60)
-
-
-# === 主迴圈 ===
-current_event = None
-event_active = False
+# 主迴圈
 running = True
-
-start_menu()
+pending_clear_event = False
+clear_event_timer = 0  # 新增：延遲幀數
+inventory_scroll = 0
 
 while running:
+    screen.fill((30, 30, 30))
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if scene_panel.collidepoint(event.pos) and not event_active:
-                log_manager.add("你往前邁出一步...", "system")
-                load_next_event()
-            for i, rect in enumerate(button_rects):
-                if rect.collidepoint(event.pos):
-                    option = buttons[i]
-                    if "require_item" in option and not player.has_item(
-                        option["require_item"]
-                    ):
-                        log_manager.add(
-                            f"你沒有 {option['require_item']}，無法選擇此行動。",
-                            "warning",
-                        )
-                    else:
-                        result_text, effects, next_event = event_mgr.process_option(
-                            player, option
-                        )
-                        log_manager.add(result_text, "event")
-                        for e in effects:
-                            log_manager.add(e, "event")
-                        update_buttons([])
-                        event_active = False
-                        current_event = None
-                        if next_event:
-                            load_next_event(next_event)
-            if inventory_toggle_btn.collidepoint(event.pos):
-                inventory.toggle()
-        elif event.type == pygame.MOUSEWHEEL:
-            log_manager.scroll(-event.y)
-            if inventory.visible:
-                inventory.scroll_items(-event.y, len(player.items))
 
-    screen.fill((0, 0, 0))
-    draw_scene(screen, scene_panel, background_scaled, dummy_enemy, font)
-    log_manager.draw(screen)
-    draw_status_panel(screen, status_panel, player, font)
-    draw_buttons(screen, button_rects, [opt["text"] for opt in buttons], font)
-    inventory.draw_toggle_button(screen, inventory_toggle_btn)
-    inventory.draw_panel(screen, player.items)
+        # 只允許滑鼠左鍵觸發
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if game_state == "start_menu" and start_button.collidepoint(event.pos):
+                game_state = "main_screen"
+
+            elif game_state == "start_menu" and exit_button.collidepoint(event.pos):
+                pygame.quit()
+                sys.exit()
+
+            elif game_state == "main_screen":
+                from ui_manager import UI_AREAS
+                full_rect = UI_AREAS["options"][0].unionall(UI_AREAS["options"])
+
+                # 點擊背包展開條
+                inventory_bar_rect = pygame.Rect(32, 712, 448, 24)
+                if inventory_bar_rect.collidepoint(event.pos):
+                    inventory_open = not inventory_open
+
+                # 點擊「前進」格子觸發事件
+                if sub_state == "wait" and current_event is None and full_rect.collidepoint(event.pos):
+                    from event_manager import get_random_event
+                    current_event = get_random_event(["normal", "battle", "dialogue"], player)
+                    if current_event:
+                        text_log.add(current_event["text"])
+                        text_log.scroll_to_bottom()
+
+                        # ➤ 如果事件有指定 enemy_image，就載入圖檔
+                        image_name = current_event.get("enemy_image")
+                        if image_name:
+                            current_enemy_image = pygame.image.load(f"assets/{image_name}").convert_alpha()
+                            current_enemy_image = pygame.transform.scale(current_enemy_image, (96, 96))
+                        else:
+                            current_enemy_image = None
+                    sub_state = "show_event"
+
+                # 點擊事件選項
+                elif sub_state == "show_event" and current_event and "options" in current_event:
+                    for i, rect in enumerate(UI_AREAS["options"]):
+                        if i >= len(current_event["options"]):
+                            continue
+                        if rect.collidepoint(event.pos):
+                            chosen = current_event["options"][i]
+
+                            text_log.add(f"你選擇了：{chosen['text']}")
+                            text_log.scroll_to_bottom()
+
+                            # 強制畫面刷新顯示選擇
+                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            pygame.display.flip()
+
+                            result = chosen.get("result")
+                            if result:
+                                from event_result_handler import handle_event_result
+                                handle_event_result(player, result)
+                                text_log.scroll_to_bottom()
+
+                            # 畫一次處理完的內容
+                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            pygame.display.flip()
+
+                            # ➤ 設定延遲清除旗標（下一輪才清除）
+                            pending_clear_event = True
+                            clear_event_timer = 1  # ➤ 延遲 1 frame
+                            sub_state = "after_result"
+                            break
+        
+        # 使用滾輪控制紀錄
+        elif event.type == pygame.MOUSEWHEEL:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+
+            # 滾動文字紀錄欄（滑鼠在 log 區）
+            if UI_AREAS["log"].collidepoint((mouse_x, mouse_y)):
+                if event.y > 0:
+                    text_log.scroll_up()
+                else:
+                    text_log.scroll_down()
+
+            # 滾動背包（滑鼠在背包展開區）
+            elif inventory_open:
+                max_scroll = max(len(player["inventory"]) - 5, 0)
+                if event.y > 0:
+                    player["inventory_scroll"] = max(player["inventory_scroll"] - 1, 0)
+                elif event.y < 0:
+                    player["inventory_scroll"] = min(player["inventory_scroll"] + 1, max_scroll)
+
+
+    # 畫面切換邏輯
+    if game_state == "start_menu":
+        screen.blit(start_bg, start_bg.get_rect(center=(256, 384)))
+
+        # 顯示 logo
+        screen.blit(logo_image, (100, 80))
+        
+        # 開始與離開按鈕
+        pygame.draw.rect(screen, button_color, start_button)
+        screen.blit(start_text, start_text_rect)
+
+        pygame.draw.rect(screen, button_color, exit_button)
+        screen.blit(exit_text, exit_text_rect)
+
+    # 畫面更新後的邏輯（主畫面狀態結束才清除事件）
+    elif game_state == "main_screen":
+        draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
 
     pygame.display.flip()
     clock.tick(60)
+
+    # ➤ 清除上一個事件（延遲一幀）
+    if pending_clear_event:
+        if clear_event_timer > 0:
+            clear_event_timer -= 1
+        else:
+            current_event = None
+            current_enemy_image = None
+            sub_state = "wait"
+            pending_clear_event = False
 
 pygame.quit()
 sys.exit()
