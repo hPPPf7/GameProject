@@ -10,6 +10,7 @@ nav:
 
 plugins:
   - search
+  - mermaid2
 
 extra_javascript:
   - https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js
@@ -18,10 +19,13 @@ extra_javascript:
 markdown_extensions:
   - admonition
   - tables
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_div_format
   - toc:
       permalink: true
-  - pymdownx.superfences
   - pymdownx.details
   - pymdownx.snippets
   - pymdownx.tabbed

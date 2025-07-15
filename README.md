@@ -4,9 +4,10 @@
 
 ## 產生文件
 
-安裝 MkDocs 後，可使用下列指令產生網站：
+安裝 MkDocs 相關套件後，可使用下列指令產生網站：
 
 ```bash
+pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin pymdown-extensions
 python scripts/generate_docs.py
 mkdocs serve
 ```
