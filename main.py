@@ -118,9 +118,7 @@ while running:
                 ):
                     from event_manager import get_random_event
 
-                    current_event = get_random_event(
-                        ["normal", "battle", "dialogue"], player
-                    )
+                    current_event = get_random_event(player=player)
                     if current_event:
                         text_log.add(current_event["text"])
                         text_log.scroll_to_bottom()

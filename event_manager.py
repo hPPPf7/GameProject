@@ -40,7 +40,9 @@ def is_event_condition_met(event, player):
 
 
 # 隨機取得一個事件（包含條件過濾）
-def get_random_event(event_types=["normal", "battle", "dialogue"], player=None):
+def get_random_event(
+    event_types=["normal", "battle", "dialogue", "conditional"], player=None
+):
     if player is None:
         player = {}
 
