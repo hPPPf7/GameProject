@@ -1,0 +1,17 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "ms-python.python",
+  "python.formatting.provider": "black",
+
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+
+  "files.autoSave": "off",
+  "files.trimTrailingWhitespace": true,
+
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  }
+}
