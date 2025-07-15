@@ -1,0 +1,13 @@
+site_name: GameProject Docs
+nav:
+  - Home: index.md
+  - Characters: characters.md
+  - Events: events.md
+  - Timeline: timeline.md
+plugins:
+  - search
+markdown_extensions:
+  - tables
+  - admonition
+  - toc:
+      permalink: true

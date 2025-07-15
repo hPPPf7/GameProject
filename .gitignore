@@ -8,3 +8,4 @@ __pycache__/
 
 # 忽略 VS Code 使用者設定（選擇性）
 .vscode/
+site/
