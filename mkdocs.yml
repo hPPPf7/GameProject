@@ -1,13 +1,19 @@
-site_name: GameProject Docs
+site_name: GameProject 文件
+theme:
+  name: material
 nav:
-  - Home: index.md
-  - Characters: characters.md
-  - Events: events.md
-  - Timeline: timeline.md
+  - 首頁: index.md
+  - 角色: characters.md
+  - 事件: events.md
+  - 時間線: timeline.md
+  - 流程圖: flowchart.md
+
 plugins:
   - search
+
 markdown_extensions:
-  - tables
   - admonition
+  - tables
+  - pymdownx.superfences
   - toc:
       permalink: true
