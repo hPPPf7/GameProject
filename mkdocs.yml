@@ -11,9 +11,27 @@ nav:
 plugins:
   - search
 
+extra_javascript:
+  - https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js
+  - js/enable-mermaid.js
+
 markdown_extensions:
   - admonition
   - tables
   - pymdownx.superfences
   - toc:
       permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.snippets
+  - pymdownx.tabbed
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.tasklist
+  - pymdownx.caret
+  - pymdownx.tilde
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.emoji
+  - pymdownx.betterem
