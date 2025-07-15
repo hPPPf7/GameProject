@@ -86,4 +86,110 @@
       }
     ]
   }
+  ,
+  {
+    "id": "EV-001",
+    "type": "conditional",
+    "condition": { "sanity": "S0" },
+    "text": "你在村莊的簡報室收到任務指示。",
+    "options": [
+      {
+        "text": "認真聽講",
+        "result": { "text": "你獲得了基礎情資。", "effect": { "fate": 1 } }
+      },
+      {
+        "text": "心不在焉",
+        "result": { "text": "你沒怎麼聽懂內容。", "effect": {} }
+      }
+    ]
+  },
+  {
+    "id": "EV-007",
+    "type": "conditional",
+    "condition": { "sanity_in": ["S1", "S2"] },
+    "text": "你靠近村莊東牆，似乎聽見裂縫中的細語。",
+    "options": [
+      {
+        "text": "靠近傾聽",
+        "result": {
+          "text": "聲音讓你不寒而慄。",
+          "sanity_change": "S2",
+         "effect": { "fate": 1 },
+          "flag_set": "flag_WhisperTrigger"
+        }
+      },
+      {
+        "text": "遠離此地",
+        "result": { "text": "你決定裝作沒聽到。", "effect": {} }
+      }
+    ]
+  },
+  {
+    "id": "EV-021",
+    "type": "conditional",
+    "condition": { "sanity": "S2" },
+    "text": "鏡中映出不同樣貌的自己正凝視著你。",
+    "options": [
+      {
+        "text": "伸手觸碰鏡中人",
+        "result": {
+          "text": "冰冷的觸感讓你更加迷惘。",
+          "sanity_change": "S2",
+          "flag_set": "flag_seen_mirror_self"
+        }
+      },
+      {
+        "text": "大叫逃離",
+         "result": { "text": "你慌張地跑出屋外。", "sanity_change": "S1", "flag_set": "flag_seen_mirror_self" }
+      }
+    ]
+  },
+  {
+    "id": "EV-025",
+    "type": "conditional",
+    "condition": { "sanity": "S2", "flag_true": "flag_seen_mirror_self" },
+    "text": "你聽見自己的聲音在耳邊反覆低語。",
+    "options": [
+      {
+        "text": "閉上眼睛",
+        "result": { "text": "聲音沒有停止，你感到意識模糊。", "sanity_change": "S2" }
+      },
+      {
+        "text": "大喊住口",
+        "result": { "text": "短暫的安靜後，一切更混亂。", "sanity_change": "S2" }
+      }
+    ]
+  },
+  {
+    "id": "EV-014",
+    "type": "conditional",
+    "condition": { "sanity": "S1", "flag_true": "flag_trust_made" },
+    "text": "村民忽然不斷重複同一句話。",
+    "options": [
+      {
+        "text": "跟著他說",
+        "result": { "text": "你模仿他的語氣，開始分不清現實。", "sanity_change": "S2" }
+      },
+      {
+        "text": "質疑他",
+        "result": { "text": "他僵硬地停下動作。", "effect": {} }
+      }
+    ]
+  },
+  {
+    "id": "EV-016",
+    "type": "conditional",
+    "condition": { "sanity_in": ["S1", "S2"], "flag_true": "flag_WhisperTrigger" },
+    "text": "湖面傳來與你相似的聲音在回響。",
+    "options": [
+      {
+        "text": "回應聲音",
+        "result": { "text": "回音與你交談，你感到背脊發涼。", "sanity_change": "S2" }
+      },
+      {
+        "text": "無視離開",
+        "result": { "text": "你試著走遠，但聲音仍在腦中盤旋。", "effect": {} }
+      }
+    ]
+  }
 ]

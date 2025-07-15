@@ -6,6 +6,7 @@ nav:
   - 操作說明: controls.md
   - 角色: characters.md
   - 事件: events.md
+  - Sanity 與 Flag: sanity_flags.md
   - 遊戲畫面: ui.md
   - 地圖進程: maps.md
   - 時間線: timeline.md

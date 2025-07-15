@@ -3,6 +3,7 @@
 
 import text_log
 
+
 def handle_event_result(player, result):
     """
     根據事件選項中的 result 欄位對 player 狀態進行變更。
@@ -38,10 +39,28 @@ def handle_event_result(player, result):
                     msg = f"{label} {sign}{value} → {player[key]}"
                     text_log.add(msg)
 
-                print(f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}")
+                print(
+                    f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}"
+                )
 
     # 額外處理：加入道具
     if "inventory_add" in result:
         item = result["inventory_add"]
         player["inventory"].append(item)
         text_log.add(f"你獲得了道具：{item}")
+
+    # 更新旗標（可單一字串或 {name: value} 形式）
+    if "flag_set" in result:
+        flags = result["flag_set"]
+        if isinstance(flags, dict):
+            for name, val in flags.items():
+                player.setdefault("flags", {})[name] = val
+        else:
+            player.setdefault("flags", {})[flags] = True
+
+    # Sanity 狀態調整
+    if "sanity_change" in result:
+        new_state = result["sanity_change"]
+        if new_state in ["S0", "S1", "S2"]:
+            player["sanity"] = new_state
+            text_log.add(f"Sanity 變為 {new_state}")
