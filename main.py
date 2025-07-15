@@ -38,19 +38,30 @@ FONT = pygame.font.Font("assets/Cubic_11.ttf", 20)
 pending_clear_event = False
 log_has_been_drawn = False  # ➤ 確保 log 已畫出才清除事件
 
+
 # ➤ 強制立即繪製畫面（為了馬上顯示 log 訊息）
 def force_draw_screen():
     global log_has_been_drawn
     text_log.scroll_to_bottom()
-    draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+    draw_main_ui(
+        screen,
+        player,
+        FONT,
+        current_event,
+        sub_state,
+        player_image,
+        current_enemy_image,
+        inventory_open,
+    )
     pygame.display.flip()
     log_has_been_drawn = True
+
 
 # 遊戲狀態定義
 # 可擴充: start_menu, event_play, main_story, ending
 game_state = "start_menu"  # 開始畫面
-sub_state = "wait"          # 子狀態：等待點擊 or 顯示事件
-current_event = None        # 目前事件
+sub_state = "wait"  # 子狀態：等待點擊 or 顯示事件
+current_event = None  # 目前事件
 
 # 按鈕設定
 start_button = pygame.Rect(156, 600, 200, 50)
@@ -91,6 +102,7 @@ while running:
 
             elif game_state == "main_screen":
                 from ui_manager import UI_AREAS
+
                 full_rect = UI_AREAS["options"][0].unionall(UI_AREAS["options"])
 
                 # 點擊背包展開條
@@ -99,9 +111,16 @@ while running:
                     inventory_open = not inventory_open
 
                 # 點擊「前進」格子觸發事件
-                if sub_state == "wait" and current_event is None and full_rect.collidepoint(event.pos):
+                if (
+                    sub_state == "wait"
+                    and current_event is None
+                    and full_rect.collidepoint(event.pos)
+                ):
                     from event_manager import get_random_event
-                    current_event = get_random_event(["normal", "battle", "dialogue"], player)
+
+                    current_event = get_random_event(
+                        ["normal", "battle", "dialogue"], player
+                    )
                     if current_event:
                         text_log.add(current_event["text"])
                         text_log.scroll_to_bottom()
@@ -109,14 +128,22 @@ while running:
                         # ➤ 如果事件有指定 enemy_image，就載入圖檔
                         image_name = current_event.get("enemy_image")
                         if image_name:
-                            current_enemy_image = pygame.image.load(f"assets/{image_name}").convert_alpha()
-                            current_enemy_image = pygame.transform.scale(current_enemy_image, (96, 96))
+                            current_enemy_image = pygame.image.load(
+                                f"assets/{image_name}"
+                            ).convert_alpha()
+                            current_enemy_image = pygame.transform.scale(
+                                current_enemy_image, (96, 96)
+                            )
                         else:
                             current_enemy_image = None
                     sub_state = "show_event"
 
                 # 點擊事件選項
-                elif sub_state == "show_event" and current_event and "options" in current_event:
+                elif (
+                    sub_state == "show_event"
+                    and current_event
+                    and "options" in current_event
+                ):
                     for i, rect in enumerate(UI_AREAS["options"]):
                         if i >= len(current_event["options"]):
                             continue
@@ -127,17 +154,36 @@ while running:
                             text_log.scroll_to_bottom()
 
                             # 強制畫面刷新顯示選擇
-                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            draw_main_ui(
+                                screen,
+                                player,
+                                FONT,
+                                current_event,
+                                sub_state,
+                                player_image,
+                                current_enemy_image,
+                                inventory_open,
+                            )
                             pygame.display.flip()
 
                             result = chosen.get("result")
                             if result:
                                 from event_result_handler import handle_event_result
+
                                 handle_event_result(player, result)
                                 text_log.scroll_to_bottom()
 
                             # 畫一次處理完的內容
-                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            draw_main_ui(
+                                screen,
+                                player,
+                                FONT,
+                                current_event,
+                                sub_state,
+                                player_image,
+                                current_enemy_image,
+                                inventory_open,
+                            )
                             pygame.display.flip()
 
                             # ➤ 設定延遲清除旗標（下一輪才清除）
@@ -145,7 +191,7 @@ while running:
                             clear_event_timer = 1  # ➤ 延遲 1 frame
                             sub_state = "after_result"
                             break
-        
+
         # 使用滾輪控制紀錄
         elif event.type == pygame.MOUSEWHEEL:
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -163,8 +209,9 @@ while running:
                 if event.y > 0:
                     player["inventory_scroll"] = max(player["inventory_scroll"] - 1, 0)
                 elif event.y < 0:
-                    player["inventory_scroll"] = min(player["inventory_scroll"] + 1, max_scroll)
-
+                    player["inventory_scroll"] = min(
+                        player["inventory_scroll"] + 1, max_scroll
+                    )
 
     # 畫面切換邏輯
     if game_state == "start_menu":
@@ -172,7 +219,7 @@ while running:
 
         # 顯示 logo
         screen.blit(logo_image, (100, 80))
-        
+
         # 開始與離開按鈕
         pygame.draw.rect(screen, button_color, start_button)
         screen.blit(start_text, start_text_rect)
@@ -182,7 +229,16 @@ while running:
 
     # 畫面更新後的邏輯（主畫面狀態結束才清除事件）
     elif game_state == "main_screen":
-        draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+        draw_main_ui(
+            screen,
+            player,
+            FONT,
+            current_event,
+            sub_state,
+            player_image,
+            current_enemy_image,
+            inventory_open,
+        )
 
     pygame.display.flip()
     clock.tick(60)
