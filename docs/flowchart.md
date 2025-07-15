@@ -2,6 +2,11 @@
 
 ```mermaid
 graph TD
+    classDef startEnd fill:#f5f5f5,stroke:#333,stroke-width:2px;
+    classDef mainNode fill:#d0e6ff,stroke:#333,stroke-width:2px;
+    classDef decision fill:#ffe0b2,stroke:#333,stroke-width:2px;
+    classDef action fill:#dcedc8,stroke:#333,stroke-width:2px;
+
     S((起點)) --> M[進入遊戲主畫面]
     M --> click[點擊前進按鈕]
     click --> event{隨機事件}
@@ -22,6 +27,11 @@ graph TD
     ending --> replay{再次遊玩?}
     replay -- 是 --> M
     replay -- 否 --> E((結束))
+
+    class S,E startEnd
+    class M,mainline,ending mainNode
+    class event,story,endingCheck,replay decision
+    class normal,battle,dialogue,cond,process action
 ```
 
 此流程圖以 Mermaid 繪製，描繪遊戲從起點到結局的主要循環與判定。
