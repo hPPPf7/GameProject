@@ -30,6 +30,17 @@ def write_characters_md(characters):
             f.write("| " + " | ".join(str(char.get(k, "")) for k in keys) + " |\n")
 
 
+def _format_result_details(result):
+    """Combine effect and other result fields into a readable string."""
+    effect = result.get("effect") or {}
+    others = {k: v for k, v in result.items() if k not in {"text", "effect"}}
+    parts = []
+    if effect:
+        parts.extend(f"{k}:{v}" for k, v in effect.items())
+    parts.extend(f"{k}:{v}" for k, v in others.items())
+    return "; ".join(parts)
+
+
 def write_events_md(events):
     out = DOCS_DIR / "events.md"
     with open(out, "w", encoding="utf-8") as f:
@@ -37,16 +48,26 @@ def write_events_md(events):
         if not events:
             f.write("尚未提供事件資料。\n")
             return
-        headers = ["id", "type", "text"]
-        f.write("| " + " | ".join(headers) + " |\n")
-        f.write("| " + " | ".join(["---"] * len(headers)) + " |\n")
+
         for ev in events:
-            row = [ev.get(h, "") for h in headers]
-            row[2] = row[2].replace("|", "\|")  # escape pipes
-            f.write("| " + " | ".join(row) + " |\n")
+            f.write(f"## {ev.get('id', '')} ({ev.get('type', '')})\n\n")
+            f.write(ev.get("text", "") + "\n\n")
+            cond = ev.get("condition")
+            if cond:
+                f.write("**條件**: " + json.dumps(cond, ensure_ascii=False) + "\n\n")
+
+            f.write("| 選項 | 結果 | 影響 |\n")
+            f.write("| --- | --- | --- |\n")
+            for opt in ev.get("options", []):
+                opt_text = str(opt.get("text", "")).replace("|", "\\|")
+                result = opt.get("result", {})
+                res_text = str(result.get("text", "")).replace("|", "\\|")
+                details = _format_result_details(result).replace("|", "\\|")
+                f.write(f"| {opt_text} | {res_text} | {details} |\n")
+            f.write("\n")
 
 
-def write_timeline_md(events):
+def write_timeline_md(events, source_name="data/events.json"):
     out = DOCS_DIR / "timeline.md"
     with open(out, "w", encoding="utf-8") as f:
         f.write("# 劇情流程\n\n")
@@ -63,15 +84,22 @@ def write_timeline_md(events):
         if not events:
             f.write("    start((Start))\n")
         f.write("```\n")
-        f.write("\n此圖可依 `data/events.json` 進行擴充。\n")
+        f.write(f"\n此圖可依 `{source_name}` 進行擴充。\n")
 
 
 def main():
     characters = load_json(DATA_DIR / "characters.json")
-    events = load_json(DATA_DIR / "events.json")
+
+    # Prefer events.json if it exists, otherwise fall back to story_data.json
+    events_path = DATA_DIR / "events.json"
+    if not events_path.exists():
+        events_path = DATA_DIR / "story_data.json"
+
+    events = load_json(events_path)
+
     write_characters_md(characters)
     write_events_md(events)
-    write_timeline_md(events)
+    write_timeline_md(events, str(events_path.relative_to(ROOT)))
 
 
 if __name__ == "__main__":

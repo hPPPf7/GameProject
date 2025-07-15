@@ -1,35 +1,68 @@
 # 劇情事件
 
-以下展示一組 **事件設計範例**，透過 Mermaid 繪製成簡易流程圖，方便在網站中檢視。實際遊戲事件可參考 `data/story_data.json` 進行擴充。
+## EV-001 (conditional)
 
-## 普通事件
+你在村莊的簡報室收到任務指示。
 
-```mermaid
-graph TD
-    A[你在荒野中撿到一個奇怪的石頭] -->|撿起來| B[獲得：奇怪的石頭]
-    A -->|無視它| C[繼續前進]
-```
+**條件**: {"sanity": "S0"}
 
-## 戰鬥事件
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 認真聽講 | 你獲得了基礎情資。 | fate:1 |
+| 心不在焉 | 你沒怎麼聽懂內容。 |  |
 
-```mermaid
-graph TD
-    D[一隻小型魔物突然出現] -->|攻擊| E[HP -2，命運值 +1]
-    D -->|逃跑| F[HP -1，命運值 +1]
-```
+## EV-007 (conditional)
 
-## 對話事件
+你靠近村莊東牆，似乎聽見裂縫中的細語。
 
-```mermaid
-graph TD
-    G[你遇到一位喃喃自語的村民] -->|仔細傾聽| H[命運值 +1]
-    G -->|打斷他| I[命運值 -1]
-```
+**條件**: {"sanity_in": ["S1", "S2"]}
 
-## 條件事件（命運值需求：2）
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 靠近傾聽 | 聲音讓你不寒而慄。 | fate:1; sanity_change:S2; flag_set:flag_WhisperTrigger |
+| 遠離此地 | 你決定裝作沒聽到。 |  |
 
-```mermaid
-graph TD
-    J[你感應到附近藏有神秘力量] -->|嘗試共鳴| K[攻擊力 +1]
-    J -->|保持距離| L[離開此區域]
-```
+## EV-021 (conditional)
+
+鏡中映出不同樣貌的自己正凝視著你。
+
+**條件**: {"sanity": "S2"}
+
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 伸手觸碰鏡中人 | 冰冷的觸感讓你更加迷惘。 | sanity_change:S2; flag_set:flag_seen_mirror_self |
+| 大叫逃離 | 你慌張地跑出屋外。 | sanity_change:S1; flag_set:flag_seen_mirror_self |
+
+## EV-025 (conditional)
+
+你聽見自己的聲音在耳邊反覆低語。
+
+**條件**: {"sanity": "S2", "flag_true": "flag_seen_mirror_self"}
+
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 閉上眼睛 | 聲音沒有停止，你感到意識模糊。 | sanity_change:S2 |
+| 大喊住口 | 短暫的安靜後，一切更混亂。 | sanity_change:S2 |
+
+## EV-014 (conditional)
+
+村民忽然不斷重複同一句話。
+
+**條件**: {"sanity": "S1", "flag_true": "flag_trust_made"}
+
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 跟著他說 | 你模仿他的語氣，開始分不清現實。 | sanity_change:S2 |
+| 質疑他 | 他僵硬地停下動作。 |  |
+
+## EV-016 (conditional)
+
+湖面傳來與你相似的聲音在回響。
+
+**條件**: {"sanity_in": ["S1", "S2"], "flag_true": "flag_WhisperTrigger"}
+
+| 選項 | 結果 | 影響 |
+| --- | --- | --- |
+| 回應聲音 | 回音與你交談，你感到背脊發涼。 | sanity_change:S2 |
+| 無視離開 | 你試著走遠，但聲音仍在腦中盤旋。 |  |
+
