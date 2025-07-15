@@ -15,6 +15,27 @@
       }
     ]
   },
+  {
+    "id": "EV-002",
+    "type": "conditional",
+    "condition": { "step_min": 2, "sanity": "S0", "flag_false": "flag_seen_welcome" },
+    "text": "你抵達米瑞村的北門口。天氣晴朗，卻聽見清晰的雨聲。路邊石碑寫著：\"歡迎回來\"。",
+    "options": [
+      {
+        "text": "拍照記錄異常情況",
+        "result": { "text": "你留下了照片作為紀錄。", "effect": { "fate": 1, "inventory_add": "異常紀錄 - 村口雨聲" }, "flag_set": { "flag_seen_welcome": true } }
+      },
+      {
+        "text": "忽略它，直接進村",
+        "result": { "text": "你決定暫時不理會，繼續前進。", "effect": {} }
+      },
+      {
+        "text": "觸摸石碑",
+        "condition": { "sanity": "S0" },
+        "result": { "text": "石碑溫熱得像剛被摸過，雨聲彷彿落在腦中。", "sanity_change": "S1", "effect": { "fate": 2 }, "flag_set": { "flag_welcome_contact": true } }
+      }
+    ]
+  },
    {
     "id": "EV-003",
     "type": "conditional",
