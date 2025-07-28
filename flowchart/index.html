@@ -5,11 +5,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="../maps/" rel="prev"/>
-<link href="../flowchart/" rel="next"/>
+<link href="../timeline/" rel="prev"/>
+<link href="../true_ending/" rel="next"/>
 <link href="../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.6.15" name="generator"/>
-<title>時間線 - GameProject 文件</title>
+<title>流程圖 - GameProject 文件</title>
 <link href="../assets/stylesheets/main.342714a4.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              時間線
+              流程圖
             
           </span>
 </div>
@@ -146,22 +146,44 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
-<a class="md-nav__link md-nav__link--active" href="./">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../timeline/">
 <span class="md-ellipsis">
     時間線
     
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../flowchart/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    流程圖
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     流程圖
     
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      流程圖符號說明
+    </span>
+</a>
+</li>
+</ul>
+</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="../true_ending/">
@@ -196,23 +218,69 @@
 <div class="md-sidebar__scrollwrap">
 <div class="md-sidebar__inner">
 <nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      流程圖符號說明
+    </span>
+</a>
+</li>
+</ul>
 </nav>
 </div>
 </div>
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="_1">劇情流程<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h1 id="_1">遊戲流程圖<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
 <div class="mermaid">graph TD
-    start((Start)) --&gt; E1['EV-001']
-    E1['EV-001'] --&gt; E2['EV-002']
-    E2['EV-002'] --&gt; E3['EV-003']
-    E3['EV-003'] --&gt; E4['EV-007']
-    E4['EV-007'] --&gt; E5['EV-021']
-    E5['EV-021'] --&gt; E6['EV-025']
-    E6['EV-025'] --&gt; E7['EV-014']
-    E7['EV-014'] --&gt; E8['EV-016']</div>
-<p>此圖可依 <code>data/story_data.json</code> 進行擴充。</p>
+    classDef startEnd fill:#f5f5f5,stroke:#333,stroke-width:2px;
+    classDef mainNode fill:#d0e6ff,stroke:#333,stroke-width:2px;
+    classDef decision fill:#ffe0b2,stroke:#333,stroke-width:2px;
+    classDef action fill:#dcedc8,stroke:#333,stroke-width:2px;
+    classDef button fill:#e1bee7,stroke:#333,stroke-width:2px;
+
+    S((開始遊戲)) --&gt; M[進入遊戲主畫面]
+    M --&gt; Click[點擊前進按鈕]
+    Click --&gt; EvDraw{隨機事件抽選}
+    EvDraw --&gt; EvNormal[普通事件]
+    EvDraw --&gt; EvBattle[戰鬥事件]
+    EvDraw --&gt; EvDialogue[對話事件]
+    EvDraw --&gt; EvCond[條件事件]
+    EvNormal --&gt; Process[處理事件結果（紀錄訊息）]
+    EvBattle --&gt; Process
+    EvDialogue --&gt; Process
+    EvCond --&gt; Process
+    Process --&gt; StoryCheck{檢查主線條件是否達成}
+    StoryCheck -- 否 --&gt; Click
+    StoryCheck -- 是 --&gt; Mainline[觸發主線劇情]
+    Mainline --&gt; EndingCheck{進入結局條件判定}
+    EndingCheck -- 否 --&gt; Click
+    EndingCheck -- 是 --&gt; Ending[進入結局劇情]
+    Ending --&gt; ReplayCheck{是否再次遊玩（可解鎖提示模式）}
+    ReplayCheck -- 是 --&gt; M
+    ReplayCheck -- 否 --&gt; E((結束遊戲))
+
+    class S,E startEnd
+    class M,Mainline,Ending mainNode
+    class EvDraw,StoryCheck,EndingCheck,ReplayCheck decision
+    class EvNormal,EvBattle,EvDialogue,EvCond,Process action
+    class Click button</div>
+<p>此流程圖以 Mermaid 繪製，描繪遊戲從起點(開始遊戲)到結局(結束遊戲)的主要循環與判定。</p>
+<h2 id="_2">流程圖符號說明<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>startEnd</strong>（灰色圓形）：起點與結束</li>
+<li><strong>mainNode</strong>（藍色方框）：主流程或主線劇情</li>
+<li><strong>action</strong>（淺綠方框）：一般操作或事件處理</li>
+<li><strong>decision</strong>（黃色菱形）：條件判斷或流程分支</li>
+<li><strong>button</strong>（淡紫方框）：玩家互動按鈕（例如「點擊前進按鈕」）</li>
+</ul>
+<p>以上顏色與形狀對應於圖中的 <code>classDef</code> 設定，可協助快速辨識各節點類型。</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>

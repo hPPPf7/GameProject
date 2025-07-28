@@ -5,11 +5,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="../maps/" rel="prev"/>
-<link href="../flowchart/" rel="next"/>
+<link href="../true_ending/" rel="prev"/>
+<link href="../references/" rel="next"/>
 <link href="../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.6.15" name="generator"/>
-<title>時間線 - GameProject 文件</title>
+<title>開發工具 - GameProject 文件</title>
 <link href="../assets/stylesheets/main.342714a4.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              時間線
+              開發工具
             
           </span>
 </div>
@@ -146,9 +146,8 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
-<a class="md-nav__link md-nav__link--active" href="./">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../timeline/">
 <span class="md-ellipsis">
     時間線
     
@@ -171,8 +170,9 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../dev_tools/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     開發工具
     
@@ -202,17 +202,34 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="_1">劇情流程<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
-<div class="mermaid">graph TD
-    start((Start)) --&gt; E1['EV-001']
-    E1['EV-001'] --&gt; E2['EV-002']
-    E2['EV-002'] --&gt; E3['EV-003']
-    E3['EV-003'] --&gt; E4['EV-007']
-    E4['EV-007'] --&gt; E5['EV-021']
-    E5['EV-021'] --&gt; E6['EV-025']
-    E6['EV-025'] --&gt; E7['EV-014']
-    E7['EV-014'] --&gt; E8['EV-016']</div>
-<p>此圖可依 <code>data/story_data.json</code> 進行擴充。</p>
+<h1 id="_1">開發工具<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>遊戲開發過程中使用的主要工具如下：</p>
+<table>
+<thead>
+<tr>
+<th>工具名稱</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ChatGPT</td>
+<td>劇情撰寫、事件設計與圖像生成協助，提供內容發想與輔助素材。</td>
+</tr>
+<tr>
+<td>Python（搭配 Pygame 套件）</td>
+<td>遊戲主程式開發語言，實作畫面顯示、互動與邏輯流程。</td>
+</tr>
+<tr>
+<td>Visual Studio Code（VS Code）</td>
+<td>開發用程式編輯器，搭配 Git 管理版本與整合模組。</td>
+</tr>
+<tr>
+<td>Pixel Studio - pixel art editor</td>
+<td>製作像素風角色與場景的繪圖工具。</td>
+</tr>
+</tbody>
+</table>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -240,5 +257,5 @@
 <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
 <script src="https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js"></script>
 <script src="../js/enable-mermaid.js"></script>
-<script>mermaid.initialize({});</script></body>
+</body>
 </html>

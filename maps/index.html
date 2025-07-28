@@ -5,11 +5,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="../maps/" rel="prev"/>
-<link href="../flowchart/" rel="next"/>
+<link href="../ui/" rel="prev"/>
+<link href="../timeline/" rel="next"/>
 <link href="../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.6.15" name="generator"/>
-<title>時間線 - GameProject 文件</title>
+<title>地圖進程 - GameProject 文件</title>
 <link href="../assets/stylesheets/main.342714a4.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              時間線
+              地圖進程
             
           </span>
 </div>
@@ -138,17 +138,17 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../maps/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     地圖進程
     
   </span>
 </a>
 </li>
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
-<a class="md-nav__link md-nav__link--active" href="./">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../timeline/">
 <span class="md-ellipsis">
     時間線
     
@@ -202,17 +202,15 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="_1">劇情流程<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
-<div class="mermaid">graph TD
-    start((Start)) --&gt; E1['EV-001']
-    E1['EV-001'] --&gt; E2['EV-002']
-    E2['EV-002'] --&gt; E3['EV-003']
-    E3['EV-003'] --&gt; E4['EV-007']
-    E4['EV-007'] --&gt; E5['EV-021']
-    E5['EV-021'] --&gt; E6['EV-025']
-    E6['EV-025'] --&gt; E7['EV-014']
-    E7['EV-014'] --&gt; E8['EV-016']</div>
-<p>此圖可依 <code>data/story_data.json</code> 進行擴充。</p>
+<h1 id="_1">地圖進程<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>本遊戲採「探索解鎖式」進程，玩家從初始區域出發，逐步觸發事件、推進劇情與開放新地圖。</p>
+<p>每張地圖具獨立事件池與主題段落，包含：</p>
+<ul>
+<li>對應風格的隨機事件</li>
+<li>主線／支線劇情觸發條件</li>
+<li>特殊事件與角色出現機會</li>
+</ul>
+<p>劇情將依探索選擇進入多重結局，地圖模組可彈性擴充。</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -240,5 +238,5 @@
 <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
 <script src="https://unpkg.com/mermaid@10.4.0/dist/mermaid.min.js"></script>
 <script src="../js/enable-mermaid.js"></script>
-<script>mermaid.initialize({});</script></body>
+</body>
 </html>
