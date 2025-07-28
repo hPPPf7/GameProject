@@ -2,7 +2,6 @@
   {
     "id": "EV-001",
     "type": "conditional",
-    "condition": { "sanity": "S0" },
     "text": "你在村莊的簡報室收到任務指示。",
     "options": [
       {
@@ -18,7 +17,7 @@
   {
     "id": "EV-002",
     "type": "conditional",
-    "condition": { "step_min": 2, "sanity": "S0", "flag_false": "flag_seen_welcome" },
+    "condition": { "step_min": 2, "flag_false": "flag_seen_welcome" },
     "text": "你抵達米瑞村的北門口。天氣晴朗，卻聽見清晰的雨聲。路邊石碑寫著：\"歡迎回來\"。",
     "options": [
       {
@@ -31,8 +30,7 @@
       },
       {
         "text": "觸摸石碑",
-        "condition": { "sanity": "S0" },
-        "result": { "text": "石碑溫熱得像剛被摸過，雨聲彷彿落在腦中。", "sanity_change": "S1", "effect": { "fate": 2 }, "flag_set": { "flag_welcome_contact": true } }
+        "result": { "text": "石碑溫熱得像剛被摸過，雨聲彷彿落在腦中。", "effect": { "fate": 2 }, "flag_set": { "flag_welcome_contact": true } }
       }
     ]
   },
@@ -60,10 +58,8 @@
       },
       {
         "text": "吃掉他的聲音",
-        "condition": { "sanity_in": ["S2"] },
         "result": {
           "text": "畫面扭曲，村民化為模糊幻影，你陷入短暫失憶。",
-          "sanity_change": "S2",
           "flag_set": { "flag_heard_watcher_words": true }
         }
       }
@@ -72,15 +68,13 @@
   {
     "id": "EV-007",
     "type": "conditional",
-    "condition": { "sanity_in": ["S1", "S2"] },
     "text": "你靠近村莊東牆，似乎聽見裂縫中的細語。",
     "options": [
       {
         "text": "靠近傾聽",
         "result": {
           "text": "聲音讓你不寒而慄。",
-          "sanity_change": "S2",
-         "effect": { "fate": 1 },
+          "effect": { "fate": 1 },
           "flag_set": "flag_WhisperTrigger"
         }
       },
@@ -93,48 +87,46 @@
   {
     "id": "EV-021",
     "type": "conditional",
-    "condition": { "sanity": "S2" },
     "text": "鏡中映出不同樣貌的自己正凝視著你。",
     "options": [
       {
         "text": "伸手觸碰鏡中人",
         "result": {
           "text": "冰冷的觸感讓你更加迷惘。",
-          "sanity_change": "S2",
           "flag_set": "flag_seen_mirror_self"
         }
       },
       {
         "text": "大叫逃離",
-         "result": { "text": "你慌張地跑出屋外。", "sanity_change": "S1", "flag_set": "flag_seen_mirror_self" }
+        "result": { "text": "你慌張地跑出屋外。", "flag_set": "flag_seen_mirror_self" }
       }
     ]
   },
   {
     "id": "EV-025",
     "type": "conditional",
-    "condition": { "sanity": "S2", "flag_true": "flag_seen_mirror_self" },
+    "condition": { "flag_true": "flag_seen_mirror_self" },
     "text": "你聽見自己的聲音在耳邊反覆低語。",
     "options": [
       {
         "text": "閉上眼睛",
-        "result": { "text": "聲音沒有停止，你感到意識模糊。", "sanity_change": "S2" }
+        "result": { "text": "聲音沒有停止，你感到意識模糊。" }
       },
       {
         "text": "大喊住口",
-        "result": { "text": "短暫的安靜後，一切更混亂。", "sanity_change": "S2" }
+        "result": { "text": "短暫的安靜後，一切更混亂。" }
       }
     ]
   },
   {
     "id": "EV-014",
     "type": "conditional",
-    "condition": { "sanity": "S1", "flag_true": "flag_trust_made" },
+    "condition": { "flag_true": "flag_trust_made" },
     "text": "村民忽然不斷重複同一句話。",
     "options": [
       {
         "text": "跟著他說",
-        "result": { "text": "你模仿他的語氣，開始分不清現實。", "sanity_change": "S2" }
+        "result": { "text": "你模仿他的語氣，開始分不清現實。" }
       },
       {
         "text": "質疑他",
@@ -145,12 +137,12 @@
   {
     "id": "EV-016",
     "type": "conditional",
-    "condition": { "sanity_in": ["S1", "S2"], "flag_true": "flag_WhisperTrigger" },
+    "condition": { "flag_true": "flag_WhisperTrigger" },
     "text": "湖面傳來與你相似的聲音在回響。",
     "options": [
       {
         "text": "回應聲音",
-        "result": { "text": "回音與你交談，你感到背脊發涼。", "sanity_change": "S2" }
+        "result": { "text": "回音與你交談，你感到背脊發涼。" }
       },
       {
         "text": "無視離開",

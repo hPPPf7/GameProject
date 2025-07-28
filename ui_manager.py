@@ -61,7 +61,7 @@ def draw_main_ui(
     log_messages = text_log.get_visible_logs()
     max_lines = 9
     for i, line in enumerate(log_messages[:max_lines]):
-        if any(word in line for word in ["HP", "ATK", "DEF", "fate", "SANITY"]):
+        if any(word in line for word in ["HP", "ATK", "DEF", "fate"]):
             draw_text(
                 screen,
                 line,
@@ -71,8 +71,8 @@ def draw_main_ui(
                 line_offset=i,
                 color=(255, 80, 80),
             )  # 紅色
-        else:
-            draw_text(screen, line, UI_AREAS["log"], font, center=False, line_offset=i)
+    else:
+        draw_text(screen, line, UI_AREAS["log"], font, center=False, line_offset=i)
 
     # 畫數值欄
     pygame.draw.rect(screen, COLORS["status"], UI_AREAS["status"])
@@ -80,7 +80,6 @@ def draw_main_ui(
         f"HP: {player['hp']}",
         f"ATK: {player['atk']}",
         f"DEF: {player['def']}",
-        f"SANITY: {player.get('sanity', 'S0')}",
         f"FATE: {player.get('fate', 0)}",
     ]
     for i, line in enumerate(lines):

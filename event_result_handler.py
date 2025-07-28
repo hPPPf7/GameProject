@@ -57,10 +57,3 @@ def handle_event_result(player, result):
                 player.setdefault("flags", {})[name] = val
         else:
             player.setdefault("flags", {})[flags] = True
-
-    # Sanity 狀態調整
-    if "sanity_change" in result:
-        new_state = result["sanity_change"]
-        if new_state in ["S0", "S1", "S2"]:
-            player["sanity"] = new_state
-            text_log.add(f"Sanity 變為 {new_state}")

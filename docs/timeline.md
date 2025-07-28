@@ -12,4 +12,4 @@ graph TD
     E7['EV-014'] --> E8['EV-016']
 ```
 
-此圖可依 `data\story_data.json` 進行擴充。
+此圖可依 `data/story_data.json` 進行擴充。

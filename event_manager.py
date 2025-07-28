@@ -25,12 +25,6 @@ def _is_condition_met(condition, player):
     if "step_min" in condition and player.get("steps", 0) < condition["step_min"]:
         return False
 
-    # Sanity 狀態必須符合
-    if "sanity" in condition and player.get("sanity") != condition["sanity"]:
-        return False
-    if "sanity_in" in condition and player.get("sanity") not in condition["sanity_in"]:
-        return False
-
     # 指定旗標需為 True
     if "flag_true" in condition:
         flag = condition["flag_true"]

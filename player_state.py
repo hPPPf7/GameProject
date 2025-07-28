@@ -5,7 +5,6 @@ def init_player_state():
         "atk": 5,  # 攻擊力
         "def": 3,  # 防禦力
         "inventory": [],  # 背包
-        "sanity": "S0",  # 理智狀態：S0 穩定 / S1 不穩定 / S2 崩潰
         # 隱性數值
         "fate": 0,  # 命運值：影響主線進度、分支與結局觸發
         "flags": {},  # 條件旗標（例如某角色是否出現過）例如 {"met_mysterious_villager": True}

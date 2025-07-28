@@ -41,7 +41,6 @@
 | `atk`, `def`    | 增減能力值                 |
 | `inventory_add` | 新增道具（填入名稱）       |
 | `flag_set`      | 設定事件旗標（例：`true`） |
-| `sanity_change` | 變更玩家 Sanity 狀態       |
 
 ---
 
@@ -64,7 +63,5 @@
 - `has_item`：背包中擁有某道具
 - `flag_true`：某事件旗標為真
 - `flag_false`：某事件旗標為假（或未設定）
-- `sanity`：指定 Sanity 狀態必須符合
-- `sanity_in`：Sanity 狀態需在指定列表中
 
 ---
