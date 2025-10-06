@@ -1,0 +1,89 @@
+[
+  {
+    "id": "event_normal_001",
+    "type": "normal",
+    "text": "你在荒野中撿到一個奇怪的石頭。",
+    "options": [
+      {
+        "text": "撿起來",
+        "result": {
+          "text": "你撿起了石頭，手心一陣發熱。",
+          "effect": {},
+          "inventory_add": "奇怪的石頭"
+        }
+      },
+      {
+        "text": "無視它",
+        "result": {
+          "text": "你選擇不理會，繼續前進。",
+          "effect": {}
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_battle_001",
+    "type": "battle",
+    "text": "一隻小型魔物突然出現！",
+    "enemy_image": "red_maneater.png",
+    "options": [
+      {
+        "text": "攻擊",
+        "result": {
+          "text": "你奮力攻擊，受到些微傷害。",
+          "effect": { "hp": -2, "fate": 1 }
+        }
+      },
+      {
+        "text": "逃跑",
+        "result": {
+          "text": "你成功逃跑，但有些擦傷。",
+          "effect": { "hp": -1 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_dialogue_001",
+    "type": "dialogue",
+    "text": "你遇到一位喃喃自語的村民。",
+    "options": [
+      {
+        "text": "仔細傾聽",
+        "result": {
+          "text": "你聽到他提到某個被遺忘的地名。",
+          "effect": { "fate": 1 }
+        }
+      },
+      {
+        "text": "打斷他",
+        "result": {
+          "text": "他沉默了一會兒，然後走開了。",
+          "effect": { "fate": -1 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_conditional_001",
+    "type": "conditional",
+    "condition": { "fate_min": 2 },
+    "text": "你感應到附近藏有神秘力量。",
+    "options": [
+      {
+        "text": "嘗試共鳴",
+        "result": {
+          "text": "你的身體與周圍的能量產生共振。",
+          "effect": { "atk": 1 }
+        }
+      },
+      {
+        "text": "保持距離",
+        "result": {
+          "text": "你選擇謹慎離開這片區域。",
+          "effect": {}
+        }
+      }
+    ]
+  }
+]
