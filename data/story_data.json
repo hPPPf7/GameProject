@@ -2,21 +2,28 @@
   {
     "id": "event_normal_001",
     "type": "normal",
-    "text": "你在荒野中撿到一個奇怪的石頭。",
+    "chapter": 1,
+    "weight": 4,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["荒野", "物品"],
+    "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
     "options": [
       {
         "text": "撿起來",
         "result": {
-          "text": "你撿起了石頭，手心一陣發熱。",
-          "effect": {},
-          "inventory_add": "奇怪的石頭"
+          "text": "你撿起了石頭，手心一陣發熱。岩石微不可察地脈動了一下。",
+          "effect": { "fate": -1 },
+          "inventory_add": "奇怪的石頭",
+          "flags_set": ["got_weird_rock"],
+          "emit_log": "報告#03：岩石樣本帶熱源。"
         }
       },
       {
         "text": "無視它",
         "result": {
-          "text": "你選擇不理會，繼續前進。",
-          "effect": {}
+          "text": "你選擇不理會，繼續前進。微風像是在嘆氣。",
+          "effect": { "fate": 1 }
         }
       }
     ]
@@ -24,21 +31,27 @@
   {
     "id": "event_battle_001",
     "type": "battle",
-    "text": "一隻小型魔物突然出現！",
+    "chapter": 1,
+    "weight": 3,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["戰鬥", "小型魔物"],
+    "text": "一隻小型魔物從草叢竄出！",
     "enemy_image": "red_maneater.png",
     "options": [
       {
         "text": "攻擊",
         "result": {
-          "text": "你奮力攻擊，受到些微傷害。",
-          "effect": { "hp": -2, "fate": 1 }
+          "text": "你奮力攻擊，受到些微傷害，但也更鎮定了。",
+          "effect": { "hp": -2, "fate": 2 },
+          "emit_log": "戰報#01：小型個體可控。"
         }
       },
       {
         "text": "逃跑",
         "result": {
           "text": "你成功逃跑，但有些擦傷。",
-          "effect": { "hp": -1 }
+          "effect": { "hp": -1, "fate": -1 }
         }
       }
     ]
@@ -46,20 +59,28 @@
   {
     "id": "event_dialogue_001",
     "type": "dialogue",
-    "text": "你遇到一位喃喃自語的村民。",
+    "chapter": 2,
+    "weight": 4,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["村民", "線索"],
+    "text": "你遇到一位喃喃自語的村民，他盯著你手上的石頭看。",
+    "condition": { "chapter_is": 2 },
     "options": [
       {
         "text": "仔細傾聽",
         "result": {
-          "text": "你聽到他提到某個被遺忘的地名。",
-          "effect": { "fate": 1 }
+          "text": "他提到一個被遺忘的地名：『灰烬凹地』……還問你是否聽過『樣本#07』。",
+          "effect": { "fate": 2 },
+          "flags_set": ["got_gray_pit_hint"],
+          "emit_log": "口述#12：地名線索：灰烬凹地。"
         }
       },
       {
         "text": "打斷他",
         "result": {
-          "text": "他沉默了一會兒，然後走開了。",
-          "effect": { "fate": -1 }
+          "text": "他沉默了一會兒，然後走開了。臨走前留下一句：『太陽會換殼。』",
+          "effect": { "fate": -2 }
         }
       }
     ]
@@ -67,21 +88,346 @@
   {
     "id": "event_conditional_001",
     "type": "conditional",
+    "chapter": 2,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["感應", "能力"],
     "condition": { "fate_min": 2 },
-    "text": "你感應到附近藏有神秘力量。",
+    "text": "你感應到附近藏有神秘力量，與手中的石頭產生細微共鳴。",
     "options": [
       {
         "text": "嘗試共鳴",
         "result": {
-          "text": "你的身體與周圍的能量產生共振。",
-          "effect": { "atk": 1 }
+          "text": "你的身體與周圍的能量產生共振，短暫強化。",
+          "effect": { "atk": 1, "fate": -1 },
+          "emit_log": "測試#07：共鳴可行。"
         }
       },
       {
         "text": "保持距離",
         "result": {
           "text": "你選擇謹慎離開這片區域。",
-          "effect": {}
+          "effect": { "fate": 1 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_mushroom_choir",
+    "type": "dialogue",
+    "chapter": 1,
+    "weight": 3,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["蘑菇", "搞笑", "音樂"],
+    "text": "一群會唱歌的蘑菇繞著你踢踏舞，合聲奇妙地和諧。",
+    "options": [
+      {
+        "text": "跟著哼（加入合唱）",
+        "result": {
+          "text": "你融入節奏，心情意外平靜，世界似乎合理了一點。",
+          "effect": { "fate": 3 }
+        }
+      },
+      {
+        "text": "錄音採樣",
+        "result": {
+          "text": "你錄下旋律，卻在波形裡看見『HELP_07』訊息。",
+          "effect": { "fate": -3 },
+          "flags_set": ["heard_help_07"],
+          "emit_log": "音頻#07：隱藏標籤 HELP_07。"
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_black_report",
+    "type": "milestone",
+    "chapter": 2,
+    "weight": 2,
+    "cooldown": 4,
+    "once": false,
+    "tags": ["檔案", "線索"],
+    "text": "你找到上一任調查員的報告，但多處被塗黑。",
+    "options": [
+      {
+        "text": "嘗試反光讀取",
+        "result": {
+          "text": "斜光下浮現『樣本#07』『灰烬凹地』等關鍵字。",
+          "effect": { "fate": 4 },
+          "flags_set": ["visited_report_room", "saw_redactions"]
+        }
+      },
+      {
+        "text": "燒掉它（不想再被干擾）",
+        "result": {
+          "text": "黑煙向上翻滾，像是寫字：『回家』。",
+          "effect": { "fate": -4 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_outpost_gate",
+    "type": "conditional",
+    "chapter": 3,
+    "weight": 3,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["研究據點", "主線"],
+    "condition": { "flag_on": ["got_gray_pit_hint", "saw_redactions"] },
+    "text": "你抵達廢棄研究據點的隱藏入口，門鎖顯示：ID 驗證中…",
+    "options": [
+      {
+        "text": "刷隊員證",
+        "result": {
+          "text": "面板閃爍：『樣本#07—歡迎回家。』",
+          "effect": { "fate": -6 },
+          "flags_set": ["visited_outpost"],
+          "goto_chapter": 4
+        }
+      },
+      {
+        "text": "撤退觀望",
+        "result": {
+          "text": "你退後一步，門鎖卻自行解開一條縫。",
+          "effect": { "fate": -2 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_reality_glitch",
+    "type": "normal",
+    "chapter": 3,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["故障", "現實扭曲"],
+    "text": "天空閃爍，太陽像被換皮，一秒三次。",
+    "options": [
+      {
+        "text": "冷靜記錄數據",
+        "result": {
+          "text": "你標記頻率 3Hz，儀器卻回：『笑死。』",
+          "effect": { "fate": 5 }
+        }
+      },
+      {
+        "text": "跟著一起眨眼",
+        "result": {
+          "text": "你開始用太陽的節奏眨眼，好像更懂它了。",
+          "effect": { "fate": -5 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_fate_trigger_midband",
+    "type": "fate_trigger",
+    "chapter": 3,
+    "weight": 0,
+    "cooldown": 0,
+    "once": false,
+    "tags": ["命運觸發", "防迴圈"],
+    "text": "時間像卡住一樣。你的影子對你眨眼：『選邊站吧。』",
+    "options": [
+      {
+        "text": "我選理性（向上收斂）",
+        "result": {
+          "text": "空氣恢復正常。你突然渴望整理格式正確的報告。",
+          "effect": { "fate": 12 }
+        }
+      },
+      {
+        "text": "我選荒謬（向下收斂）",
+        "result": {
+          "text": "地面笑了。你也學會了。",
+          "effect": { "fate": -12 }
+        }
+      }
+    ]
+  },
+  {
+    "id": "event_truth_boot",
+    "type": "milestone",
+    "chapter": 4,
+    "weight": 1,
+    "cooldown": 999,
+    "once": true,
+    "tags": ["真相", "主線高潮"],
+    "condition": { "flag_on": ["visited_outpost"] },
+    "text": "據點核心機組啟動，熒幕彈出：『識別碼：樣本#07。』",
+    "options": [
+      {
+        "text": "承認（接受身分）",
+        "result": {
+          "text": "系統下載你的記憶模板。世界邊緣起波紋。",
+          "effect": { "fate": -10 },
+          "flags_set": ["accepted_id"]
+        }
+      },
+      {
+        "text": "否認（反制系統）",
+        "result": {
+          "text": "你切斷主機電源，殘餘程式改以你的報告自修復。",
+          "effect": { "fate": 10 },
+          "flags_set": ["refused_id"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_trigger_self_doubt",
+    "type": "fate_trigger",
+    "chapter": 2,
+    "weight": 0,
+    "cooldown": 0,
+    "once": false,
+    "tags": ["命運觸發", "自我懷疑"],
+    "text": "命運的干涉：你對任務的抗拒讓時間產生摺疊，另一個自己的聲音響起。",
+    "options": [
+      {
+        "text": "正視恐懼",
+        "result": {
+          "text": "你承認自己的猶豫，記憶中的破碎片段再次浮現。",
+          "effect": { "fate": -6 },
+          "flags_set": ["self_doubt_acknowledged"]
+        }
+      },
+      {
+        "text": "整理思緒",
+        "result": {
+          "text": "你重新梳理筆記，試圖用理性壓制那份不安。",
+          "effect": { "fate": 6 },
+          "flags_set": ["self_doubt_suppressed"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_lock_high",
+    "type": "milestone",
+    "chapter": 4,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 4 },
+    "tags": ["理性主線", "鎖定"],
+    "text": "第四章：總部派遣你調查核心研究所，理性主線被正式啟動。",
+    "options": [
+      {
+        "text": "接下調查任務",
+        "result": {
+          "text": "你接過任務文件，準備面對王國的真相。",
+          "effect": { "fate": 5 },
+          "flags_set": ["main_path_high"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_lock_mid",
+    "type": "milestone",
+    "chapter": 4,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 4 },
+    "tags": ["實驗體主線", "鎖定"],
+    "text": "第四章：你的記憶開始重疊，實驗體主線悄悄展開。",
+    "options": [
+      {
+        "text": "接受記憶觀測",
+        "result": {
+          "text": "你被安排躺進儀器內，時間的環會再度閉合。",
+          "effect": { "fate": 0 },
+          "flags_set": ["main_path_mid"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_lock_low",
+    "type": "milestone",
+    "chapter": 4,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 4 },
+    "tags": ["荒謬主線", "鎖定"],
+    "text": "第四章：古老的儀式完成了召喚，你感到內有異形之力甦醒。",
+    "options": [
+      {
+        "text": "踏入祭壇",
+        "result": {
+          "text": "你在靈火中行走，任由血脈與魔物共鳴。",
+          "effect": { "fate": -5 },
+          "flags_set": ["main_path_low"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_ending_high",
+    "type": "milestone",
+    "chapter": 5,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 5 },
+    "tags": ["結局", "理性"],
+    "text": "終章：你抵達研究所深處，真相與抉擇即將展開。",
+    "options": [
+      {
+        "text": "踏入核心實驗室",
+        "result": {
+          "text": "你準備決定王國的命運——拯救，或揭露一切。",
+          "effect": {},
+          "flags_set": ["ending_high_ready"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_ending_mid",
+    "type": "milestone",
+    "chapter": 5,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 5 },
+    "tags": ["結局", "實驗體"],
+    "text": "終章：循環的邊界瓦解，你看到無數個自己的殘影。",
+    "options": [
+      {
+        "text": "追逐最接近真實的那個影子",
+        "result": {
+          "text": "你伸手觸碰幻影，意識準備迎向最後一次輪迴。",
+          "effect": {},
+          "flags_set": ["ending_mid_ready"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "fate_ending_low",
+    "type": "milestone",
+    "chapter": 5,
+    "weight": 0,
+    "cooldown": 0,
+    "once": true,
+    "condition": { "chapter_min": 5 },
+    "tags": ["結局", "荒謬"],
+    "text": "終章：儀式完成，魔物化的王國等著你的降臨。",
+    "options": [
+      {
+        "text": "接受新秩序",
+        "result": {
+          "text": "你抬起頭，讓異形的光芒引領你走向新的世界。",
+          "effect": {},
+          "flags_set": ["ending_low_ready"]
         }
       }
     ]

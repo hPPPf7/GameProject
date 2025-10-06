@@ -11,6 +11,7 @@ pygame.font.init()
 from ui_manager import draw_main_ui
 from player_state import init_player_state
 from event_result_handler import handle_event_result
+from fate_system import post_event_update
 
 # 畫面設定
 screen = pygame.display.set_mode((512, 768))
@@ -102,7 +103,7 @@ while running:
                 # 點擊「前進」格子觸發事件
                 if sub_state == "wait" and current_event is None and full_rect.collidepoint(event.pos):
                     from event_manager import get_random_event
-                    current_event = get_random_event(["normal", "battle", "dialogue"], player)
+                    current_event = get_random_event(player=player)
                     if current_event:
                         text_log.add(current_event["text"])
                         text_log.scroll_to_bottom()
@@ -133,9 +134,12 @@ while running:
 
                             result = chosen.get("result")
                             if result:
-                                from event_result_handler import handle_event_result
                                 handle_event_result(player, result)
                                 text_log.scroll_to_bottom()
+
+                            forced_event = post_event_update(player)
+                            if forced_event:
+                                player["forced_event"] = forced_event
 
                             # 畫一次處理完的內容
                             draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
