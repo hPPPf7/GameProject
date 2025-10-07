@@ -92,6 +92,7 @@ while running:
                     from event_manager import get_random_event
                     current_event = get_random_event(player=player)
                     if current_event:
+                        text_log.start_event(current_event.get("id"))
                         text_log.add(current_event["text"])
                         text_log.scroll_to_bottom()
                         image_name = current_event.get("enemy_image")
@@ -108,7 +109,7 @@ while running:
                             continue
                         if rect.collidepoint(event.pos):
                             chosen = current_event["options"][i]
-                            text_log.add(f"你選擇了：{chosen['text']}")
+                            text_log.add(f"你選擇了：{chosen['text']}", category="choice")
                             text_log.scroll_to_bottom()
                             # Immediate redraw to show choice
                             draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)

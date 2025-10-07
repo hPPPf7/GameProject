@@ -76,7 +76,7 @@ def apply_fate_change(player: Dict, change: FateChange) -> None:
     """Apply a fate delta while respecting narrative limits."""
     limited_delta = _limit_delta(change.value, change.kind)
     if limited_delta != change.value:
-        text_log.add("命運的擺盪被某種力量限制住了……")
+        text_log.add("命運的擺盪被某種力量限制住了……", category="system")
     if limited_delta == 0:
         return
 
@@ -90,7 +90,7 @@ def apply_fate_change(player: Dict, change: FateChange) -> None:
     if len(history) > 10:
         history.pop(0)
 
-    text_log.add(f"命運值 {old_value} → {new_value}（{change.reason}）")
+    text_log.add(f"命運值 {old_value} → {new_value}（{change.reason}）", category="system")
 
 
 def nudge_toward_band(player: Dict, target_band: str, reason: str) -> None:

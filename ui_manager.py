@@ -83,16 +83,22 @@ def draw_main_ui(screen, player, font, current_event=None, sub_state="wait",
     pygame.draw.rect(screen, COLORS["log"], UI_AREAS["log"])
     # Build wrapped log lines
     raw_logs = text_log.get_visible_logs()
-    wrapped_lines: list[str] = []
+    wrapped_lines: list[tuple[str, str]] = []
     max_width = UI_AREAS["log"].width - 16  # account for margins
     for entry in raw_logs:
-        wrapped_lines.extend(wrap_text(entry, font, max_width))
+        lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
+        wrapped_lines.extend((line, entry.category) for line in lines)
     # Only display the last 9 visual lines
     visible_lines = wrapped_lines[-9:]
-    for i, line in enumerate(visible_lines):
-        # Highlight any lines mentioning key stats
-        highlight = any(word in line for word in ["HP", "ATK", "DEF", "fate"])
-        color = (255, 80, 80) if highlight else (255, 255, 255)
+    color_map = {
+        "narration": (255, 255, 255),
+        "choice": (180, 200, 255),
+        "system": (255, 180, 80),
+        "event_header": (120, 220, 200),
+        "spacer": (255, 255, 255),
+    }
+    for i, (line, category) in enumerate(visible_lines):
+        color = color_map.get(category, (255, 255, 255))
         draw_text(screen, line, UI_AREAS["log"], font, center=False, line_offset=i, color=color)
 
     # Draw status panel

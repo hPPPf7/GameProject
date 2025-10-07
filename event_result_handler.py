@@ -84,7 +84,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 player[key] = 0
                 # If not already dead, mark game over and add a message
                 if not player.get("game_over"):
-                    text_log.add("你因傷重不治，離開人世。")
+                    text_log.add("你因傷重不治，離開人世。", category="system")
                 player["game_over"] = True
             # Prevent negative values for other numeric keys
             elif player[key] < 0:
@@ -93,7 +93,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             if key in ["hp", "atk", "def"]:
                 label = key.upper()
                 sign = "+" if value >= 0 else ""
-                text_log.add(f"{label} {sign}{value} → {player[key]}")
+                text_log.add(f"{label} {sign}{value} → {player[key]}", category="system")
             print(f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}")
 
     # Inventory modifications
@@ -103,7 +103,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             items = [items]
         for item in items:
             player["inventory"].append(item)
-            text_log.add(f"你獲得了道具：{item}")
+            text_log.add(f"你獲得了道具：{item}", category="system")
 
     if "inventory_remove" in result:
         items = result["inventory_remove"]
@@ -112,22 +112,22 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         for item in items:
             if item in player["inventory"]:
                 player["inventory"].remove(item)
-                text_log.add(f"你失去了道具：{item}")
+                text_log.add(f"你失去了道具：{item}", category="system")
 
     # Flag management
     for flag in result.get("flags_set", []) or []:
         player.setdefault("flags", {})[flag] = True
-        text_log.add(f"旗標觸發：{flag}")
+        text_log.add(f"旗標觸發：{flag}", category="system")
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False
-            text_log.add(f"旗標解除：{flag}")
+            text_log.add(f"旗標解除：{flag}", category="system")
 
     # Chapter jump
     goto_chapter = result.get("goto_chapter")
     if goto_chapter:
         player["chapter"] = goto_chapter
-        text_log.add(f"章節推進至：第 {goto_chapter} 章")
+        text_log.add(f"章節推進至：第 {goto_chapter} 章", category="system")
 
     # Refusal logic: mark as a refusal if requested
     tags = result.get("tags", [])
