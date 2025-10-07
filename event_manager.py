@@ -16,6 +16,7 @@ MIDBAND_MIN = 40
 MIDBAND_MAX = 60
 MIDBAND_LIMIT = 3
 FATE_TRIGGER_MIDBAND_ID = "event_fate_trigger_midband"
+INTRO_EVENT_ID = "event_intro_briefing"
 
 
 # Load all event data
@@ -161,6 +162,13 @@ def get_random_event(event_types=None, player=None):
         player = {}
 
     _tick_cooldowns(player)
+
+    # Guarantee the mission briefing occurs before any other encounters
+    if player is not None:
+        player.setdefault("flags", {})
+        intro_event = get_event_by_id(INTRO_EVENT_ID)
+        if intro_event and not player["flags"].get("mission_briefed") and not _was_consumed(intro_event, player):
+            return _prepare_event(player, intro_event)
 
     forced_event_id = player.get("forced_event") if player else None
     if forced_event_id:
