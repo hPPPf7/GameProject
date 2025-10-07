@@ -1,7 +1,16 @@
+"""Event manager
+
+This module is responsible for selecting events for the player to
+encounter.  It loads all events from the data file, filters them based
+on the player's state (chapter, fate, flags, inventory, cooldowns, etc.),
+and applies per‑event cooldowns and consumption rules.  It also
+implements the midband fate trigger that forces the player into a
+decision if their fate value hovers too long within the neutral band.
+"""
+
 import json
 import random
 from typing import Dict, List, Optional, Sequence, Tuple
-
 
 MIDBAND_MIN = 40
 MIDBAND_MAX = 60
@@ -9,13 +18,13 @@ MIDBAND_LIMIT = 3
 FATE_TRIGGER_MIDBAND_ID = "event_fate_trigger_midband"
 
 
-# 載入所有事件資料
+# Load all event data
 def load_events(path="data/story_data.json"):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-# 所有事件資料暫存在這裡
+# All events are cached in these globals for quick access
 ALL_EVENTS: List[Dict] = load_events()
 EVENT_LOOKUP: Dict[str, Dict] = {event["id"]: event for event in ALL_EVENTS}
 
@@ -75,8 +84,8 @@ def _prepare_event(player, event: Optional[Dict]) -> Optional[Dict]:
     return event
 
 
-# 檢查該事件是否符合玩家狀態
 def is_event_condition_met(event: Dict, player) -> bool:
+    """Check if the given event can be triggered for the current player state."""
     if player is None:
         player = {}
 
@@ -138,8 +147,14 @@ def _increment_midband_counter(player) -> int:
     return player["midband_counter"]
 
 
-# 隨機取得一個事件（包含條件過濾與命運限制）
 def get_random_event(event_types=None, player=None):
+    """
+    Return a random event matching the given types and player state.
+
+    If the player remains inside the fate midband for too many consecutive
+    events, a fate trigger event is forced.  Otherwise a candidate list is
+    built based on type, once/consumed status, cooldown and condition.
+    """
     if event_types is None:
         event_types = ["normal", "battle", "dialogue", "conditional", "milestone"]
     if player is None:

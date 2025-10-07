@@ -1,7 +1,20 @@
-# event_result_handler.py
-# 處理事件選項的結果邏輯（加數值、顯示訊息、給道具等）
+"""event_result_handler
+This module contains logic for processing the outcome of an event option.
+
+When the player selects an option in an event, the corresponding "result"
+dictionary is passed into ``handle_event_result``.  This function applies
+changes to the player's state (HP, ATK, DEF, fate, inventory, flags, etc.),
+emits log messages via ``text_log``, and may set a forced event if the
+story needs to branch immediately.
+
+In addition to the upstream logic, this version adds a simple check for
+player death: whenever HP drops to zero or below, ``game_over`` is set
+to ``True`` and a death message is logged.  Later in the main loop this
+flag is checked to end the game gracefully.
+"""
 
 import text_log
+from typing import Dict, Any, Optional
 
 from fate_system import (
     FateChange,
@@ -13,26 +26,35 @@ from fate_system import (
 )
 
 
-def handle_event_result(player, result):
+def handle_event_result(player: Dict, result: Dict) -> str | None:
     """
-    根據事件選項中的 result 欄位對 player 狀態進行變更。
-    result 格式範例：
-    {
-        "text": "你感覺更有精神了。",
-        "effect": {
-            "hp": +5,
-            "atk": 0,
-            "def": 0
-        }
-    }
+    Apply the effects of a chosen event option to the player's state.
+
+    ``result`` should have the following optional keys:
+
+    - ``text``: a message describing the immediate outcome.
+    - ``effect``: a dict mapping stat names to deltas (e.g. {"hp": -2}).
+    - ``inventory_add`` / ``inventory_remove``: items to gain/lose.
+    - ``flags_set`` / ``flags_clear``: booleans to toggle in the player's
+      ``flags`` dict.
+    - ``fate``/``fate_major``/``fate_bias``: special keys handled by
+      ``fate_system`` to influence the story.
+    - ``goto_chapter``: forces the player's chapter to the given number.
+    - ``emit_log``: additional messages to append to the log.
+    - ``refuse``: if truthy, increment the refusal streak and potentially
+      trigger a fate trigger event.
+
+    The return value is a forced event ID if one should be queued.
     """
     forced_event = result.get("forced_event")
-    
-    # 顯示文字訊息
-    if "text" in result:
-        print("【事件結果】", result["text"])
-        text_log.add(result["text"])  # 整合進訊息系統
 
+    # Show the primary result text (if provided)
+    if "text" in result:
+        msg = result["text"]
+        print("【事件結果】", msg)
+        text_log.add(msg)
+
+    # Emit additional log entries if specified
     if "emit_log" in result:
         log_entry = result["emit_log"]
         if isinstance(log_entry, list):
@@ -41,35 +63,40 @@ def handle_event_result(player, result):
         else:
             text_log.add(log_entry)
 
-    # 處理數值變動
-    if "effect" in result:
-        effect = result["effect"]
-        for key, value in effect.items():
-            if key == "fate":
-                apply_normal_choice(player, value, result.get("text", "命運波動"))
-                continue
-            if key == "fate_major":
-                apply_major_choice(player, value, result.get("text", "重大抉擇"))
-                continue
-            if key == "fate_bias":
-                apply_fate_change(player, FateChange(value, result.get("text", "命運微調"), "bias"))
-                continue
-            if key in player:
-                original = player[key]
-                player[key] += value
-                if player[key] < 0:
-                    player[key] = 0
+    # Apply numeric stat changes
+    effect = result.get("effect") or {}
+    for key, value in effect.items():
+        if key == "fate":
+            apply_normal_choice(player, value, result.get("text", "命運波動"))
+            continue
+        if key == "fate_major":
+            apply_major_choice(player, value, result.get("text", "重大抉擇"))
+            continue
+        if key == "fate_bias":
+            apply_fate_change(player, FateChange(value, result.get("text", "命運微調"), "bias"))
+            continue
+        # Standard stat adjustments (hp, atk, def or any other numeric field)
+        if key in player:
+            original = player[key]
+            player[key] += value
+            # Clamp HP to zero and trigger death if it drops below zero
+            if key == "hp" and player[key] <= 0:
+                player[key] = 0
+                # If not already dead, mark game over and add a message
+                if not player.get("game_over"):
+                    text_log.add("你因傷重不治，離開人世。")
+                player["game_over"] = True
+            # Prevent negative values for other numeric keys
+            elif player[key] < 0:
+                player[key] = 0
+            # Visible stat change feedback
+            if key in ["hp", "atk", "def"]:
+                label = key.upper()
+                sign = "+" if value >= 0 else ""
+                text_log.add(f"{label} {sign}{value} → {player[key]}")
+            print(f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}")
 
-                # 只有顯示玩家可見的屬性
-                if key in ["hp", "atk", "def"]:
-                    label = key.upper()
-                    sign = "+" if value >= 0 else ""
-                    msg = f"{label} {sign}{value} → {player[key]}"
-                    text_log.add(msg)
-
-                print(f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}")
-
-    # 額外處理：加入或移除道具
+    # Inventory modifications
     if "inventory_add" in result:
         items = result["inventory_add"]
         if not isinstance(items, list):
@@ -87,22 +114,22 @@ def handle_event_result(player, result):
                 player["inventory"].remove(item)
                 text_log.add(f"你失去了道具：{item}")
 
-    if "flags_set" in result:
-        for flag in result["flags_set"]:
-            player.setdefault("flags", {})[flag] = True
-            text_log.add(f"旗標觸發：{flag}")
+    # Flag management
+    for flag in result.get("flags_set", []) or []:
+        player.setdefault("flags", {})[flag] = True
+        text_log.add(f"旗標觸發：{flag}")
+    for flag in result.get("flags_clear", []) or []:
+        if player.setdefault("flags", {}).get(flag):
+            player["flags"][flag] = False
+            text_log.add(f"旗標解除：{flag}")
 
-    if "flags_clear" in result:
-        for flag in result["flags_clear"]:
-            if player.setdefault("flags", {}).get(flag):
-                player["flags"][flag] = False
-                text_log.add(f"旗標解除：{flag}")
+    # Chapter jump
+    goto_chapter = result.get("goto_chapter")
+    if goto_chapter:
+        player["chapter"] = goto_chapter
+        text_log.add(f"章節推進至：第 {goto_chapter} 章")
 
-    if "goto_chapter" in result and result["goto_chapter"]:
-        new_chapter = result["goto_chapter"]
-        player["chapter"] = new_chapter
-        text_log.add(f"章節推進至：第 {new_chapter} 章")
-
+    # Refusal logic: mark as a refusal if requested
     tags = result.get("tags", [])
     if result.get("refuse") or "refuse" in tags:
         triggered = handle_refusal(player)
@@ -111,7 +138,7 @@ def handle_event_result(player, result):
     else:
         reset_refusal(player)
 
+    # Queue forced event if present
     if forced_event:
         player["forced_event"] = forced_event
-
     return forced_event
