@@ -1,5 +1,12 @@
+from typing import Optional
+
 import pygame
 import text_log
+
+def is_cinematic_mode(player: dict) -> bool:
+    """Return True when the UI should collapse into the cinematic layout."""
+    flags = player.get("flags", {}) if player else {}
+    return not flags.get("mission_briefed", False)
 
 # Define UI area dimensions and positions.  We shrink the status block
 # horizontally and widen the options area accordingly.  The total width of
@@ -60,31 +67,115 @@ def wrap_text(text: str, font: pygame.font.Font, max_width: int) -> list[str]:
     return lines
 
 
-def draw_main_ui(screen, player, font, current_event=None, sub_state="wait",
-                  player_image=None, enemy_image=None, inventory_open=False):
+def get_areas_for_mode(player: dict) -> dict:
+    """Return the rectangle layout for the current UI mode."""
+
+    image_rect = UI_AREAS["image"].copy()
+    log_rect = UI_AREAS["log"].copy()
+
+    if is_cinematic_mode(player):
+        left_x = STATUS_X
+        right_x = STATUS_X + STATUS_WIDTH + GAP + OPTIONS_WIDTH
+        options_rect = pygame.Rect(
+            left_x,
+            log_rect.bottom + 16,
+            right_x - left_x,
+            240,
+        )
+        return {
+            "image": image_rect,
+            "log": log_rect,
+            "options_rect": options_rect,
+            "mode": "cinematic",
+        }
+
+    return {
+        "image": image_rect,
+        "log": log_rect,
+        "status_rect": UI_AREAS["status"].copy(),
+        "options_rects": [rect.copy() for rect in UI_AREAS["options"]],
+        "inventory_bar": UI_AREAS["inventory_bar"].copy(),
+        "inventory_preview": UI_AREAS["inventory_preview"].copy(),
+        "inventory_full": UI_AREAS["inventory_full"].copy(),
+        "mode": "normal",
+    }
+
+
+def get_option_rects(
+    sub_state: str,
+    current_event,
+    player: dict,
+    areas: Optional[dict] = None,
+) -> list[pygame.Rect]:
+    """Return the list of option rectangles for the current UI state."""
+
+    areas = areas or get_areas_for_mode(player)
+    mode = areas.get("mode")
+
+    if mode == "cinematic":
+        base_rect = areas["options_rect"].copy()
+        if sub_state == "show_event" and current_event:
+            options = current_event.get("options", [])
+            count = max(len(options), 1)
+            height = base_rect.height // count
+            rects: list[pygame.Rect] = []
+            for i in range(count):
+                rect = pygame.Rect(
+                    base_rect.x,
+                    base_rect.y + i * height,
+                    base_rect.width,
+                    height,
+                )
+                if i == count - 1:
+                    rect.height = base_rect.bottom - rect.y
+                rects.append(rect)
+            return rects
+        return [base_rect]
+
+    # Normal mode
+    option_rects = [rect.copy() for rect in areas["options_rects"]]
+    if sub_state == "show_event" and current_event:
+        return option_rects
+
+    full_rect = option_rects[0].unionall(option_rects)
+    return [full_rect]
+
+
+def render_ui(
+    screen,
+    player,
+    font,
+    current_event=None,
+    sub_state="wait",
+    player_image=None,
+    enemy_image=None,
+    inventory_open=False,
+):
     """
     Draw the main UI components: image area, log area, status panel, options,
     and inventory.  This version wraps log text so it never spills out of
     the log rectangle and uses the new status/options widths.
     """
     mouse_pos = pygame.mouse.get_pos()
+    areas = get_areas_for_mode(player)
+    mode = areas.get("mode")
 
     # Image area
-    screen.blit(starting_image, UI_AREAS["image"].topleft)
+    screen.blit(starting_image, areas["image"].topleft)
 
     # Draw player and enemy sprites if provided
     if player_image:
-        screen.blit(player_image, (UI_AREAS["image"].x + 32, UI_AREAS["image"].y + 80))
+        screen.blit(player_image, (areas["image"].x + 32, areas["image"].y + 80))
     if enemy_image:
-        enemy_pos = (UI_AREAS["image"].right - 96 - 32, UI_AREAS["image"].y + 80)
+        enemy_pos = (areas["image"].right - 96 - 32, areas["image"].y + 80)
         screen.blit(enemy_image, enemy_pos)
 
     # Draw log area
-    pygame.draw.rect(screen, COLORS["log"], UI_AREAS["log"])
+    pygame.draw.rect(screen, COLORS["log"], areas["log"])
     # Build wrapped log lines
     raw_logs = text_log.get_visible_logs()
     wrapped_lines: list[tuple[str, str]] = []
-    max_width = UI_AREAS["log"].width - 16  # account for margins
+    max_width = areas["log"].width - 16  # account for margins
     for entry in raw_logs:
         lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
         wrapped_lines.extend((line, entry.category) for line in lines)
@@ -99,82 +190,107 @@ def draw_main_ui(screen, player, font, current_event=None, sub_state="wait",
     }
     for i, (line, category) in enumerate(visible_lines):
         color = color_map.get(category, (255, 255, 255))
-        draw_text(screen, line, UI_AREAS["log"], font, center=False, line_offset=i, color=color)
+        draw_text(screen, line, areas["log"], font, center=False, line_offset=i, color=color)
 
-    # Draw status panel
-    pygame.draw.rect(screen, COLORS["status"], UI_AREAS["status"])
-    lines = [
-        f"HP: {player['hp']}",
-        f"ATK: {player['atk']}",
-        f"DEF: {player['def']}"
-    ]
-    for i, line in enumerate(lines):
-        draw_text(screen, line, UI_AREAS["status"], font, center=False, line_offset=i)
+    # Draw status panel (skip in cinematic mode)
+    if mode == "normal":
+        pygame.draw.rect(screen, COLORS["status"], areas["status_rect"])
+        lines = [
+            f"HP: {player['hp']}",
+            f"ATK: {player['atk']}",
+            f"DEF: {player['def']}"
+        ]
+        for i, line in enumerate(lines):
+            draw_text(screen, line, areas["status_rect"], font, center=False, line_offset=i)
+
+    option_rects = get_option_rects(sub_state, current_event, player, areas)
 
     # Draw options
     if sub_state == "wait":
-        full_rect = UI_AREAS["options"][0].unionall(UI_AREAS["options"])
-        is_hover = full_rect.collidepoint(mouse_pos)
+        wait_rect = option_rects[0]
+        is_hover = wait_rect.collidepoint(mouse_pos)
         color = COLORS["option_hover"] if is_hover else COLORS["option"]
-        pygame.draw.rect(screen, color, full_rect)
-        draw_text(screen, "前進", full_rect, font, center=True)
+        pygame.draw.rect(screen, color, wait_rect)
+        draw_text(screen, "前進", wait_rect, font, center=True)
     elif sub_state == "show_event" and current_event:
-        for i, rect in enumerate(UI_AREAS["options"]):
+        options = current_event.get("options", [])
+        for i, rect in enumerate(option_rects):
             is_hover = rect.collidepoint(mouse_pos)
-            if i < len(current_event.get("options", [])):
+            if i < len(options):
                 color = COLORS["option_hover"] if is_hover else COLORS["option"]
                 pygame.draw.rect(screen, color, rect)
-                option_text = current_event["options"][i]["text"]
+                option_text = options[i]["text"]
                 draw_text(screen, option_text, rect, font, center=True)
             else:
                 pygame.draw.rect(screen, COLORS["option_disabled"], rect)
                 draw_text(screen, "……", rect, font, center=True)
 
-    # Draw inventory bar
-    bar_y = 712
-    inventory_bar_rect = pygame.Rect(32, bar_y, 448, 24)
-    pygame.draw.rect(screen, COLORS["inventory_bar"], inventory_bar_rect)
-    symbol = "▲" if inventory_open else "▼"
-    draw_text(screen, f"{symbol} 背包（共 {len(player['inventory'])} 項）", inventory_bar_rect, font, center=True)
+    if mode == "normal":
+        # Draw inventory bar
+        inventory_bar_rect = areas["inventory_bar"]
+        pygame.draw.rect(screen, COLORS["inventory_bar"], inventory_bar_rect)
+        symbol = "▲" if inventory_open else "▼"
+        draw_text(screen, f"{symbol} 背包（共 {len(player['inventory'])} 項）", inventory_bar_rect, font, center=True)
 
-    # Expanded inventory view
-    if inventory_open:
-        items = player["inventory"]
-        max_visible_items = 5
-        item_height = 24
-        total_items = len(items)
-        scroll_offset = player.get("inventory_scroll", 0)
-        visible_items = items[scroll_offset:scroll_offset + max_visible_items]
-        visible_count = len(visible_items)
-        padding = 7
-        content_height = visible_count * item_height + padding
-        inventory_full_rect = pygame.Rect(32, bar_y - content_height, 448, content_height)
-        pygame.draw.rect(screen, COLORS["inventory"], inventory_full_rect)
-        if total_items == 0:
-            inventory_full_rect = pygame.Rect(32, bar_y - 32, 448, 32)
-            pygame.draw.rect(screen, COLORS["inventory"], inventory_full_rect)
-            draw_text(screen, "（目前無道具）", inventory_full_rect, font, center=False)
+        # Expanded inventory view
+        if inventory_open:
+            items = player["inventory"]
+            max_visible_items = 5
+            item_height = 24
+            total_items = len(items)
+            scroll_offset = player.get("inventory_scroll", 0)
+            visible_items = items[scroll_offset:scroll_offset + max_visible_items]
+            visible_count = len(visible_items)
+            padding = 7
+            if total_items == 0:
+                empty_rect = pygame.Rect(
+                    inventory_bar_rect.x,
+                    inventory_bar_rect.y - 32,
+                    inventory_bar_rect.width,
+                    32,
+                )
+                pygame.draw.rect(screen, COLORS["inventory"], empty_rect)
+                draw_text(screen, "（目前無道具）", empty_rect, font, center=False)
+            else:
+                content_height = visible_count * item_height + padding
+                inventory_full_rect = pygame.Rect(
+                    inventory_bar_rect.x,
+                    inventory_bar_rect.y - content_height,
+                    inventory_bar_rect.width,
+                    content_height,
+                )
+                pygame.draw.rect(screen, COLORS["inventory"], inventory_full_rect)
+                for i, item in enumerate(visible_items):
+                    draw_text(screen, f"- {item}", inventory_full_rect, font, center=False, line_offset=i)
+                if total_items > max_visible_items and visible_count < max_visible_items:
+                    draw_text(
+                        screen,
+                        "（使用滑鼠滾輪瀏覽）",
+                        inventory_full_rect,
+                        font,
+                        center=False,
+                        line_offset=visible_count,
+                    )
+            if total_items == 0:
+                pass
+            elif total_items > max_visible_items:
+                hint_rect = pygame.Rect(
+                    inventory_bar_rect.x,
+                    inventory_bar_rect.y - 24,
+                    inventory_bar_rect.width,
+                    24,
+                )
+                draw_text(screen, "（使用滑鼠滾輪瀏覽）", hint_rect, font, center=False)
         else:
-            inventory_full_rect = pygame.Rect(32, bar_y - content_height, 448, content_height)
-            pygame.draw.rect(screen, COLORS["inventory"], inventory_full_rect)
-            for i, item in enumerate(visible_items):
-                draw_text(screen, f"- {item}", inventory_full_rect, font, center=False, line_offset=i)
-            if total_items > max_visible_items and visible_count < max_visible_items:
-                draw_text(screen, "（使用滑鼠滾輪瀏覽）", inventory_full_rect, font, center=False, line_offset=visible_count)
-        # Scroll hint
-        if total_items > max_visible_items:
-            if visible_count < max_visible_items:
-                draw_text(screen, "（使用滑鼠滾輪瀏覽）", inventory_full_rect, font, center=False, line_offset=visible_count)
-    else:
-        # Collapsed preview
-        inventory_preview_rect = pygame.Rect(32, bar_y - 56, 448, 56)
-        pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
-        preview = "、".join(player["inventory"][:2])
-        if len(player["inventory"]) > 2:
-            preview += "、……"
-        elif not player["inventory"]:
-            preview = "（目前無道具）"
-        draw_text(screen, preview, inventory_preview_rect, font, center=False)
+            # Collapsed preview
+            inventory_preview_rect = areas["inventory_preview"]
+            pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
+            preview = "、".join(player["inventory"][:2])
+            if len(player["inventory"]) > 2:
+                preview += "、……"
+            elif not player["inventory"]:
+                preview = "（目前無道具）"
+            draw_text(screen, preview, inventory_preview_rect, font, center=False)
 
 
 def draw_text(screen, text, rect, font, center=False, line_offset=0, color=(255, 255, 255)):

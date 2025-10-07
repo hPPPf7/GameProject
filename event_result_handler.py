@@ -118,6 +118,8 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     for flag in result.get("flags_set", []) or []:
         player.setdefault("flags", {})[flag] = True
         text_log.add(f"旗標觸發：{flag}", category="system")
+        if flag == "mission_briefed":
+            text_log.add("任務已建立：調查淺川村", category="system")
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False

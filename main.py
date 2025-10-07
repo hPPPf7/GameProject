@@ -14,7 +14,13 @@ import text_log
 pygame.init()
 pygame.font.init()
 
-from ui_manager import draw_main_ui, UI_AREAS
+from ui_manager import (
+    UI_AREAS,
+    get_option_rects,
+    get_areas_for_mode,
+    is_cinematic_mode,
+    render_ui,
+)
 from player_state import init_player_state
 from event_result_handler import handle_event_result
 from fate_system import post_event_update
@@ -81,14 +87,23 @@ while running:
                 pygame.quit()
                 sys.exit()
             elif game_state == "main_screen":
-                full_rect = UI_AREAS["options"][0].unionall(UI_AREAS["options"])
+                areas = get_areas_for_mode(player)
+                cinematic = areas.get("mode") == "cinematic"
+                option_rects = get_option_rects(sub_state, current_event, player, areas)
 
                 # Click inventory bar to toggle
-                inventory_bar_rect = pygame.Rect(32, 712, 448, 24)
-                if inventory_bar_rect.collidepoint(event.pos):
-                    inventory_open = not inventory_open
+                if not cinematic:
+                    inventory_bar_rect = areas["inventory_bar"]
+                    if inventory_bar_rect.collidepoint(event.pos):
+                        inventory_open = not inventory_open
+
                 # Click "前進" area
-                if sub_state == "wait" and current_event is None and full_rect.collidepoint(event.pos):
+                if (
+                    sub_state == "wait"
+                    and current_event is None
+                    and option_rects
+                    and option_rects[0].collidepoint(event.pos)
+                ):
                     from event_manager import get_random_event
                     current_event = get_random_event(player=player)
                     if current_event:
@@ -104,7 +119,8 @@ while running:
                     sub_state = "show_event"
                 # Click event option
                 elif sub_state == "show_event" and current_event and "options" in current_event:
-                    for i, rect in enumerate(UI_AREAS["options"]):
+                    option_rects = get_option_rects(sub_state, current_event, player, areas)
+                    for i, rect in enumerate(option_rects):
                         if i >= len(current_event["options"]):
                             continue
                         if rect.collidepoint(event.pos):
@@ -112,7 +128,16 @@ while running:
                             text_log.add(f"你選擇了：{chosen['text']}", category="choice")
                             text_log.scroll_to_bottom()
                             # Immediate redraw to show choice
-                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            render_ui(
+                                screen,
+                                player,
+                                FONT,
+                                current_event,
+                                sub_state,
+                                player_image,
+                                current_enemy_image,
+                                inventory_open,
+                            )
                             pygame.display.flip()
                             result = chosen.get("result")
                             if result:
@@ -123,7 +148,16 @@ while running:
                             if forced_event:
                                 player["forced_event"] = forced_event
                             # Redraw after applying result
-                            draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+                            render_ui(
+                                screen,
+                                player,
+                                FONT,
+                                current_event,
+                                sub_state,
+                                player_image,
+                                current_enemy_image,
+                                inventory_open,
+                            )
                             pygame.display.flip()
                             # Mark event for clearing on next iteration
                             pending_clear_event = True
@@ -137,7 +171,7 @@ while running:
                     text_log.scroll_up()
                 else:
                     text_log.scroll_down()
-            elif inventory_open:
+            elif inventory_open and not is_cinematic_mode(player):
                 max_scroll = max(len(player["inventory"]) - 5, 0)
                 if event.y > 0:
                     player["inventory_scroll"] = max(player["inventory_scroll"] - 1, 0)
@@ -147,7 +181,16 @@ while running:
     # Check for game over (player death)
     if player.get("game_over"):
         # Display final state and death message
-        draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+        render_ui(
+            screen,
+            player,
+            FONT,
+            current_event,
+            sub_state,
+            player_image,
+            current_enemy_image,
+            inventory_open,
+        )
         pygame.display.flip()
         # Wait for two seconds to let the player see the message
         pygame.time.delay(2000)
@@ -163,7 +206,16 @@ while running:
         pygame.draw.rect(screen, button_color, exit_button)
         screen.blit(exit_text, exit_text_rect)
     elif game_state == "main_screen":
-        draw_main_ui(screen, player, FONT, current_event, sub_state, player_image, current_enemy_image, inventory_open)
+        render_ui(
+            screen,
+            player,
+            FONT,
+            current_event,
+            sub_state,
+            player_image,
+            current_enemy_image,
+            inventory_open,
+        )
     pygame.display.flip()
     clock.tick(60)
 
