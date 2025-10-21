@@ -32,9 +32,6 @@ def init_player_state() -> Dict:
         "event_cooldowns": {},  # Per‑event cooldown counter
         "consumed_events": set(),
 
-        # Inventory UI state
-        "inventory_scroll": 0,
-
         # Game over flag – set to True when the player dies
         "game_over": False,
     }

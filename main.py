@@ -60,7 +60,6 @@ exit_text_rect = exit_text.get_rect(center=exit_button.center)
 
 # Initialise player state
 player = init_player_state()
-inventory_open = False
 
 # Game state variables
 game_state = "start_menu"
@@ -90,12 +89,6 @@ while running:
                 areas = get_areas_for_mode(player)
                 cinematic = areas.get("mode") == "cinematic"
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
-
-                # Click inventory bar to toggle
-                if not cinematic:
-                    inventory_bar_rect = areas["inventory_bar"]
-                    if inventory_bar_rect.collidepoint(event.pos):
-                        inventory_open = not inventory_open
 
                 # Click "前進" area
                 if (
@@ -136,7 +129,6 @@ while running:
                                 sub_state,
                                 player_image,
                                 current_enemy_image,
-                                inventory_open,
                             )
                             pygame.display.flip()
                             result = chosen.get("result")
@@ -156,7 +148,6 @@ while running:
                                 sub_state,
                                 player_image,
                                 current_enemy_image,
-                                inventory_open,
                             )
                             pygame.display.flip()
                             # Mark event for clearing on next iteration
@@ -171,12 +162,6 @@ while running:
                     text_log.scroll_up()
                 else:
                     text_log.scroll_down()
-            elif inventory_open and not is_cinematic_mode(player):
-                max_scroll = max(len(player["inventory"]) - 5, 0)
-                if event.y > 0:
-                    player["inventory_scroll"] = max(player["inventory_scroll"] - 1, 0)
-                elif event.y < 0:
-                    player["inventory_scroll"] = min(player["inventory_scroll"] + 1, max_scroll)
 
     # Check for game over (player death)
     if player.get("game_over"):
@@ -189,7 +174,6 @@ while running:
             sub_state,
             player_image,
             current_enemy_image,
-            inventory_open,
         )
         pygame.display.flip()
         # Wait for two seconds to let the player see the message
@@ -214,7 +198,6 @@ while running:
             sub_state,
             player_image,
             current_enemy_image,
-            inventory_open,
         )
     pygame.display.flip()
     clock.tick(60)
