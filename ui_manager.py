@@ -25,7 +25,7 @@ UI_AREAS = {
     "options": [
         pygame.Rect(OPTIONS_X, 488 + i * 45, OPTIONS_WIDTH, 40) for i in range(3)
     ],
-    "inventory_preview": pygame.Rect(32, 656, 448, 56),
+    "inventory_preview": pygame.Rect(32, 640, 448, 80),
 }
 
 starting_image = pygame.image.load("assets/starting_area.png")
@@ -222,15 +222,44 @@ def render_ui(
                 draw_text(screen, "……", rect, font, center=True)
 
     if mode == "normal":
-        # Draw static five-slot inventory display
+        # Draw static six-slot inventory display
         inventory_preview_rect = areas["inventory_preview"]
         pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
-        slot_count = 5
-        slot_margin = 8
-        slot_width = (
-            inventory_preview_rect.width - slot_margin * (slot_count + 1)
-        ) // slot_count
-        slot_height = inventory_preview_rect.height - slot_margin * 2
+        slot_count = 6
+        min_gap = 3
+        desired_gap = 6
+        side_padding = 16
+        vertical_padding = 10
+
+        # Keep the slots square by basing their size on the available height
+        slot_size = max(1, inventory_preview_rect.height - vertical_padding * 2)
+
+        # Ensure the slots and gaps fit the available width. Prefer to keep the
+        # gaps small and enlarge the slot size instead of spreading the slots
+        # too far apart.
+        gap = desired_gap
+        available_width = inventory_preview_rect.width - side_padding * 2
+        total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+        if total_width > available_width:
+            gap_needed = (
+                available_width - slot_count * slot_size
+            ) / max(1, slot_count - 1)
+            if gap_needed < gap:
+                gap = max(min_gap, gap_needed)
+            total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+            if total_width > available_width:
+                slot_size = max(
+                    1,
+                    (available_width - (slot_count - 1) * gap) / slot_count,
+                )
+                total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+        horizontal_offset = max(
+            0, (inventory_preview_rect.width - total_width) / 2
+        )
+        vertical_margin = (inventory_preview_rect.height - slot_size) / 2
 
         items = list(player["inventory"])
         total_items = len(items)
@@ -246,11 +275,17 @@ def render_ui(
                 slot_labels.append("空")
 
         for index, text in enumerate(slot_labels):
+            slot_x = (
+                inventory_preview_rect.x
+                + horizontal_offset
+                + index * (slot_size + gap)
+            )
+            slot_y = inventory_preview_rect.y + vertical_margin
             slot_rect = pygame.Rect(
-                inventory_preview_rect.x + slot_margin + index * (slot_width + slot_margin),
-                inventory_preview_rect.y + slot_margin,
-                slot_width,
-                slot_height,
+                round(slot_x),
+                round(slot_y),
+                int(slot_size),
+                int(slot_size),
             )
             pygame.draw.rect(screen, COLORS["inventory_slot"], slot_rect)
             pygame.draw.rect(screen, COLORS["inventory_slot_border"], slot_rect, 2)
