@@ -18,6 +18,7 @@ from ui_manager import (
     UI_AREAS,
     get_option_rects,
     get_areas_for_mode,
+    get_inventory_slots,
     is_cinematic_mode,
     render_ui,
 )
@@ -57,6 +58,42 @@ exit_button = pygame.Rect(156, 660, 200, 50)
 exit_text = FONT.render("離開遊戲", True, (255, 255, 255))
 exit_text_rect = exit_text.get_rect(center=exit_button.center)
 
+# Item usage configuration
+HEALTH_POTION_NAME = "治療藥水"
+HEALTH_POTION_HEAL = 10
+
+
+def use_inventory_item(player: dict, index: int) -> bool:
+    """Use the item at ``index`` in the player's inventory if possible."""
+    inventory = player.get("inventory")
+    if not inventory or index < 0 or index >= len(inventory):
+        return False
+
+    item_name = inventory[index]
+    if item_name == HEALTH_POTION_NAME:
+        max_hp = player.get("max_hp", player.get("hp", 0))
+        current_hp = player.get("hp", 0)
+        if current_hp >= max_hp:
+            text_log.add(
+                "你的 HP 已經滿了，暫時不需要使用治療藥水。", category="system"
+            )
+            text_log.scroll_to_bottom()
+            return False
+
+        heal_amount = min(HEALTH_POTION_HEAL, max_hp - current_hp)
+        player["hp"] = current_hp + heal_amount
+        del inventory[index]
+        text_log.add(
+            f"你使用了{item_name}，HP 回復 {heal_amount} 點。", category="system"
+        )
+        text_log.add(f"HP +{heal_amount} → {player['hp']}", category="system")
+        text_log.scroll_to_bottom()
+        return True
+
+    text_log.add(f"{item_name} 暫時無法使用。", category="system")
+    text_log.scroll_to_bottom()
+    return False
+
 
 # Initialise player state
 player = init_player_state()
@@ -89,6 +126,7 @@ while running:
                 areas = get_areas_for_mode(player)
                 cinematic = areas.get("mode") == "cinematic"
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
+                handled_click = False
 
                 # Click "前進" area
                 if (
@@ -98,6 +136,7 @@ while running:
                     and option_rects[0].collidepoint(event.pos)
                 ):
                     from event_manager import get_random_event
+
                     current_event = get_random_event(player=player)
                     if current_event:
                         text_log.start_event(current_event.get("id"))
@@ -105,20 +144,33 @@ while running:
                         text_log.scroll_to_bottom()
                         image_name = current_event.get("enemy_image")
                         if image_name:
-                            current_enemy_image = pygame.image.load(f"assets/{image_name}").convert_alpha()
-                            current_enemy_image = pygame.transform.scale(current_enemy_image, (96, 96))
+                            current_enemy_image = pygame.image.load(
+                                f"assets/{image_name}"
+                            ).convert_alpha()
+                            current_enemy_image = pygame.transform.scale(
+                                current_enemy_image, (96, 96)
+                            )
                         else:
                             current_enemy_image = None
                     sub_state = "show_event"
+                    handled_click = True
                 # Click event option
-                elif sub_state == "show_event" and current_event and "options" in current_event:
-                    option_rects = get_option_rects(sub_state, current_event, player, areas)
+                elif (
+                    sub_state == "show_event"
+                    and current_event
+                    and "options" in current_event
+                ):
+                    option_rects = get_option_rects(
+                        sub_state, current_event, player, areas
+                    )
                     for i, rect in enumerate(option_rects):
                         if i >= len(current_event["options"]):
                             continue
                         if rect.collidepoint(event.pos):
                             chosen = current_event["options"][i]
-                            text_log.add(f"你選擇了：{chosen['text']}", category="choice")
+                            text_log.add(
+                                f"你選擇了：{chosen['text']}", category="choice"
+                            )
                             text_log.scroll_to_bottom()
                             # Immediate redraw to show choice
                             render_ui(
@@ -154,6 +206,25 @@ while running:
                             pending_clear_event = True
                             clear_event_timer = 1
                             sub_state = "after_result"
+                            handled_click = True
+                            break
+                if not handled_click and not cinematic:
+                    for slot in get_inventory_slots(player, areas):
+                        if (
+                            slot.rect.collidepoint(event.pos)
+                            and slot.item_index is not None
+                        ):
+                            if use_inventory_item(player, slot.item_index):
+                                render_ui(
+                                    screen,
+                                    player,
+                                    FONT,
+                                    current_event,
+                                    sub_state,
+                                    player_image,
+                                    current_enemy_image,
+                                )
+                                pygame.display.flip()
                             break
         elif event.type == pygame.MOUSEWHEEL:
             mouse_x, mouse_y = pygame.mouse.get_pos()

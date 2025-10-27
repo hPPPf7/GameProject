@@ -16,6 +16,9 @@ flag is checked to end the game gracefully.
 import text_log
 from typing import Dict, Any, Optional
 
+MISSION_BRIEF_FLAG = "mission_briefed"
+MISSION_POTION_NAME = "治療藥水"
+
 from fate_system import (
     FateChange,
     apply_fate_change,
@@ -73,7 +76,9 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             apply_major_choice(player, value, result.get("text", "重大抉擇"))
             continue
         if key == "fate_bias":
-            apply_fate_change(player, FateChange(value, result.get("text", "命運微調"), "bias"))
+            apply_fate_change(
+                player, FateChange(value, result.get("text", "命運微調"), "bias")
+            )
             continue
         # Standard stat adjustments (hp, atk, def or any other numeric field)
         if key in player:
@@ -93,8 +98,12 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             if key in ["hp", "atk", "def"]:
                 label = key.upper()
                 sign = "+" if value >= 0 else ""
-                text_log.add(f"{label} {sign}{value} → {player[key]}", category="system")
-            print(f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}")
+                text_log.add(
+                    f"{label} {sign}{value} → {player[key]}", category="system"
+                )
+            print(
+                f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}"
+            )
 
     # Inventory modifications
     if "inventory_add" in result:
@@ -118,8 +127,12 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     for flag in result.get("flags_set", []) or []:
         player.setdefault("flags", {})[flag] = True
         text_log.add(f"旗標觸發：{flag}", category="system")
-        if flag == "mission_briefed":
+        if flag == MISSION_BRIEF_FLAG:
             text_log.add("任務已建立：調查淺川村", category="system")
+            inventory = player.setdefault("inventory", [])
+            if MISSION_POTION_NAME not in inventory:
+                inventory.append(MISSION_POTION_NAME)
+                text_log.add(f"你獲得了道具：{MISSION_POTION_NAME}", category="system")
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False

@@ -1,19 +1,21 @@
-from typing import Optional
+from typing import Optional, NamedTuple, List
 
 import pygame
 import text_log
+
 
 def is_cinematic_mode(player: dict) -> bool:
     """Return True when the UI should collapse into the cinematic layout."""
     flags = player.get("flags", {}) if player else {}
     return not flags.get("mission_briefed", False)
 
+
 # Define UI area dimensions and positions.  We shrink the status block
 # horizontally and widen the options area accordingly.  The total width of
 # the row remains 448 pixels (with margins).
 
 STATUS_WIDTH = 200  # narrower status panel
-GAP = 24            # horizontal gap between status and options
+GAP = 24  # horizontal gap between status and options
 STATUS_X = 32
 OPTIONS_X = STATUS_X + STATUS_WIDTH + GAP
 OPTIONS_WIDTH = 448 - (OPTIONS_X - STATUS_X)
@@ -30,6 +32,53 @@ UI_AREAS = {
 
 starting_image = pygame.image.load("assets/starting_area.png")
 starting_image = pygame.transform.scale(starting_image, UI_AREAS["image"].size)
+
+ITEM_ICON_FILES = {
+    "治療藥水": "health_potion.png",
+}
+
+_ITEM_ICON_CACHE: dict[str, Optional[pygame.Surface]] = {}
+_SCALED_ICON_CACHE: dict[tuple[str, int], pygame.Surface] = {}
+
+
+class InventorySlot(NamedTuple):
+    rect: pygame.Rect
+    item_name: Optional[str]
+    icon: Optional[pygame.Surface]
+    label: Optional[str]
+    item_index: Optional[int]
+
+
+def load_item_icon(name: str) -> Optional[pygame.Surface]:
+    filename = ITEM_ICON_FILES.get(name)
+    if not filename:
+        return None
+
+    if name not in _ITEM_ICON_CACHE:
+        try:
+            _ITEM_ICON_CACHE[name] = pygame.image.load(
+                f"assets/{filename}"
+            ).convert_alpha()
+        except (FileNotFoundError, pygame.error):
+            _ITEM_ICON_CACHE[name] = None
+    return _ITEM_ICON_CACHE.get(name)
+
+
+def get_scaled_item_icon(name: str, size: int) -> Optional[pygame.Surface]:
+    if size <= 0:
+        return None
+    key = (name, size)
+    if key in _SCALED_ICON_CACHE:
+        return _SCALED_ICON_CACHE[key]
+
+    base_icon = load_item_icon(name)
+    if not base_icon:
+        return None
+
+    scaled = pygame.transform.smoothscale(base_icon, (size, size))
+    _SCALED_ICON_CACHE[key] = scaled
+    return scaled
+
 
 COLORS = {
     "image": (40, 80, 40),
@@ -138,6 +187,83 @@ def get_option_rects(
     return [full_rect]
 
 
+def get_inventory_slots(
+    player: dict,
+    areas: Optional[dict] = None,
+    slot_count: int = 6,
+) -> List[InventorySlot]:
+    """Return the rectangles and display info for inventory slots."""
+
+    areas = areas or get_areas_for_mode(player)
+    if areas.get("mode") != "normal":
+        return []
+
+    slot_count = max(1, slot_count)
+    inventory_preview_rect = areas["inventory_preview"]
+    min_gap = 3
+    desired_gap = 6
+    side_padding = 16
+    vertical_padding = 10
+
+    slot_size = max(1, inventory_preview_rect.height - vertical_padding * 2)
+
+    gap = desired_gap
+    available_width = inventory_preview_rect.width - side_padding * 2
+    total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+    if total_width > available_width:
+        gap_needed = (available_width - slot_count * slot_size) / max(1, slot_count - 1)
+        if gap_needed < gap:
+            gap = max(min_gap, gap_needed)
+        total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+        if total_width > available_width:
+            slot_size = max(
+                1,
+                (available_width - (slot_count - 1) * gap) / slot_count,
+            )
+            total_width = slot_count * slot_size + (slot_count - 1) * gap
+
+    horizontal_offset = max(0, (inventory_preview_rect.width - total_width) / 2)
+    vertical_margin = (inventory_preview_rect.height - slot_size) / 2
+
+    items = list(player.get("inventory", []))
+    total_items = len(items)
+    icon_size = int(max(1, slot_size - 12))
+
+    slots: List[InventorySlot] = []
+    for index in range(slot_count):
+        slot_x = (
+            inventory_preview_rect.x + horizontal_offset + index * (slot_size + gap)
+        )
+        slot_y = inventory_preview_rect.y + vertical_margin
+        slot_rect = pygame.Rect(
+            round(slot_x),
+            round(slot_y),
+            int(slot_size),
+            int(slot_size),
+        )
+
+        item_name: Optional[str] = None
+        icon_surface: Optional[pygame.Surface] = None
+        label: Optional[str] = None
+        item_index: Optional[int] = None
+
+        if index < total_items:
+            if index == slot_count - 1 and total_items > slot_count:
+                remaining = total_items - (slot_count - 1)
+                label = f"+{remaining}"
+            else:
+                item_name = items[index]
+                icon_surface = get_scaled_item_icon(item_name, icon_size)
+                item_index = index
+        slots.append(
+            InventorySlot(slot_rect, item_name, icon_surface, label, item_index)
+        )
+
+    return slots
+
+
 def render_ui(
     screen,
     player,
@@ -186,7 +312,9 @@ def render_ui(
     }
     for i, (line, category) in enumerate(visible_lines):
         color = color_map.get(category, (255, 255, 255))
-        draw_text(screen, line, areas["log"], font, center=False, line_offset=i, color=color)
+        draw_text(
+            screen, line, areas["log"], font, center=False, line_offset=i, color=color
+        )
 
     # Draw status panel (skip in cinematic mode)
     if mode == "normal":
@@ -194,10 +322,12 @@ def render_ui(
         lines = [
             f"HP: {player['hp']}",
             f"ATK: {player['atk']}",
-            f"DEF: {player['def']}"
+            f"DEF: {player['def']}",
         ]
         for i, line in enumerate(lines):
-            draw_text(screen, line, areas["status_rect"], font, center=False, line_offset=i)
+            draw_text(
+                screen, line, areas["status_rect"], font, center=False, line_offset=i
+            )
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
@@ -225,74 +355,19 @@ def render_ui(
         # Draw static six-slot inventory display
         inventory_preview_rect = areas["inventory_preview"]
         pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
-        slot_count = 6
-        min_gap = 3
-        desired_gap = 6
-        side_padding = 16
-        vertical_padding = 10
-
-        # Keep the slots square by basing their size on the available height
-        slot_size = max(1, inventory_preview_rect.height - vertical_padding * 2)
-
-        # Ensure the slots and gaps fit the available width. Prefer to keep the
-        # gaps small and enlarge the slot size instead of spreading the slots
-        # too far apart.
-        gap = desired_gap
-        available_width = inventory_preview_rect.width - side_padding * 2
-        total_width = slot_count * slot_size + (slot_count - 1) * gap
-
-        if total_width > available_width:
-            gap_needed = (
-                available_width - slot_count * slot_size
-            ) / max(1, slot_count - 1)
-            if gap_needed < gap:
-                gap = max(min_gap, gap_needed)
-            total_width = slot_count * slot_size + (slot_count - 1) * gap
-
-            if total_width > available_width:
-                slot_size = max(
-                    1,
-                    (available_width - (slot_count - 1) * gap) / slot_count,
-                )
-                total_width = slot_count * slot_size + (slot_count - 1) * gap
-
-        horizontal_offset = max(
-            0, (inventory_preview_rect.width - total_width) / 2
-        )
-        vertical_margin = (inventory_preview_rect.height - slot_size) / 2
-
-        items = list(player["inventory"])
-        total_items = len(items)
-        slot_labels: list[str] = []
-        for index in range(slot_count):
-            if index < total_items:
-                if index == slot_count - 1 and total_items > slot_count:
-                    remaining = total_items - (slot_count - 1)
-                    slot_labels.append(f"+{remaining}")
-                else:
-                    slot_labels.append(items[index])
-            else:
-                slot_labels.append("空")
-
-        for index, text in enumerate(slot_labels):
-            slot_x = (
-                inventory_preview_rect.x
-                + horizontal_offset
-                + index * (slot_size + gap)
-            )
-            slot_y = inventory_preview_rect.y + vertical_margin
-            slot_rect = pygame.Rect(
-                round(slot_x),
-                round(slot_y),
-                int(slot_size),
-                int(slot_size),
-            )
-            pygame.draw.rect(screen, COLORS["inventory_slot"], slot_rect)
-            pygame.draw.rect(screen, COLORS["inventory_slot_border"], slot_rect, 2)
-            draw_text(screen, text, slot_rect, font, center=True)
+        for slot in get_inventory_slots(player, areas):
+            pygame.draw.rect(screen, COLORS["inventory_slot"], slot.rect)
+            pygame.draw.rect(screen, COLORS["inventory_slot_border"], slot.rect, 2)
+            if slot.icon:
+                icon_rect = slot.icon.get_rect(center=slot.rect.center)
+                screen.blit(slot.icon, icon_rect)
+            elif slot.label:
+                draw_text(screen, slot.label, slot.rect, font, center=True)
 
 
-def draw_text(screen, text, rect, font, center=False, line_offset=0, color=(255, 255, 255)):
+def draw_text(
+    screen, text, rect, font, center=False, line_offset=0, color=(255, 255, 255)
+):
     """
     Render a single line of text inside the given rectangle.  If ``center``
     is True the text is centred; otherwise it is drawn with a small
@@ -302,5 +377,7 @@ def draw_text(screen, text, rect, font, center=False, line_offset=0, color=(255,
     if center:
         text_rect = rendered.get_rect(center=rect.center)
     else:
-        text_rect = rendered.get_rect(topleft=(rect.x + 8, rect.y + 8 + line_offset * 24))
+        text_rect = rendered.get_rect(
+            topleft=(rect.x + 8, rect.y + 8 + line_offset * 24)
+        )
     screen.blit(rendered, text_rect)
