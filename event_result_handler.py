@@ -99,10 +99,11 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 label = key.upper()
                 sign = "+" if value >= 0 else ""
                 text_log.add(
-                    f"{label} {sign}{value} → {player[key]}", category="system"
+                    f"{label} {original} {sign}{value} → {player[key]}",
+                    category="system",
                 )
             print(
-                f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}"
+                f"【數值變化】{key.upper()} {original} {'+' if value >= 0 else ''}{value} → {player[key]}"
             )
 
     # Inventory modifications

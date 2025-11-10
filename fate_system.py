@@ -5,6 +5,7 @@ it never drifts endlessly inside the neutral band.  It exposes helper
 functions for adjusting fate, applying automatic chapter bias, and deciding
 when the story must inject a fate trigger or lock the main route.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -24,9 +25,9 @@ MAX_MAJOR_DELTA = 20
 MAX_BIAS_DELTA = 5
 
 CHAPTER_THRESHOLDS = {
-    2: 3,   # 第二章：前三個事件結束後開啟微調
-    3: 6,   # 第三章：六次探索後開始根據平均值偏移
-    4: 9,   # 第四章：九次探索後鎖定命運走向
+    2: 3,  # 第二章：前三個事件結束後開啟微調
+    3: 6,  # 第三章：六次探索後開始根據平均值偏移
+    4: 9,  # 第四章：九次探索後鎖定命運走向
     5: 12,  # 第五章：十二次探索後推進至結局
 }
 
@@ -90,7 +91,7 @@ def apply_fate_change(player: Dict, change: FateChange) -> None:
     if len(history) > 10:
         history.pop(0)
 
-    text_log.add(f"命運值 {old_value} → {new_value}（{change.reason}）", category="system")
+    text_log.add(f"命運值 {old_value} → {new_value}", category="system")
 
 
 def nudge_toward_band(player: Dict, target_band: str, reason: str) -> None:
