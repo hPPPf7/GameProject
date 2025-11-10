@@ -16,6 +16,8 @@ flag is checked to end the game gracefully.
 import text_log
 from typing import Dict, Any, Optional
 
+from battle_system import perform_battle_action
+
 MISSION_BRIEF_FLAG = "mission_briefed"
 MISSION_POTION_NAME = "治療藥水"
 
@@ -27,6 +29,48 @@ from fate_system import (
     handle_refusal,
     reset_refusal,
 )
+
+
+def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
+    """Apply a numeric change to the given player stat with logging."""
+
+    if key not in player:
+        return
+
+    player[key] += value
+
+    if key == "hp" and player[key] <= 0:
+        player[key] = 0
+        if not player.get("game_over"):
+            text_log.add("你因傷重不治，離開人世。", category="system")
+        player["game_over"] = True
+    elif player[key] < 0:
+        player[key] = 0
+
+    if key in ["hp", "atk", "def"]:
+        label = key.upper()
+        sign = "+" if value >= 0 else ""
+        text_log.add(f"{label} {sign}{value} → {player[key]}", category="system")
+    print(
+        f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}"
+    )
+
+
+def _apply_effects(player: Dict, effects: Dict, source_text: str | None) -> None:
+    for key, value in (effects or {}).items():
+        if key == "fate":
+            apply_normal_choice(player, value, source_text or "命運波動")
+            continue
+        if key == "fate_major":
+            apply_major_choice(player, value, source_text or "重大抉擇")
+            continue
+        if key == "fate_bias":
+            apply_fate_change(
+                player,
+                FateChange(value, source_text or "命運微調", "bias"),
+            )
+            continue
+        _apply_numeric_change(player, key, value)
 
 
 def handle_event_result(player: Dict, result: Dict) -> str | None:
@@ -51,6 +95,42 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     """
     forced_event = result.get("forced_event")
 
+    # Battle specific handling
+    battle_action = result.get("battle_action")
+    battle_outcome: Optional[Dict[str, Any]] = None
+    if battle_action:
+        battle_outcome = perform_battle_action(player, battle_action, result)
+        for message in battle_outcome.get("messages", []):
+            text_log.add(message, category="system")
+        player_damage = battle_outcome.get("player_damage", 0)
+        if player_damage:
+            _apply_numeric_change(player, "hp", -player_damage)
+
+        # Allow battle actions to specify follow-up forced events
+        if battle_outcome.get("battle_over") and result.get("forced_event_on_end"):
+            forced_event = forced_event or result.get("forced_event_on_end")
+
+        if battle_outcome.get("battle_over"):
+            if battle_outcome.get("victory"):
+                _apply_effects(
+                    player,
+                    result.get("victory_effect") or {},
+                    result.get("victory_text") or result.get("text", "勝利獎勵"),
+                )
+                victory_log = result.get("victory_log")
+                if victory_log:
+                    if isinstance(victory_log, list):
+                        for entry in victory_log:
+                            text_log.add(entry, category="system")
+                    else:
+                        text_log.add(victory_log, category="system")
+            elif battle_outcome.get("escaped"):
+                _apply_effects(
+                    player,
+                    result.get("escape_effect") or {},
+                    result.get("escape_text") or result.get("text", "撤退"),
+                )
+
     # Show the primary result text (if provided)
     if "text" in result:
         msg = result["text"]
@@ -68,43 +148,8 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     # Apply numeric stat changes
     effect = result.get("effect") or {}
-    for key, value in effect.items():
-        if key == "fate":
-            apply_normal_choice(player, value, result.get("text", "命運波動"))
-            continue
-        if key == "fate_major":
-            apply_major_choice(player, value, result.get("text", "重大抉擇"))
-            continue
-        if key == "fate_bias":
-            apply_fate_change(
-                player, FateChange(value, result.get("text", "命運微調"), "bias")
-            )
-            continue
-        # Standard stat adjustments (hp, atk, def or any other numeric field)
-        if key in player:
-            original = player[key]
-            player[key] += value
-            # Clamp HP to zero and trigger death if it drops below zero
-            if key == "hp" and player[key] <= 0:
-                player[key] = 0
-                # If not already dead, mark game over and add a message
-                if not player.get("game_over"):
-                    text_log.add("你因傷重不治，離開人世。", category="system")
-                player["game_over"] = True
-            # Prevent negative values for other numeric keys
-            elif player[key] < 0:
-                player[key] = 0
-            # Visible stat change feedback
-            if key in ["hp", "atk", "def"]:
-                label = key.upper()
-                sign = "+" if value >= 0 else ""
-                text_log.add(
-                    f"{label} {original} {sign}{value} → {player[key]}",
-                    category="system",
-                )
-            print(
-                f"【數值變化】{key.upper()} {original} {'+' if value >= 0 else ''}{value} → {player[key]}"
-            )
+    if effect:
+        _apply_effects(player, effect, result.get("text", "事件效果"))
 
     # Inventory modifications
     if "inventory_add" in result:

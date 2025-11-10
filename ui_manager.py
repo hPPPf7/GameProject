@@ -324,6 +324,26 @@ def render_ui(
             f"ATK: {player['atk']}",
             f"DEF: {player['def']}",
         ]
+        battle_state = player.get("battle_state")
+        if battle_state and battle_state.get("active"):
+            enemy = battle_state.get("enemy")
+            if enemy:
+                enemy_name = getattr(enemy, "name", None)
+                if enemy_name is None and isinstance(enemy, dict):
+                    enemy_name = enemy.get("name", "敵人")
+                if enemy_name is None:
+                    enemy_name = "敵人"
+                enemy_hp = getattr(enemy, "hp", None)
+                if enemy_hp is None and isinstance(enemy, dict):
+                    enemy_hp = enemy.get("hp", 0)
+                if enemy_hp is None:
+                    enemy_hp = 0
+                enemy_max = getattr(enemy, "max_hp", None)
+                if enemy_max is None and isinstance(enemy, dict):
+                    enemy_max = enemy.get("max_hp", enemy_hp)
+                if enemy_max is None:
+                    enemy_max = enemy_hp
+                lines.append(f"{enemy_name}: {enemy_hp}/{enemy_max} HP")
         for i, line in enumerate(lines):
             draw_text(
                 screen, line, areas["status_rect"], font, center=False, line_offset=i

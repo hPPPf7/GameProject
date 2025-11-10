@@ -25,6 +25,7 @@ from ui_manager import (
 from player_state import init_player_state
 from event_result_handler import handle_event_result
 from fate_system import post_event_update
+from battle_system import start_battle, is_battle_active, clear_battle_state
 
 
 # Window setup
@@ -152,6 +153,8 @@ while running:
                             )
                         else:
                             current_enemy_image = None
+                        if current_event.get("type") == "battle":
+                            start_battle(player, current_event)
                     sub_state = "show_event"
                     handled_click = True
                 # Click event option
@@ -202,10 +205,18 @@ while running:
                                 current_enemy_image,
                             )
                             pygame.display.flip()
-                            # Mark event for clearing on next iteration
-                            pending_clear_event = True
-                            clear_event_timer = 1
-                            sub_state = "after_result"
+                            battle_continues = False
+                            if current_event.get("type") == "battle":
+                                battle_continues = is_battle_active(player)
+                            if battle_continues:
+                                pending_clear_event = False
+                                clear_event_timer = 0
+                                sub_state = "show_event"
+                            else:
+                                # Mark event for clearing on next iteration
+                                pending_clear_event = True
+                                clear_event_timer = 1
+                                sub_state = "after_result"
                             handled_click = True
                             break
                 if not handled_click and not cinematic:
@@ -278,6 +289,8 @@ while running:
         if clear_event_timer > 0:
             clear_event_timer -= 1
         else:
+            if current_event and current_event.get("type") == "battle":
+                clear_battle_state(player)
             current_event = None
             current_enemy_image = None
             sub_state = "wait"

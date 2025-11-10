@@ -62,19 +62,25 @@
       {
         "text": "攻擊",
         "result": {
-          "text": "你奮力攻擊，受到些微傷害，但也更鎮定了。",
-          "effect": { "hp": -2, "fate": 2 },
-          "emit_log": "戰報#01：小型個體可控。"
+          "text": "你調整呼吸，鎖定敵人的破綻。",
+          "battle_action": "attack",
+          "victory_text": "你擊倒了小型魔物。",
+          "victory_effect": { "fate": 2 },
+          "victory_log": "戰報#01：小型個體可控。"
         }
       },
       {
         "text": "逃跑",
         "result": {
-          "text": "你成功逃跑，但有些擦傷。",
-          "effect": { "hp": -1, "fate": -1 }
+          "text": "你試圖找機會撤離。",
+          "battle_action": "escape",
+          "escape_chance": 0.7,
+          "escape_text": "你成功脫離戰鬥。",
+          "escape_effect": { "fate": -1 }
         }
       }
-    ]
+    ],
+    "enemy": { "name": "小型魔物", "hp": 12, "atk": 4, "def": 1 }
   },
   {
     "id": "event_dialogue_001",
