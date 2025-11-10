@@ -90,7 +90,45 @@ COLORS = {
     "inventory": (90, 90, 40),
     "inventory_slot": (120, 120, 70),
     "inventory_slot_border": (180, 180, 120),
+    "hp_bar_bg": (60, 60, 60),
+    "hp_bar_fill": (200, 60, 60),
+    "hp_bar_border": (240, 240, 240),
 }
+
+
+def get_enemy_display_info(player: Optional[dict]):
+    """Extract the current enemy's display information from the player state."""
+
+    if not player:
+        return None
+
+    battle_state = player.get("battle_state")
+    if not battle_state or not battle_state.get("active"):
+        return None
+
+    enemy = battle_state.get("enemy")
+    if not enemy:
+        return None
+
+    enemy_name = getattr(enemy, "name", None)
+    if enemy_name is None and isinstance(enemy, dict):
+        enemy_name = enemy.get("name")
+    if enemy_name is None:
+        enemy_name = "敵人"
+
+    enemy_hp = getattr(enemy, "hp", None)
+    if enemy_hp is None and isinstance(enemy, dict):
+        enemy_hp = enemy.get("hp", 0)
+    if enemy_hp is None:
+        enemy_hp = 0
+
+    enemy_max = getattr(enemy, "max_hp", None)
+    if enemy_max is None and isinstance(enemy, dict):
+        enemy_max = enemy.get("max_hp", enemy_hp)
+    if enemy_max is None or enemy_max <= 0:
+        enemy_max = max(enemy_hp, 1)
+
+    return enemy_name, enemy_hp, enemy_max
 
 
 def wrap_text(text: str, font: pygame.font.Font, max_width: int) -> list[str]:
@@ -281,6 +319,7 @@ def render_ui(
     mouse_pos = pygame.mouse.get_pos()
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
+    enemy_info = get_enemy_display_info(player)
 
     # Image area
     screen.blit(starting_image, areas["image"].topleft)
@@ -288,9 +327,56 @@ def render_ui(
     # Draw player and enemy sprites if provided
     if player_image:
         screen.blit(player_image, (areas["image"].x + 32, areas["image"].y + 80))
+    enemy_rect: Optional[pygame.Rect] = None
     if enemy_image:
-        enemy_pos = (areas["image"].right - 96 - 32, areas["image"].y + 80)
-        screen.blit(enemy_image, enemy_pos)
+        enemy_rect = enemy_image.get_rect()
+        enemy_rect.topleft = (
+            areas["image"].right - enemy_rect.width - 32,
+            areas["image"].y + 80,
+        )
+        screen.blit(enemy_image, enemy_rect.topleft)
+    elif enemy_info:
+        enemy_rect = pygame.Rect(
+            areas["image"].right - 160 - 32,
+            areas["image"].y + 80,
+            160,
+            120,
+        )
+
+    if enemy_info and enemy_rect:
+        enemy_name, enemy_hp, enemy_max = enemy_info
+        bar_width = max(enemy_rect.width, 160)
+        bar_height = 14
+        image_rect = areas["image"]
+        bar_x = enemy_rect.centerx - bar_width // 2
+        min_x = image_rect.left + 16
+        max_x = image_rect.right - bar_width - 16
+        bar_x = max(min_x, min(bar_x, max_x))
+        bar_y = enemy_rect.y - 24
+        bar_y = max(image_rect.top + 16, bar_y)
+        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, bar_height)
+
+        pygame.draw.rect(screen, COLORS["hp_bar_bg"], bar_rect)
+        if enemy_max > 0:
+            hp_ratio = max(0.0, min(enemy_hp / enemy_max, 1.0))
+            fill_width = int(bar_rect.width * hp_ratio)
+        else:
+            fill_width = 0
+        if fill_width > 0:
+            fill_rect = pygame.Rect(bar_rect.x, bar_rect.y, fill_width, bar_rect.height)
+            pygame.draw.rect(screen, COLORS["hp_bar_fill"], fill_rect)
+        pygame.draw.rect(screen, COLORS["hp_bar_border"], bar_rect, 2)
+
+        label_text = f"{enemy_name} {enemy_hp}/{enemy_max}"
+        label_surface = font.render(label_text, True, COLORS["hp_bar_border"])
+        label_rect = label_surface.get_rect(
+            midbottom=(bar_rect.centerx, bar_rect.y - 4)
+        )
+        top_margin = image_rect.top + 4
+        if label_rect.top < top_margin:
+            label_rect.top = top_margin
+            label_rect.centerx = bar_rect.centerx
+        screen.blit(label_surface, label_rect)
 
     # Draw log area
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
@@ -324,26 +410,6 @@ def render_ui(
             f"ATK: {player['atk']}",
             f"DEF: {player['def']}",
         ]
-        battle_state = player.get("battle_state")
-        if battle_state and battle_state.get("active"):
-            enemy = battle_state.get("enemy")
-            if enemy:
-                enemy_name = getattr(enemy, "name", None)
-                if enemy_name is None and isinstance(enemy, dict):
-                    enemy_name = enemy.get("name", "敵人")
-                if enemy_name is None:
-                    enemy_name = "敵人"
-                enemy_hp = getattr(enemy, "hp", None)
-                if enemy_hp is None and isinstance(enemy, dict):
-                    enemy_hp = enemy.get("hp", 0)
-                if enemy_hp is None:
-                    enemy_hp = 0
-                enemy_max = getattr(enemy, "max_hp", None)
-                if enemy_max is None and isinstance(enemy, dict):
-                    enemy_max = enemy.get("max_hp", enemy_hp)
-                if enemy_max is None:
-                    enemy_max = enemy_hp
-                lines.append(f"{enemy_name}: {enemy_hp}/{enemy_max} HP")
         for i, line in enumerate(lines):
             draw_text(
                 screen, line, areas["status_rect"], font, center=False, line_offset=i
