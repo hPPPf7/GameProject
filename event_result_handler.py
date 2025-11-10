@@ -37,6 +37,7 @@ def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
     if key not in player:
         return
 
+    old_value = player[key]
     player[key] += value
 
     if key == "hp" and player[key] <= 0:
@@ -50,9 +51,12 @@ def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
     if key in ["hp", "atk", "def"]:
         label = key.upper()
         sign = "+" if value >= 0 else ""
-        text_log.add(f"{label} {sign}{value} → {player[key]}", category="system")
+        text_log.add(
+            f"{label} {old_value} {sign}{value} → {player[key]}",
+            category="system",
+        )
     print(
-        f"【數值變化】{key.upper()} {'+' if value >= 0 else ''}{value} → {player[key]}"
+        f"【數值變化】{key.upper()} {old_value} {'+' if value >= 0 else ''}{value} → {player[key]}"
     )
 
 
@@ -93,6 +97,11 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     The return value is a forced event ID if one should be queued.
     """
+    primary_text = result.get("text")
+    if primary_text:
+        print("【事件結果】", primary_text)
+        text_log.add(primary_text)
+
     forced_event = result.get("forced_event")
 
     # Battle specific handling
@@ -115,7 +124,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 _apply_effects(
                     player,
                     result.get("victory_effect") or {},
-                    result.get("victory_text") or result.get("text", "勝利獎勵"),
+                    result.get("victory_text") or primary_text or "勝利獎勵",
                 )
                 victory_log = result.get("victory_log")
                 if victory_log:
@@ -128,14 +137,8 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 _apply_effects(
                     player,
                     result.get("escape_effect") or {},
-                    result.get("escape_text") or result.get("text", "撤退"),
+                    result.get("escape_text") or primary_text or "撤退",
                 )
-
-    # Show the primary result text (if provided)
-    if "text" in result:
-        msg = result["text"]
-        print("【事件結果】", msg)
-        text_log.add(msg)
 
     # Emit additional log entries if specified
     if "emit_log" in result:
@@ -149,7 +152,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     # Apply numeric stat changes
     effect = result.get("effect") or {}
     if effect:
-        _apply_effects(player, effect, result.get("text", "事件效果"))
+        _apply_effects(player, effect, primary_text or "事件效果")
 
     # Inventory modifications
     if "inventory_add" in result:
