@@ -190,10 +190,6 @@ while running:
                             if result:
                                 handle_event_result(player, result)
                                 text_log.scroll_to_bottom()
-                            # Check for chapter/fate updates
-                            forced_event = post_event_update(player)
-                            if forced_event:
-                                player["forced_event"] = forced_event
                             # Redraw after applying result
                             render_ui(
                                 screen,
@@ -208,6 +204,12 @@ while running:
                             battle_continues = False
                             if current_event.get("type") == "battle":
                                 battle_continues = is_battle_active(player)
+
+                            if not battle_continues:
+                                # Only advance progression when the current event is fully resolved
+                                forced_event = post_event_update(player)
+                                if forced_event:
+                                    player["forced_event"] = forced_event
                             if battle_continues:
                                 pending_clear_event = False
                                 clear_event_timer = 0
