@@ -157,7 +157,13 @@ while running:
                             current_enemy_image = None
                         if current_event.get("type") == "battle":
                             start_battle(player, current_event)
-                    sub_state = "show_event"
+                        sub_state = "show_event"
+                    else:
+                        text_log.add(
+                            "命運暫時沉寂，沒有新的事件發生。", category="system"
+                        )
+                        text_log.scroll_to_bottom()
+                        sub_state = "wait"
                     handled_click = True
                 # 點擊事件選項
                 elif (

@@ -179,7 +179,12 @@ def get_random_event(event_types=None, player=None):
     forced_event_id = player.get("forced_event") if player else None
     if forced_event_id:
         player["forced_event"] = None
-        return _prepare_event(player, get_event_by_id(forced_event_id))
+        forced_event = get_event_by_id(forced_event_id)
+        if forced_event:
+            return _prepare_event(player, forced_event)
+        print(
+            f"[event_manager] 找不到強制事件 {forced_event_id}，改以一般事件取代。"
+        )
 
     streak = _increment_midband_counter(player)
     if streak >= MIDBAND_LIMIT:
