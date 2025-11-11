@@ -3,6 +3,8 @@ from typing import Optional, NamedTuple, List
 import pygame
 import text_log
 
+from paths import res_path
+
 
 def is_cinematic_mode(player: dict) -> bool:
     """Return True when the UI should collapse into the cinematic layout."""
@@ -30,7 +32,7 @@ UI_AREAS = {
     "inventory_preview": pygame.Rect(32, 640, 448, 80),
 }
 
-starting_image = pygame.image.load("assets/starting_area.png")
+starting_image = pygame.image.load(res_path("assets", "starting_area.png"))
 starting_image = pygame.transform.scale(starting_image, UI_AREAS["image"].size)
 
 ITEM_ICON_FILES = {
@@ -57,7 +59,7 @@ def load_item_icon(name: str) -> Optional[pygame.Surface]:
     if name not in _ITEM_ICON_CACHE:
         try:
             _ITEM_ICON_CACHE[name] = pygame.image.load(
-                f"assets/{filename}"
+                res_path("assets", filename)
             ).convert_alpha()
         except (FileNotFoundError, pygame.error):
             _ITEM_ICON_CACHE[name] = None

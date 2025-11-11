@@ -12,6 +12,8 @@ import json
 import random
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from paths import res_path
+
 MIDBAND_MIN = 40
 MIDBAND_MAX = 60
 MIDBAND_LIMIT = 3
@@ -20,7 +22,7 @@ INTRO_EVENT_ID = "event_intro_briefing"
 
 
 # Load all event data
-def load_events(path="data/story_data.json"):
+def load_events(path: str = res_path("data", "story_data.json")):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -167,7 +169,11 @@ def get_random_event(event_types=None, player=None):
     if player is not None:
         player.setdefault("flags", {})
         intro_event = get_event_by_id(INTRO_EVENT_ID)
-        if intro_event and not player["flags"].get("mission_briefed") and not _was_consumed(intro_event, player):
+        if (
+            intro_event
+            and not player["flags"].get("mission_briefed")
+            and not _was_consumed(intro_event, player)
+        ):
             return _prepare_event(player, intro_event)
 
     forced_event_id = player.get("forced_event") if player else None

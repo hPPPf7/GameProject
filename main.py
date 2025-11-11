@@ -10,6 +10,8 @@ import pygame
 import sys
 import text_log
 
+from paths import res_path
+
 # Initialise pygame before importing other modules that depend on fonts
 pygame.init()
 pygame.font.init()
@@ -31,23 +33,23 @@ from battle_system import start_battle, is_battle_active, clear_battle_state
 # Window setup
 screen = pygame.display.set_mode((512, 768))
 pygame.display.set_caption("菜鳥調查隊日誌")
-icon = pygame.image.load("assets/icon.png").convert_alpha()
+icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
 
 # Load background and logo images
-start_bg = pygame.image.load("assets/start_background.png")
-logo_image = pygame.image.load("assets/logo1.png").convert_alpha()
+start_bg = pygame.image.load(res_path("assets", "start_background.png"))
+logo_image = pygame.image.load(res_path("assets", "logo1.png")).convert_alpha()
 logo_image = pygame.transform.scale(logo_image, (300, 300))
 
 # Player sprite
-player_image = pygame.image.load("assets/player_idle.png").convert_alpha()
+player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_alpha()
 player_image = pygame.transform.scale(player_image, (96, 96))
 
 current_enemy_image = None  # current enemy sprite for events
 
 # Font
-FONT = pygame.font.Font("assets/Cubic_11.ttf", 20)
+FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
 
 # Start menu buttons
 start_button = pygame.Rect(156, 600, 200, 50)
@@ -146,7 +148,7 @@ while running:
                         image_name = current_event.get("enemy_image")
                         if image_name:
                             current_enemy_image = pygame.image.load(
-                                f"assets/{image_name}"
+                                res_path("assets", image_name)
                             ).convert_alpha()
                             current_enemy_image = pygame.transform.scale(
                                 current_enemy_image, (96, 96)
