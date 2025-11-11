@@ -42,6 +42,14 @@ ITEM_ICON_FILES = {
 _ITEM_ICON_CACHE: dict[str, Optional[pygame.Surface]] = {}
 _SCALED_ICON_CACHE: dict[tuple[str, int], pygame.Surface] = {}
 
+ATTRIBUTE_ICON_FILES = {
+    "hp": "HP.png",
+    "atk": "ATK.png",
+    "def": "DEF.png",
+}
+
+_ATTRIBUTE_ICON_CACHE: dict[tuple[str, int], Optional[pygame.Surface]] = {}
+
 
 class InventorySlot(NamedTuple):
     rect: pygame.Rect
@@ -80,6 +88,31 @@ def get_scaled_item_icon(name: str, size: int) -> Optional[pygame.Surface]:
     scaled = pygame.transform.smoothscale(base_icon, (size, size))
     _SCALED_ICON_CACHE[key] = scaled
     return scaled
+
+def get_attribute_icon(name: str, size: int) -> Optional[pygame.Surface]:
+    """Return a scaled attribute icon surface when available."""
+
+    if size <= 0:
+        return None
+
+    cache_key = (name, size)
+    if cache_key in _ATTRIBUTE_ICON_CACHE:
+        return _ATTRIBUTE_ICON_CACHE[cache_key]
+
+    filename = ATTRIBUTE_ICON_FILES.get(name)
+    surface: Optional[pygame.Surface]
+    if not filename:
+        surface = None
+    else:
+        try:
+            loaded = pygame.image.load(res_path("assets", filename)).convert_alpha()
+        except (FileNotFoundError, pygame.error):
+            surface = None
+        else:
+            surface = pygame.transform.smoothscale(loaded, (size, size))
+
+    _ATTRIBUTE_ICON_CACHE[cache_key] = surface
+    return surface
 
 
 COLORS = {
@@ -406,15 +439,45 @@ def render_ui(
 
     # Draw status panel (skip in cinematic mode)
     if mode == "normal":
-        pygame.draw.rect(screen, COLORS["status"], areas["status_rect"])
-        lines = [
-            f"HP: {player['hp']}",
-            f"ATK: {player['atk']}",
-            f"DEF: {player['def']}",
+        status_rect = areas["status_rect"]
+        pygame.draw.rect(screen, COLORS["status"], status_rect)
+
+        rows = [
+            ("hp", "HP", player.get("hp", 0)),
+            ("atk", "ATK", player.get("atk", 0)),
+            ("def", "DEF", player.get("def", 0)),
         ]
-        for i, line in enumerate(lines):
+        
+        icon_size = 32
+        padding_x = 12
+        padding_y = 12
+        row_spacing = 8
+        row_height = icon_size
+        text_left = status_rect.x + padding_x + icon_size + 8
+        text_width = status_rect.width - (text_left - status_rect.x) - padding_x
+
+        for i, (attr_key, label, value) in enumerate(rows):
+            row_top = status_rect.y + padding_y + i * (row_height + row_spacing)
+            icon = get_attribute_icon(attr_key, icon_size)
+            if icon:
+                icon_rect = icon.get_rect()
+                icon_rect.x = status_rect.x + padding_x
+                icon_rect.centery = row_top + row_height // 2
+                screen.blit(icon, icon_rect)
+
+            text_rect = pygame.Rect(
+                text_left,
+                row_top,
+                text_width,
+                row_height,
+            )
             draw_text(
-                screen, line, areas["status_rect"], font, center=False, line_offset=i
+                screen,
+                f"{label}: {value}",
+                text_rect,
+                font,
+                center=False,
+                line_offset=0,
             )
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
