@@ -17,8 +17,8 @@ from paths import res_path
 MIDBAND_MIN = 40
 MIDBAND_MAX = 60
 MIDBAND_LIMIT = 3
-FATE_TRIGGER_MIDBAND_ID = "event_fate_trigger_midband"
-INTRO_EVENT_ID = "event_intro_briefing"
+FATE_TRIGGER_MIDBAND_ID = "命運介入"
+INTRO_EVENT_ID = "任務簡報"
 
 
 # Load all event data

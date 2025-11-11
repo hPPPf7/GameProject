@@ -1,6 +1,6 @@
 [
   {
-    "id": "event_intro_briefing",
+    "id": "任務簡報",
     "type": "milestone",
     "chapter": 1,
     "weight": 1,
@@ -20,7 +20,7 @@
     ]
   },
   {
-    "id": "event_normal_001",
+    "id": "荒野拾石",
     "type": "normal",
     "chapter": 1,
     "weight": 4,
@@ -33,29 +33,103 @@
         "text": "撿起來",
         "result": {
           "text": "你撿起了石頭，手心一陣發熱。岩石微不可察地脈動了一下。",
-          "effect": { "fate": -1 },
+          "effect": {
+            "fate": 1
+          },
           "inventory_add": "奇怪的石頭",
           "flags_set": ["got_weird_rock"],
-          "emit_log": "報告#03：岩石樣本帶熱源。"
+          "emit_log": "你透過耳麥報告：『撿到一塊還在發熱的石頭，先帶著。』"
         }
       },
       {
         "text": "無視它",
         "result": {
           "text": "你選擇不理會，繼續前進。微風像是在嘆氣。",
-          "effect": { "fate": 1 }
+          "effect": {
+            "fate": -1
+          }
         }
       }
     ]
   },
   {
-    "id": "event_battle_001",
+    "id": "峭壁回音",
+    "type": "normal",
+    "chapter": 1,
+    "weight": 3,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["荒野", "調查"],
+    "condition": {
+      "chapter_max": 1
+    },
+    "text": "風在峭壁間穿梭，留下像吟唱般的回音。你偵測到微弱的殘餘能量。",
+    "options": [
+      {
+        "text": "記錄數據",
+        "result": {
+          "text": "儀器顯示能量波動穩定，像是有規律的脈搏。",
+          "effect": {
+            "fate": -1
+          },
+          "emit_log": "你把數據上傳給黎恩，他只回了個大拇指表情。"
+        }
+      },
+      {
+        "text": "貼耳傾聽",
+        "result": {
+          "text": "回音裡彷彿有低語：『樣本……回來……』你差點跟著附和。",
+          "effect": {
+            "fate": 2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "耳麥簡報",
+    "type": "dialogue",
+    "chapter": 1,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["簡報", "背景"],
+    "condition": {
+      "chapter_max": 1
+    },
+    "text": "耳麥傳來黎恩隊長的聲音：『菜鳥，別忘了任務重點，村民失聯不是天氣造成的。』",
+    "options": [
+      {
+        "text": "回報目前狀況",
+        "result": {
+          "text": "你冷靜敘述沿途觀察。黎恩沉默片刻後說：『保持距離，看到異常先拍照。』",
+          "effect": {
+            "fate": -2
+          }
+        }
+      },
+      {
+        "text": "轉移話題聊笑話",
+        "result": {
+          "text": "你嘗試緩和氣氛，黎恩嘆氣：『等任務結束再說笑。』但你聽見他壓抑的笑聲。",
+          "effect": {
+            "fate": 2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "荒野小型魔物戰",
     "type": "battle",
     "chapter": 1,
     "weight": 3,
     "cooldown": 3,
     "once": false,
     "tags": ["戰鬥", "小型魔物"],
+    "condition": {
+      "chapter_max": 1
+    },
     "text": "一隻小型魔物從草叢竄出！",
     "enemy_image": "red_maneater.png",
     "options": [
@@ -65,8 +139,10 @@
           "text": "你調整呼吸，鎖定敵人的破綻。",
           "battle_action": "attack",
           "victory_text": "你擊倒了小型魔物。",
-          "victory_effect": { "fate": 2 },
-          "victory_log": "戰報#01：小型個體可控。"
+          "victory_effect": {
+            "fate": -2
+          },
+          "victory_log": "黎恩的聲音從耳麥傳來：『做得好，別讓它靠近村子。』"
         }
       },
       {
@@ -76,14 +152,67 @@
           "battle_action": "escape",
           "escape_chance": 0.7,
           "escape_text": "你成功脫離戰鬥。",
-          "escape_effect": { "fate": -1 }
+          "escape_effect": {
+            "fate": 1
+          }
         }
       }
     ],
-    "enemy": { "name": "小型魔物", "hp": 12, "atk": 4, "def": 1 }
+    "enemy": {
+      "name": "小型魔物",
+      "hp": 12,
+      "atk": 4,
+      "def": 1
+    }
   },
   {
-    "id": "event_dialogue_001",
+    "id": "村民結晶暴走",
+    "type": "battle",
+    "chapter": 2,
+    "weight": 3,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["戰鬥", "變異村民"],
+    "condition": {
+      "chapter_is": 2
+    },
+    "text": "一名村民全身長出石化結晶，拖著石斧朝你撲來！",
+    "enemy_image": "red_maneater.png",
+    "options": [
+      {
+        "text": "解除武裝",
+        "result": {
+          "text": "你瞄準晶核，準備下手。",
+          "battle_action": "attack",
+          "victory_text": "你敲碎晶核，村民倒地昏迷。",
+          "victory_effect": {
+            "fate": -3
+          },
+          "victory_log": "你在耳麥低聲報告：『村民遭到石化共鳴，已暫時制伏。』"
+        }
+      },
+      {
+        "text": "撤退",
+        "result": {
+          "text": "你尋找掩體，等待空檔撤離。",
+          "battle_action": "escape",
+          "escape_chance": 0.6,
+          "escape_text": "你利用煙霧成功脫身。",
+          "escape_effect": {
+            "fate": 2
+          }
+        }
+      }
+    ],
+    "enemy": {
+      "name": "結晶化村民",
+      "hp": 18,
+      "atk": 5,
+      "def": 2
+    }
+  },
+  {
+    "id": "村民盯著石頭",
     "type": "dialogue",
     "chapter": 2,
     "weight": 4,
@@ -91,56 +220,174 @@
     "once": false,
     "tags": ["村民", "線索"],
     "text": "你遇到一位喃喃自語的村民，他盯著你手上的石頭看。",
-    "condition": { "chapter_is": 2 },
+    "condition": {
+      "chapter_is": 2,
+      "flag_on": ["got_weird_rock"]
+    },
     "options": [
       {
         "text": "仔細傾聽",
         "result": {
           "text": "他提到一個被遺忘的地名：『灰烬凹地』……還問你是否聽過『樣本#07』。",
-          "effect": { "fate": 2 },
+          "effect": {
+            "fate": 2
+          },
           "flags_set": ["got_gray_pit_hint"],
-          "emit_log": "口述#12：地名線索：灰烬凹地。"
+          "emit_log": "村民貼近你的耳邊：『灰燼凹地，他們在那裡唱樣本的名字。』"
         }
       },
       {
         "text": "打斷他",
         "result": {
           "text": "他沉默了一會兒，然後走開了。臨走前留下一句：『太陽會換殼。』",
-          "effect": { "fate": -2 }
+          "effect": {
+            "fate": -2
+          }
         }
       }
     ]
   },
   {
-    "id": "event_conditional_001",
+    "id": "村民尋找失物",
+    "type": "dialogue",
+    "chapter": 2,
+    "weight": 3,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["村民", "線索"],
+    "condition": {
+      "chapter_is": 2,
+      "flag_off": ["got_weird_rock"]
+    },
+    "text": "村民的目光穿過你，像是在尋找什麼。他最後看向你空空的雙手。",
+    "options": [
+      {
+        "text": "問發生了什麼",
+        "result": {
+          "text": "村民聲音嘶啞：『如果你沒帶石頭，就別靠近灰燼凹地。會被唱進去的。』",
+          "effect": {
+            "fate": -2
+          },
+          "flags_set": ["warned_without_rock"]
+        }
+      },
+      {
+        "text": "轉移話題",
+        "result": {
+          "text": "他像是鬆了口氣，悄悄塞給你一串草織護符：『記得別聽他們唱。』",
+          "effect": {
+            "fate": 2
+          },
+          "inventory_add": "草織護符"
+        }
+      }
+    ]
+  },
+  {
+    "id": "灰燼神龕",
+    "type": "normal",
+    "chapter": 2,
+    "weight": 3,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["村莊", "調查"],
+    "condition": {
+      "chapter_is": 2
+    },
+    "text": "村莊中央的神龕被灰燼覆蓋，供桌上排著石化的手掌。",
+    "options": [
+      {
+        "text": "掃除灰燼",
+        "result": {
+          "text": "你清理出刻字：『歌聲是門鑰匙。』",
+          "effect": {
+            "fate": 2
+          },
+          "flags_set": ["shrine_message_seen"]
+        }
+      },
+      {
+        "text": "拍照上傳",
+        "result": {
+          "text": "總部傳來簡短回覆：『維持警戒，勿與歌聲對和。』",
+          "effect": {
+            "fate": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "靜電草原",
+    "type": "conditional",
+    "chapter": 2,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["村莊", "異常"],
+    "condition": {
+      "chapter_is": 2
+    },
+    "text": "村莊邊緣瀰漫靜電，火花在草叢間竄動。",
+    "options": [
+      {
+        "text": "穿過火花",
+        "result": {
+          "text": "電流在皮膚下排列出陌生圖案，你感到心跳跟著節奏改變。",
+          "effect": {
+            "fate": 3
+          }
+        }
+      },
+      {
+        "text": "遠距記錄",
+        "result": {
+          "text": "你站在安全距離測量，讀數證實靜電來自地下的共鳴柱。",
+          "effect": {
+            "fate": -1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "石頭共鳴",
     "type": "conditional",
     "chapter": 2,
     "weight": 2,
     "cooldown": 3,
     "once": false,
     "tags": ["感應", "能力"],
-    "condition": { "fate_min": 2 },
+    "condition": {
+      "fate_min": 2,
+      "flag_on": ["got_weird_rock"]
+    },
     "text": "你感應到附近藏有神秘力量，與手中的石頭產生細微共鳴。",
     "options": [
       {
         "text": "嘗試共鳴",
         "result": {
           "text": "你的身體與周圍的能量產生共振，短暫強化。",
-          "effect": { "atk": 1, "fate": -1 },
-          "emit_log": "測試#07：共鳴可行。"
+          "effect": {
+            "atk": 1,
+            "fate": 2
+          },
+          "emit_log": "你感覺石頭在歌唱，聲波穿過骨頭提醒你：『再靠近一點。』"
         }
       },
       {
         "text": "保持距離",
         "result": {
           "text": "你選擇謹慎離開這片區域。",
-          "effect": { "fate": 1 }
+          "effect": {
+            "fate": -2
+          }
         }
       }
     ]
   },
   {
-    "id": "event_mushroom_choir",
+    "id": "蘑菇合唱團",
     "type": "dialogue",
     "chapter": 1,
     "weight": 3,
@@ -153,22 +400,26 @@
         "text": "跟著哼（加入合唱）",
         "result": {
           "text": "你融入節奏，心情意外平靜，世界似乎合理了一點。",
-          "effect": { "fate": 3 }
+          "effect": {
+            "fate": -3
+          }
         }
       },
       {
         "text": "錄音採樣",
         "result": {
           "text": "你錄下旋律，卻在波形裡看見『HELP_07』訊息。",
-          "effect": { "fate": -3 },
+          "effect": {
+            "fate": 3
+          },
           "flags_set": ["heard_help_07"],
-          "emit_log": "音頻#07：隱藏標籤 HELP_07。"
+          "emit_log": "你在錄音裡聽見微弱聲音：『HELP_07……有人被困在聲波裡。』"
         }
       }
     ]
   },
   {
-    "id": "event_black_report",
+    "id": "塗黑報告",
     "type": "milestone",
     "chapter": 2,
     "weight": 2,
@@ -181,7 +432,9 @@
         "text": "嘗試反光讀取",
         "result": {
           "text": "斜光下浮現『樣本#07』『灰烬凹地』等關鍵字。",
-          "effect": { "fate": 4 },
+          "effect": {
+            "fate": 4
+          },
           "flags_set": ["visited_report_room", "saw_redactions"]
         }
       },
@@ -189,27 +442,33 @@
         "text": "燒掉它（不想再被干擾）",
         "result": {
           "text": "黑煙向上翻滾，像是寫字：『回家』。",
-          "effect": { "fate": -4 }
+          "effect": {
+            "fate": -4
+          }
         }
       }
     ]
   },
   {
-    "id": "event_outpost_gate",
+    "id": "研究據點入口",
     "type": "conditional",
     "chapter": 3,
     "weight": 3,
     "cooldown": 3,
     "once": true,
     "tags": ["研究據點", "主線"],
-    "condition": { "flag_on": ["got_gray_pit_hint", "saw_redactions"] },
+    "condition": {
+      "flag_on": ["got_gray_pit_hint", "saw_redactions"]
+    },
     "text": "你抵達廢棄研究據點的隱藏入口，門鎖顯示：ID 驗證中…",
     "options": [
       {
         "text": "刷隊員證",
         "result": {
           "text": "面板閃爍：『樣本#07—歡迎回家。』",
-          "effect": { "fate": -6 },
+          "effect": {
+            "fate": -6
+          },
           "flags_set": ["visited_outpost"],
           "goto_chapter": 4
         }
@@ -218,13 +477,61 @@
         "text": "撤退觀望",
         "result": {
           "text": "你退後一步，門鎖卻自行解開一條縫。",
-          "effect": { "fate": -2 }
+          "effect": {
+            "fate": -2
+          }
         }
       }
     ]
   },
   {
-    "id": "event_reality_glitch",
+    "id": "守衛傀儡戰",
+    "type": "battle",
+    "chapter": 3,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["戰鬥", "守衛傀儡"],
+    "condition": {
+      "chapter_is": 3
+    },
+    "text": "研究據點外的守衛傀儡甦醒，手臂刀刃閃爍藍光。",
+    "enemy_image": "red_maneater.png",
+    "options": [
+      {
+        "text": "鎖定核心",
+        "result": {
+          "text": "你調整節奏，等待傀儡露出散熱孔。",
+          "battle_action": "attack",
+          "victory_text": "你一擊毀掉核心晶片，傀儡靜止。",
+          "victory_effect": {
+            "fate": -4
+          },
+          "victory_log": "據點門鎖重置，你的手套仍殘留溫熱的火花。"
+        }
+      },
+      {
+        "text": "利用環境",
+        "result": {
+          "text": "你退到管線旁，打算觸發蒸汽閥撤離。",
+          "battle_action": "escape",
+          "escape_chance": 0.5,
+          "escape_text": "蒸汽掩護你離開，但傀儡仍在巡弋。",
+          "escape_effect": {
+            "fate": 3
+          }
+        }
+      }
+    ],
+    "enemy": {
+      "name": "守衛傀儡",
+      "hp": 24,
+      "atk": 6,
+      "def": 3
+    }
+  },
+  {
+    "id": "現實閃爍",
     "type": "normal",
     "chapter": 3,
     "weight": 2,
@@ -237,60 +544,137 @@
         "text": "冷靜記錄數據",
         "result": {
           "text": "你標記頻率 3Hz，儀器卻回：『笑死。』",
-          "effect": { "fate": 5 }
+          "effect": {
+            "fate": -5
+          }
         }
       },
       {
         "text": "跟著一起眨眼",
         "result": {
           "text": "你開始用太陽的節奏眨眼，好像更懂它了。",
-          "effect": { "fate": -5 }
+          "effect": {
+            "fate": 5
+          }
         }
       }
     ]
   },
   {
-    "id": "event_fate_trigger_midband",
-    "type": "fate_trigger",
+    "id": "會議殘影",
+    "type": "dialogue",
     "chapter": 3,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["研究據點", "殘響"],
+    "text": "據點走廊投影出舊日的員工會議，你看見自己的身影混在其中。",
+    "options": [
+      {
+        "text": "聆聽錄音",
+        "result": {
+          "text": "會議紀錄談論『樣本#07』的逃脫風險，語氣像是在談論陌生人。",
+          "effect": {
+            "fate": -3
+          },
+          "flags_set": ["heard_lab_meeting"]
+        }
+      },
+      {
+        "text": "回應投影",
+        "result": {
+          "text": "投影中的你轉頭回望，重疊的聲音問：『這次你會站在哪邊？』",
+          "effect": {
+            "fate": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "樣本日誌",
+    "type": "normal",
+    "chapter": 3,
+    "weight": 2,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["研究據點", "日誌"],
+    "text": "樣本庫房的數據板閃爍，留下一封未送出的日誌。",
+    "options": [
+      {
+        "text": "閱讀全文",
+        "result": {
+          "text": "日誌描述一名調查員反覆失敗的逃離計畫，最後一句是：『別相信下一個我。』",
+          "effect": {
+            "fate": 2
+          }
+        }
+      },
+      {
+        "text": "備份下載",
+        "result": {
+          "text": "你下載資料準備帶回總部，檔案卻在最後一秒自毀，只留下一串笑聲。",
+          "effect": {
+            "fate": -2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "命運介入",
+    "type": "fate_trigger",
+    "chapter": 0,
     "weight": 0,
     "cooldown": 0,
     "once": false,
     "tags": ["命運觸發", "防迴圈"],
-    "text": "時間像卡住一樣。你的影子對你眨眼：『選邊站吧。』",
+    "condition": {
+      "fate_min": -5,
+      "fate_max": 5
+    },
+    "text": "時間像卡住一樣。你的影子對你眨眼：『要繼續裝作沒事嗎？』",
     "options": [
       {
-        "text": "我選理性（向上收斂）",
+        "text": "我選理性（保持清醒）",
         "result": {
           "text": "空氣恢復正常。你突然渴望整理格式正確的報告。",
-          "effect": { "fate": 12 }
+          "effect": {
+            "fate": -12
+          }
         }
       },
       {
-        "text": "我選荒謬（向下收斂）",
+        "text": "我選荒謬（擁抱異常）",
         "result": {
           "text": "地面笑了。你也學會了。",
-          "effect": { "fate": -12 }
+          "effect": {
+            "fate": 12
+          }
         }
       }
     ]
   },
   {
-    "id": "event_truth_boot",
+    "id": "核心機組啟動",
     "type": "milestone",
     "chapter": 4,
     "weight": 1,
     "cooldown": 0,
     "once": true,
     "tags": ["真相", "主線高潮"],
-    "condition": { "flag_on": ["visited_outpost"] },
+    "condition": {
+      "flag_on": ["visited_outpost"]
+    },
     "text": "據點核心機組啟動，熒幕彈出：『識別碼：樣本#07。』",
     "options": [
       {
         "text": "承認（接受身分）",
         "result": {
           "text": "系統下載你的記憶模板。世界邊緣起波紋。",
-          "effect": { "fate": -10 },
+          "effect": {
+            "fate": -10
+          },
           "flags_set": ["accepted_id"]
         }
       },
@@ -298,14 +682,122 @@
         "text": "否認（反制系統）",
         "result": {
           "text": "你切斷主機電源，殘餘程式改以你的報告自修復。",
-          "effect": { "fate": 10 },
+          "effect": {
+            "fate": 10
+          },
           "flags_set": ["refused_id"]
         }
       }
     ]
   },
   {
-    "id": "fate_trigger_self_doubt",
+    "id": "變異體暴走",
+    "type": "battle",
+    "chapter": 4,
+    "weight": 2,
+    "cooldown": 4,
+    "once": false,
+    "tags": ["戰鬥", "失控樣本"],
+    "condition": {
+      "chapter_is": 4
+    },
+    "text": "核心艙室逸散出變異體，半透明的肢體不斷分裂重生。",
+    "enemy_image": "red_maneater.png",
+    "options": [
+      {
+        "text": "用冷凍劑壓制",
+        "result": {
+          "text": "你啟動冷凍罐，試圖限制它的形變。",
+          "battle_action": "attack",
+          "victory_text": "樣本被凍結成雕塑，仍在牆內蠢動。",
+          "victory_effect": {
+            "fate": -5
+          },
+          "victory_log": "系統播報：『臨時封鎖完成。請儘速處置樣本。』"
+        }
+      },
+      {
+        "text": "後退觀察",
+        "result": {
+          "text": "你退回門口，讓裝置自行運作。",
+          "battle_action": "escape",
+          "escape_chance": 0.5,
+          "escape_text": "你避開攻擊，眼看樣本沿著天花板蔓延。",
+          "escape_effect": {
+            "fate": 4
+          }
+        }
+      }
+    ],
+    "enemy": {
+      "name": "失控樣本",
+      "hp": 28,
+      "atk": 7,
+      "def": 3
+    }
+  },
+  {
+    "id": "記憶閃回",
+    "type": "dialogue",
+    "chapter": 4,
+    "weight": 2,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["記憶", "主線"],
+    "text": "核心機組的光線閃爍，你看到過去的自己躺在實驗台上。",
+    "options": [
+      {
+        "text": "詢問研究員",
+        "result": {
+          "text": "幻影研究員回答：『樣本#07若恢復全部記憶，系統就會崩潰。』",
+          "effect": {
+            "fate": 3
+          }
+        }
+      },
+      {
+        "text": "安撫過去的自己",
+        "result": {
+          "text": "你輕聲對實驗台上的自己說會帶他離開，幻影瞬間破碎。",
+          "effect": {
+            "fate": -3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "系統倒數提示",
+    "type": "normal",
+    "chapter": 4,
+    "weight": 2,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["系統", "提醒"],
+    "text": "系統語音響起：『請在十五分鐘內提交主線選擇。』",
+    "options": [
+      {
+        "text": "要求延長",
+        "result": {
+          "text": "系統回覆：『延期批准。請提供理性依據。』你開始整理報告。",
+          "effect": {
+            "fate": -2
+          }
+        }
+      },
+      {
+        "text": "無視指令",
+        "result": {
+          "text": "廣播音量提高，語音變成低沉的笑聲：『拖得越久，門就越開。』",
+          "effect": {
+            "fate": 2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "命運質疑",
     "type": "fate_trigger",
     "chapter": 2,
     "weight": 0,
@@ -318,7 +810,9 @@
         "text": "正視恐懼",
         "result": {
           "text": "你承認自己的猶豫，記憶中的破碎片段再次浮現。",
-          "effect": { "fate": -6 },
+          "effect": {
+            "fate": -6
+          },
           "flags_set": ["self_doubt_acknowledged"]
         }
       },
@@ -326,20 +820,24 @@
         "text": "整理思緒",
         "result": {
           "text": "你重新梳理筆記，試圖用理性壓制那份不安。",
-          "effect": { "fate": 6 },
+          "effect": {
+            "fate": 6
+          },
           "flags_set": ["self_doubt_suppressed"]
         }
       }
     ]
   },
   {
-    "id": "fate_lock_high",
+    "id": "理性主線鎖定",
     "type": "milestone",
     "chapter": 4,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 4 },
+    "condition": {
+      "chapter_min": 4
+    },
     "tags": ["理性主線", "鎖定"],
     "text": "第四章：總部派遣你調查核心研究所，理性主線被正式啟動。",
     "options": [
@@ -347,20 +845,24 @@
         "text": "接下調查任務",
         "result": {
           "text": "你接過任務文件，準備面對王國的真相。",
-          "effect": { "fate": 5 },
+          "effect": {
+            "fate": -5
+          },
           "flags_set": ["main_path_high"]
         }
       }
     ]
   },
   {
-    "id": "fate_lock_mid",
+    "id": "實驗體主線鎖定",
     "type": "milestone",
     "chapter": 4,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 4 },
+    "condition": {
+      "chapter_min": 4
+    },
     "tags": ["實驗體主線", "鎖定"],
     "text": "第四章：你的記憶開始重疊，實驗體主線悄悄展開。",
     "options": [
@@ -368,20 +870,24 @@
         "text": "接受記憶觀測",
         "result": {
           "text": "你被安排躺進儀器內，時間的環會再度閉合。",
-          "effect": { "fate": 0 },
+          "effect": {
+            "fate": 0
+          },
           "flags_set": ["main_path_mid"]
         }
       }
     ]
   },
   {
-    "id": "fate_lock_low",
+    "id": "儀式主線鎖定",
     "type": "milestone",
     "chapter": 4,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 4 },
+    "condition": {
+      "chapter_min": 4
+    },
     "tags": ["荒謬主線", "鎖定"],
     "text": "第四章：古老的儀式完成了召喚，你感到內有異形之力甦醒。",
     "options": [
@@ -389,20 +895,24 @@
         "text": "踏入祭壇",
         "result": {
           "text": "你在靈火中行走，任由血脈與魔物共鳴。",
-          "effect": { "fate": -5 },
+          "effect": {
+            "fate": 5
+          },
           "flags_set": ["main_path_low"]
         }
       }
     ]
   },
   {
-    "id": "fate_ending_high",
+    "id": "理性結局開端",
     "type": "milestone",
     "chapter": 5,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 5 },
+    "condition": {
+      "chapter_min": 5
+    },
     "tags": ["結局", "理性"],
     "text": "終章：你抵達研究所深處，真相與抉擇即將展開。",
     "options": [
@@ -417,13 +927,15 @@
     ]
   },
   {
-    "id": "fate_ending_mid",
+    "id": "循環結局開端",
     "type": "milestone",
     "chapter": 5,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 5 },
+    "condition": {
+      "chapter_min": 5
+    },
     "tags": ["結局", "實驗體"],
     "text": "終章：循環的邊界瓦解，你看到無數個自己的殘影。",
     "options": [
@@ -438,13 +950,15 @@
     ]
   },
   {
-    "id": "fate_ending_low",
+    "id": "儀式結局開端",
     "type": "milestone",
     "chapter": 5,
     "weight": 0,
     "cooldown": 0,
     "once": true,
-    "condition": { "chapter_min": 5 },
+    "condition": {
+      "chapter_min": 5
+    },
     "tags": ["結局", "荒謬"],
     "text": "終章：儀式完成，魔物化的王國等著你的降臨。",
     "options": [
@@ -454,6 +968,66 @@
           "text": "你抬起頭，讓異形的光芒引領你走向新的世界。",
           "effect": {},
           "flags_set": ["ending_low_ready"]
+        }
+      }
+    ]
+  },
+  {
+    "id": "終端觀測室",
+    "type": "normal",
+    "chapter": 5,
+    "weight": 2,
+    "cooldown": 2,
+    "once": false,
+    "tags": ["終章", "觀察"],
+    "text": "終端室牆面開啟，露出無數觀測窗。不同的世界同時發生。",
+    "options": [
+      {
+        "text": "記錄每個窗口",
+        "result": {
+          "text": "你的紀錄器超載，但你仍堅持標記每個異常值。",
+          "effect": {
+            "fate": -3
+          }
+        }
+      },
+      {
+        "text": "伸手觸碰光幕",
+        "result": {
+          "text": "光幕纏繞你的手指，彷彿邀請你跨過去。",
+          "effect": {
+            "fate": 3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "終章自問",
+    "type": "dialogue",
+    "chapter": 5,
+    "weight": 1,
+    "cooldown": 3,
+    "once": false,
+    "tags": ["終章", "內心"],
+    "text": "廣播裡傳來自己的聲音：『任務結束後，我們要去哪？』",
+    "options": [
+      {
+        "text": "答：回家",
+        "result": {
+          "text": "聲音安心地笑了：『那我們要先找到真正的門。』",
+          "effect": {
+            "fate": -2
+          }
+        }
+      },
+      {
+        "text": "答：留下",
+        "result": {
+          "text": "廣播沉默片刻，最後說：『那就再多活一點吧。』",
+          "effect": {
+            "fate": 2
+          }
         }
       }
     ]
