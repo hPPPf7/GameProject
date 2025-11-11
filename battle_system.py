@@ -39,7 +39,7 @@ def start_battle(player: Dict, event: Dict) -> None:
 
     enemy_data = event.get("enemy")
     if not enemy_data:
-        # Fallback to legacy fields to avoid crashing if data is incomplete
+        # 回退使用舊欄位以免資料不完整時當機
         enemy_data = {
             "name": event.get("enemy_name", "未知怪物"),
             "hp": event.get("enemy_hp", 1),
@@ -79,7 +79,7 @@ def get_battle_state(player: Dict) -> Optional[Dict]:
         return None
     enemy = state.get("enemy")
     if enemy and isinstance(enemy, dict):
-        # Normalise legacy storage to EnemyState
+        # 將舊格式資料轉換成 EnemyState
         state["enemy"] = EnemyState.from_dict(enemy)
     return state
 
@@ -132,7 +132,7 @@ def perform_battle_action(
             battle_over = True
             victory = True
         else:
-            # Counter attack
+            # 敵人反擊
             base_damage = calculate_damage(enemy.atk, player_def)
             player_damage = base_damage
             messages.append(f"{enemy.name} 反擊，對你造成 {player_damage} 點傷害！")

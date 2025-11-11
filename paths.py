@@ -8,7 +8,7 @@ import sys
 
 def base_path() -> Path:
     """Return the base directory where bundled resources can be found."""
-    if getattr(sys, "_MEIPASS", None):  # PyInstaller temporary extraction dir
+    if getattr(sys, "_MEIPASS", None):  # PyInstaller 暫存解壓目錄
         return Path(sys._MEIPASS)  # type: ignore[attr-defined]
     return Path(__file__).resolve().parent
 

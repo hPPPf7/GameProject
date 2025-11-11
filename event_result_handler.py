@@ -104,7 +104,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     forced_event = result.get("forced_event")
 
-    # Battle specific handling
+    # 戰鬥專用處理
     battle_action = result.get("battle_action")
     battle_outcome: Optional[Dict[str, Any]] = None
     if battle_action:
@@ -115,7 +115,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         if player_damage:
             _apply_numeric_change(player, "hp", -player_damage)
 
-        # Allow battle actions to specify follow-up forced events
+        # 允許戰鬥行動指定後續的強制事件
         if battle_outcome.get("battle_over") and result.get("forced_event_on_end"):
             forced_event = forced_event or result.get("forced_event_on_end")
 
@@ -140,7 +140,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                     result.get("escape_text") or primary_text or "撤退",
                 )
 
-    # Emit additional log entries if specified
+    # 若有指定則額外寫入日誌
     if "emit_log" in result:
         log_entry = result["emit_log"]
         if isinstance(log_entry, list):
@@ -149,12 +149,12 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         else:
             text_log.add(log_entry)
 
-    # Apply numeric stat changes
+    # 套用數值屬性變化
     effect = result.get("effect") or {}
     if effect:
         _apply_effects(player, effect, primary_text or "事件效果")
 
-    # Inventory modifications
+    # 背包異動
     if "inventory_add" in result:
         items = result["inventory_add"]
         if not isinstance(items, list):
@@ -172,7 +172,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 player["inventory"].remove(item)
                 text_log.add(f"你失去了道具：{item}", category="system")
 
-    # Flag management
+    # 旗標管理
     for flag in result.get("flags_set", []) or []:
         player.setdefault("flags", {})[flag] = True
         text_log.add(f"旗標觸發：{flag}", category="system")
@@ -187,13 +187,13 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             player["flags"][flag] = False
             text_log.add(f"旗標解除：{flag}", category="system")
 
-    # Chapter jump
+    # 跳轉章節
     goto_chapter = result.get("goto_chapter")
     if goto_chapter:
         player["chapter"] = goto_chapter
         text_log.add(f"章節推進至：第 {goto_chapter} 章", category="system")
 
-    # Refusal logic: mark as a refusal if requested
+    # 拒絕邏輯：若需要則記錄為拒絕
     tags = result.get("tags", [])
     if result.get("refuse") or "refuse" in tags:
         triggered = handle_refusal(player)
@@ -202,7 +202,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     else:
         reset_refusal(player)
 
-    # Queue forced event if present
+    # 若有強制事件則排入佇列
     if forced_event:
         player["forced_event"] = forced_event
     return forced_event

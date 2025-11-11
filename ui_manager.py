@@ -12,12 +12,11 @@ def is_cinematic_mode(player: dict) -> bool:
     return not flags.get("mission_briefed", False)
 
 
-# Define UI area dimensions and positions.  We shrink the status block
-# horizontally and widen the options area accordingly.  The total width of
-# the row remains 448 pixels (with margins).
+# 定義介面區域的尺寸與位置：縮窄狀態區塊的寬度，並相應放寬選項區域，
+# 加上邊距後整列總寬仍維持 448 像素。
 
-STATUS_WIDTH = 200  # narrower status panel
-GAP = 24  # horizontal gap between status and options
+STATUS_WIDTH = 200  # 較窄的狀態面板
+GAP = 24  # 狀態與選項之間的水平間距
 STATUS_X = 32
 OPTIONS_X = STATUS_X + STATUS_WIDTH + GAP
 OPTIONS_WIDTH = 448 - (OPTIONS_X - STATUS_X)
@@ -177,7 +176,7 @@ def wrap_text(text: str, font: pygame.font.Font, max_width: int) -> list[str]:
     lines: list[str] = []
     current: str = ""
     for ch in text:
-        # If adding this character would exceed the allowed width, start a new line
+        # 若加入該字元會超出寬度限制，就另起一行
         if font.size(current + ch)[0] > max_width and current:
             lines.append(current)
             current = ch
@@ -251,7 +250,7 @@ def get_option_rects(
             return rects
         return [base_rect]
 
-    # Normal mode
+    # 一般模式
     option_rects = [rect.copy() for rect in areas["options_rects"]]
     if sub_state == "show_event" and current_event:
         return option_rects
@@ -356,10 +355,10 @@ def render_ui(
     mode = areas.get("mode")
     enemy_info = get_enemy_display_info(player)
 
-    # Image area
+    # 圖像區域
     screen.blit(starting_image, areas["image"].topleft)
 
-    # Draw player and enemy sprites if provided
+    # 若有傳入立繪則繪製玩家與敵人
     if player_image:
         screen.blit(player_image, (areas["image"].x + 32, areas["image"].y + 80))
     enemy_rect: Optional[pygame.Rect] = None
@@ -413,16 +412,16 @@ def render_ui(
             label_rect.centerx = bar_rect.centerx
         screen.blit(label_surface, label_rect)
 
-    # Draw log area
+    # 繪製日誌區域
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
-    # Build wrapped log lines
+    # 組出換行後的日誌內容
     raw_logs = text_log.get_visible_logs()
     wrapped_lines: list[tuple[str, str]] = []
-    max_width = areas["log"].width - 16  # account for margins
+    max_width = areas["log"].width - 16  # 扣除邊距
     for entry in raw_logs:
         lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
         wrapped_lines.extend((line, entry.category) for line in lines)
-    # Only display the last 9 visual lines
+    # 僅顯示最後 9 行可見文字
     visible_lines = wrapped_lines[-9:]
     color_map = {
         "narration": (255, 255, 255),
@@ -437,7 +436,7 @@ def render_ui(
             screen, line, areas["log"], font, center=False, line_offset=i, color=color
         )
 
-    # Draw status panel (skip in cinematic mode)
+    # 繪製狀態面板（電影模式略過）
     if mode == "normal":
         status_rect = areas["status_rect"]
         pygame.draw.rect(screen, COLORS["status"], status_rect)
@@ -482,7 +481,7 @@ def render_ui(
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
-    # Draw options
+    # 繪製選項
     if sub_state == "wait":
         wait_rect = option_rects[0]
         is_hover = wait_rect.collidepoint(mouse_pos)
@@ -503,7 +502,7 @@ def render_ui(
                 draw_text(screen, "……", rect, font, center=True)
 
     if mode == "normal":
-        # Draw static six-slot inventory display
+        # 繪製固定六格的背包欄
         inventory_preview_rect = areas["inventory_preview"]
         pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
         for slot in get_inventory_slots(player, areas):

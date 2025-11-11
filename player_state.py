@@ -13,26 +13,26 @@ def init_player_state() -> Dict:
     details on what each field represents.
     """
     return {
-        # Visible stats
-        "hp": 20,  # Health points
-        "max_hp": 20,  # Maximum health points
-        "atk": 5,  # Attack power
-        "def": 3,  # Defense power
-        "inventory": STARTING_INVENTORY.copy(),  # Inventory list
-        # Hidden values
-        "fate": 50,  # Fate value controlling story direction
+        # 可見屬性
+        "hp": 20,  # 生命值
+        "max_hp": 20,  # 生命值上限
+        "atk": 5,  # 攻擊力
+        "def": 3,  # 防禦力
+        "inventory": STARTING_INVENTORY.copy(),  # 背包清單
+        # 隱藏數值
+        "fate": 50,  # 決定故事走向的命運值
         "fate_history": [],
         "fate_path_locked": False,
         "fate_locked_band": None,
         "refusal_streak": 0,
-        "flags": {},  # Arbitrary flags for conditional events
-        "steps": 0,  # Number of steps taken (used for chapter advancement)
+        "flags": {},  # 條件事件用的任意旗標
+        "steps": 0,  # 前進步數（用於章節推進）
         "chapter": 1,
         "forced_event": None,
         "ending_prepared": False,
         "midband_counter": 0,
-        "event_cooldowns": {},  # Per‑event cooldown counter
+        "event_cooldowns": {},  # 各事件的冷卻計數
         "consumed_events": set(),
-        # Game over flag – set to True when the player dies
+        # 遊戲結束旗標──當玩家死亡時設為 True
         "game_over": False,
     }

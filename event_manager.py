@@ -21,13 +21,13 @@ FATE_TRIGGER_MIDBAND_ID = "命運介入"
 INTRO_EVENT_ID = "任務簡報"
 
 
-# Load all event data
+# 載入所有事件資料
 def load_events(path: str = res_path("data", "story_data.json")):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-# All events are cached in these globals for quick access
+# 將所有事件快取在這些全域變數中以加速存取
 ALL_EVENTS: List[Dict] = load_events()
 EVENT_LOOKUP: Dict[str, Dict] = {event["id"]: event for event in ALL_EVENTS}
 
@@ -165,7 +165,7 @@ def get_random_event(event_types=None, player=None):
 
     _tick_cooldowns(player)
 
-    # Guarantee the mission briefing occurs before any other encounters
+    # 確保任務簡報在其他遭遇前觸發
     if player is not None:
         player.setdefault("flags", {})
         intro_event = get_event_by_id(INTRO_EVENT_ID)

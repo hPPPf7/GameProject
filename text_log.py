@@ -20,7 +20,7 @@ class LogEntry:
 
 
 log_history: list[LogEntry] = []
-log_offset: int = 0  # 0 = bottom (most recent)
+log_offset: int = 0  # 0 = 底部（最新）
 _current_event_id: int | None = None
 _next_event_id: int = 1
 
@@ -49,8 +49,7 @@ def add(message: str, *, category: str = "narration", event_id: int | None = Non
     if event_id is None:
         event_id = _current_event_id
     log_history.append(LogEntry(message, category=category, event_id=event_id))
-    # When a new message is added reset the scroll offset so the latest
-    # messages are visible.
+    # 新增訊息時重設捲動位移，確保最新內容可見。
     log_offset = 0
 
 
@@ -61,7 +60,7 @@ def scroll_to_bottom() -> None:
 
 def scroll_up() -> None:
     global log_offset
-    # Only scroll up if there are more than 9 lines above the current view
+    # 只有在視窗上方有超過 9 行時才往上捲動
     if log_offset + 9 < len(log_history):
         log_offset += 1
 

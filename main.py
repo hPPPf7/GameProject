@@ -12,7 +12,7 @@ import text_log
 
 from paths import res_path
 
-# Initialise pygame before importing other modules that depend on fonts
+# 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
 pygame.font.init()
 
@@ -30,28 +30,28 @@ from fate_system import post_event_update
 from battle_system import start_battle, is_battle_active, clear_battle_state
 
 
-# Window setup
+# 視窗設定
 screen = pygame.display.set_mode((512, 768))
 pygame.display.set_caption("菜鳥調查隊日誌")
 icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
 
-# Load background and logo images
+# 載入背景與標誌圖片
 start_bg = pygame.image.load(res_path("assets", "start_background.png"))
 logo_image = pygame.image.load(res_path("assets", "logo1.png")).convert_alpha()
 logo_image = pygame.transform.scale(logo_image, (300, 300))
 
-# Player sprite
+# 玩家立繪
 player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_alpha()
 player_image = pygame.transform.scale(player_image, (96, 96))
 
-current_enemy_image = None  # current enemy sprite for events
+current_enemy_image = None  # 事件中目前使用的敵人立繪
 
-# Font
+# 字型
 FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
 
-# Start menu buttons
+# 開始選單按鈕
 start_button = pygame.Rect(156, 600, 200, 50)
 button_color = (70, 70, 70)
 start_text = FONT.render("開始冒險", True, (255, 255, 255))
@@ -61,7 +61,7 @@ exit_button = pygame.Rect(156, 660, 200, 50)
 exit_text = FONT.render("離開遊戲", True, (255, 255, 255))
 exit_text_rect = exit_text.get_rect(center=exit_button.center)
 
-# Item usage configuration
+# 道具使用設定
 HEALTH_POTION_NAME = "治療藥水"
 HEALTH_POTION_HEAL = 10
 
@@ -98,10 +98,10 @@ def use_inventory_item(player: dict, index: int) -> bool:
     return False
 
 
-# Initialise player state
+# 初始化玩家狀態
 player = init_player_state()
 
-# Game state variables
+# 遊戲狀態變數
 game_state = "start_menu"
 sub_state = "wait"
 current_event = None
@@ -109,10 +109,10 @@ current_event = None
 pending_clear_event = False
 clear_event_timer = 0
 
-# Main game loop
+# 主要遊戲迴圈
 running = True
 while running:
-    # Clear screen
+    # 清空畫面
     screen.fill((30, 30, 30))
 
     for event in pygame.event.get():
@@ -131,7 +131,7 @@ while running:
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
                 handled_click = False
 
-                # Click "前進" area
+                # 點擊「前進」區域
                 if (
                     sub_state == "wait"
                     and current_event is None
@@ -159,7 +159,7 @@ while running:
                             start_battle(player, current_event)
                     sub_state = "show_event"
                     handled_click = True
-                # Click event option
+                # 點擊事件選項
                 elif (
                     sub_state == "show_event"
                     and current_event
@@ -177,7 +177,7 @@ while running:
                                 f"你選擇了：{chosen['text']}", category="choice"
                             )
                             text_log.scroll_to_bottom()
-                            # Immediate redraw to show choice
+                            # 立即重繪以顯示選擇結果
                             render_ui(
                                 screen,
                                 player,
@@ -192,7 +192,7 @@ while running:
                             if result:
                                 handle_event_result(player, result)
                                 text_log.scroll_to_bottom()
-                            # Redraw after applying result
+                            # 套用結果後再次重繪
                             render_ui(
                                 screen,
                                 player,
@@ -208,7 +208,7 @@ while running:
                                 battle_continues = is_battle_active(player)
 
                             if not battle_continues:
-                                # Only advance progression when the current event is fully resolved
+                                # 只在當前事件完全結束時才推進進度
                                 forced_event = post_event_update(player)
                                 if forced_event:
                                     player["forced_event"] = forced_event
@@ -217,7 +217,7 @@ while running:
                                 clear_event_timer = 0
                                 sub_state = "show_event"
                             else:
-                                # Mark event for clearing on next iteration
+                                # 標記事件，於下一輪迴圈清除
                                 pending_clear_event = True
                                 clear_event_timer = 1
                                 sub_state = "after_result"
@@ -249,9 +249,9 @@ while running:
                 else:
                     text_log.scroll_down()
 
-    # Check for game over (player death)
+    # 檢查是否遊戲結束（玩家死亡）
     if player.get("game_over"):
-        # Display final state and death message
+        # 顯示最終狀態與死亡訊息
         render_ui(
             screen,
             player,
@@ -262,12 +262,12 @@ while running:
             current_enemy_image,
         )
         pygame.display.flip()
-        # Wait for two seconds to let the player see the message
+        # 暫停兩秒讓玩家看清訊息
         pygame.time.delay(2000)
         running = False
         continue
 
-    # Render appropriate screen
+    # 繪製對應畫面
     if game_state == "start_menu":
         screen.blit(start_bg, start_bg.get_rect(center=(256, 384)))
         screen.blit(logo_image, (100, 80))
@@ -288,7 +288,7 @@ while running:
     pygame.display.flip()
     clock.tick(60)
 
-    # Clear event after delay
+    # 延遲後清除事件
     if pending_clear_event:
         if clear_event_timer > 0:
             clear_event_timer -= 1

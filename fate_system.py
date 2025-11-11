@@ -13,13 +13,13 @@ from typing import Dict, Optional
 
 import text_log
 
-# Fate range and thresholds -------------------------------------------------
+# 命運範圍與臨界值 -------------------------------------------------
 FATE_MIN = 0
 FATE_MAX = 100
 HIGH_THRESHOLD = 70
 LOW_THRESHOLD = 39
 
-# Tuning constants ----------------------------------------------------------
+# 調校常數 ----------------------------------------------------------
 MAX_NORMAL_DELTA = 10
 MAX_MAJOR_DELTA = 20
 MAX_BIAS_DELTA = 5
@@ -48,7 +48,7 @@ ENDING_EVENTS = {
 class FateChange:
     value: int
     reason: str
-    kind: str  # "normal", "major", "bias"
+    kind: str  # 「normal」、「major」、「bias」
 
 
 def clamp(value: int, minimum: int = FATE_MIN, maximum: int = FATE_MAX) -> int:
