@@ -2,8 +2,8 @@
 
 The log keeps track of ``LogEntry`` objects that include text, category,
 and an ``event_id`` used to visually group related messages.  Users can
-scroll through the history via the mouse wheel.  ``get_visible_logs``
-returns the subset of log entries that should be displayed given the
+scroll through the history via the mouse wheel.  ``get_visible_lines``
+returns the wrapped text lines that should be displayed given the
 current scroll offset.
 """
 
@@ -20,7 +20,7 @@ class LogEntry:
 
 
 log_history: list[LogEntry] = []
-log_offset: int = 0  # 0 = 底部（最新）
+log_offset: int = 0  # 以行數計算的捲動位移；0 = 底部（最新）
 _current_event_id: int | None = None
 _next_event_id: int = 1
 
@@ -58,10 +58,45 @@ def scroll_to_bottom() -> None:
     log_offset = 0
 
 
-def scroll_up() -> None:
+def wrap_text(text: str, font, max_width: int) -> list[str]:
+    """Wrap ``text`` so that each line fits within ``max_width`` pixels."""
+
+    if not text:
+        return [""]
+
+    lines: list[str] = []
+    current = ""
+    for ch in text:
+        if ch == "\n":
+            lines.append(current)
+            current = ""
+            continue
+
+        if font.size(current + ch)[0] > max_width and current:
+            lines.append(current)
+            current = ch
+        else:
+            current += ch
+
+    lines.append(current)
+    return lines
+
+
+def _get_wrapped_lines(font, max_width: int) -> list[tuple[str, str]]:
+    """Return every log line after wrapping along with its category."""
+
+    wrapped: list[tuple[str, str]] = []
+    for entry in log_history:
+        lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
+        wrapped.extend((line, entry.category) for line in lines)
+    return wrapped
+
+
+def scroll_up(font, max_width: int, visible_lines: int = 9) -> None:
     global log_offset
-    # 只有在視窗上方有超過 9 行時才往上捲動
-    if log_offset + 9 < len(log_history):
+    wrapped = _get_wrapped_lines(font, max_width)
+    max_offset = max(0, len(wrapped) - visible_lines)
+    if log_offset < max_offset:
         log_offset += 1
 
 
@@ -71,14 +106,15 @@ def scroll_down() -> None:
         log_offset -= 1
 
 
-def get_visible_logs() -> list[LogEntry]:
-    """
-    Return a slice of the log appropriate for rendering.  The newest
-    messages appear at the bottom of the log area, and up to nine entries
-    (prior to wrapping) are drawn.  ``ui_manager`` performs its own text
-    wrapping, so this function simply returns the raw log entries.
-    """
+def get_visible_lines(font, max_width: int, visible_lines: int = 9) -> list[tuple[str, str]]:
+    """Return the wrapped lines that should be rendered for the log panel."""
 
-    start = max(0, len(log_history) - 9 - log_offset)
-    end = len(log_history) - log_offset
-    return log_history[start:end]
+    wrapped = _get_wrapped_lines(font, max_width)
+    if not wrapped:
+        return []
+
+    max_offset = max(0, len(wrapped) - visible_lines)
+    offset = min(log_offset, max_offset)
+    start = max(0, len(wrapped) - visible_lines - offset)
+    end = len(wrapped) - offset
+    return wrapped[start:end]

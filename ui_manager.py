@@ -165,28 +165,6 @@ def get_enemy_display_info(player: Optional[dict]):
     return enemy_name, enemy_hp, enemy_max
 
 
-def wrap_text(text: str, font: pygame.font.Font, max_width: int) -> list[str]:
-    """
-    Break ``text`` into a list of strings so that each line fits within
-    ``max_width`` pixels.  Uses a simple character‑by‑character approach to
-    accommodate languages without spaces.  Preserves the order of characters.
-    """
-    if not text:
-        return [""]
-    lines: list[str] = []
-    current: str = ""
-    for ch in text:
-        # 若加入該字元會超出寬度限制，就另起一行
-        if font.size(current + ch)[0] > max_width and current:
-            lines.append(current)
-            current = ch
-        else:
-            current += ch
-    if current:
-        lines.append(current)
-    return lines
-
-
 def get_areas_for_mode(player: dict) -> dict:
     """Return the rectangle layout for the current UI mode."""
 
@@ -415,14 +393,8 @@ def render_ui(
     # 繪製日誌區域
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
     # 組出換行後的日誌內容
-    raw_logs = text_log.get_visible_logs()
-    wrapped_lines: list[tuple[str, str]] = []
     max_width = areas["log"].width - 16  # 扣除邊距
-    for entry in raw_logs:
-        lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
-        wrapped_lines.extend((line, entry.category) for line in lines)
-    # 僅顯示最後 9 行可見文字
-    visible_lines = wrapped_lines[-9:]
+    visible_lines = text_log.get_visible_lines(font, max_width)
     color_map = {
         "narration": (255, 255, 255),
         "choice": (180, 200, 255),

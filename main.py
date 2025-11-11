@@ -244,8 +244,9 @@ while running:
         elif event.type == pygame.MOUSEWHEEL:
             mouse_x, mouse_y = pygame.mouse.get_pos()
             if UI_AREAS["log"].collidepoint((mouse_x, mouse_y)):
+                log_width = UI_AREAS["log"].width - 16
                 if event.y > 0:
-                    text_log.scroll_up()
+                    text_log.scroll_up(FONT, log_width)
                 else:
                     text_log.scroll_down()
 
