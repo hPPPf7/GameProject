@@ -9,6 +9,7 @@ displays the final state, waits briefly, and then exits.
 import pygame
 import sys
 import text_log
+from typing import Optional
 
 from paths import res_path
 import sound_manager
@@ -31,6 +32,115 @@ from event_result_handler import handle_event_result
 from fate_system import post_event_update
 from battle_system import start_battle, is_battle_active, clear_battle_state
 
+# 簡易的玩家動畫控制器
+class PlayerAnimator:
+    def __init__(self, target_height: int = 96):
+        self.target_height = target_height
+        self.idle_frames = self._load_idle_frames()
+        self.walk_frames = self._load_walk_frames()
+        self.idle_frame_time = 0.12
+        self.walk_frame_time = 0.1
+        self.walk_duration = 1.2
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.state = "idle"
+        self.walk_progress = 0.0
+        self.walk_finished = False
+        self.walk_start_x = UI_AREAS["image"].x + 16
+        self.idle_x = UI_AREAS["image"].x + 32
+        self.base_y = UI_AREAS["image"].y + 80
+        first_walk_frame = self.walk_frames[0] if self.walk_frames else None
+        walk_width = first_walk_frame.get_width() if first_walk_frame else self.target_height
+        self.walk_end_x = max(
+            self.walk_start_x,
+            UI_AREAS["image"].right - walk_width - 16,
+        )
+        self.position = [self.idle_x, self.base_y]
+
+    def _scale_to_height(self, surface: pygame.Surface) -> pygame.Surface:
+        width = surface.get_width()
+        height = surface.get_height()
+        if height == 0:
+            return surface
+        ratio = self.target_height / height
+        scaled = pygame.transform.smoothscale(
+            surface, (int(width * ratio), self.target_height)
+        )
+        return scaled
+
+    def _slice_sheet(self, sheet: pygame.Surface, columns: int, rows: int):
+        frame_w = sheet.get_width() // columns
+        frame_h = sheet.get_height() // rows
+        frames: list[pygame.Surface] = []
+        for row in range(rows):
+            for col in range(columns):
+                frame_rect = pygame.Rect(col * frame_w, row * frame_h, frame_w, frame_h)
+                frame_surface = pygame.Surface((frame_w, frame_h), pygame.SRCALPHA)
+                frame_surface.blit(sheet, (0, 0), frame_rect)
+                frames.append(self._scale_to_height(frame_surface))
+        return frames
+
+    def _load_idle_frames(self) -> list[pygame.Surface]:
+        idle_sheet = pygame.image.load(
+            res_path("assets", "images", "player", "idle", "idle.png")
+        ).convert_alpha()
+        # idle 圖只有兩格，直接左右切成 2 張
+        return self._slice_sheet(idle_sheet, columns=2, rows=1)
+
+    def _load_walk_frames(self) -> list[pygame.Surface]:
+        frames: list[pygame.Surface] = []
+        for i in range(1, 7):
+            frame = pygame.image.load(
+                res_path("assets", "images", "player", "walk", f"walk{i}.png")
+            ).convert_alpha()
+            frames.append(self._scale_to_height(frame))
+        return frames
+
+    def start_walk(self):
+        if not self.walk_frames:
+            self.walk_finished = True
+            self.state = "idle"
+            return
+        self.state = "walking"
+        self.walk_progress = 0.0
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.walk_finished = False
+        self.position[0] = self.walk_start_x
+
+    def update(self, dt: float):
+        self.walk_finished = False
+        frames = self.walk_frames if self.state == "walking" else self.idle_frames
+        frame_time = self.walk_frame_time if self.state == "walking" else self.idle_frame_time
+
+        self.frame_timer += dt
+        if self.frame_timer >= frame_time and frames:
+            self.frame_timer %= frame_time
+            self.frame_index = (self.frame_index + 1) % len(frames)
+
+        if self.state == "walking":
+            if self.walk_duration <= 0:
+                self.position[0] = self.walk_end_x
+                self.state = "idle"
+                self.walk_finished = True
+            else:
+                self.walk_progress += dt / self.walk_duration
+                self.walk_progress = min(self.walk_progress, 1.0)
+                delta_x = self.walk_end_x - self.walk_start_x
+                self.position[0] = self.walk_start_x + delta_x * self.walk_progress
+                if self.walk_progress >= 1.0:
+                    self.state = "idle"
+                    self.walk_finished = True
+                    self.frame_index = 0
+                    self.frame_timer = 0.0
+        else:
+            self.position[0] = self.idle_x
+
+    def current_frame(self) -> Optional[pygame.Surface]:
+        frames = self.walk_frames if self.state == "walking" else self.idle_frames
+        if not frames:
+            return None
+        return frames[self.frame_index % len(frames)]
 
 # 視窗設定
 screen = pygame.display.set_mode((512, 768))
@@ -46,9 +156,11 @@ start_bg = pygame.image.load(res_path("assets", "start_background.png"))
 logo_image = pygame.image.load(res_path("assets", "logo1.png")).convert_alpha()
 logo_image = pygame.transform.scale(logo_image, (300, 300))
 
+
 # 玩家立繪
 player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_alpha()
 player_image = pygame.transform.scale(player_image, (96, 96))
+player_animator = PlayerAnimator(target_height=96)
 
 current_enemy_image = None  # 事件中目前使用的敵人立繪
 
@@ -110,6 +222,7 @@ player = init_player_state()
 game_state = "start_menu"
 sub_state = "wait"
 current_event = None
+pending_walk_event = False
 
 pending_clear_event = False
 clear_event_timer = 0
@@ -143,32 +256,9 @@ while running:
                     and option_rects
                     and option_rects[0].collidepoint(event.pos)
                 ):
-                    from event_manager import get_random_event
-
-                    current_event = get_random_event(player=player)
-                    if current_event:
-                        text_log.start_event(current_event.get("id"))
-                        text_log.add(current_event["text"])
-                        text_log.scroll_to_bottom()
-                        image_name = current_event.get("enemy_image")
-                        if image_name:
-                            current_enemy_image = pygame.image.load(
-                                res_path("assets", image_name)
-                            ).convert_alpha()
-                            current_enemy_image = pygame.transform.scale(
-                                current_enemy_image, (96, 96)
-                            )
-                        else:
-                            current_enemy_image = None
-                        if current_event.get("type") == "battle":
-                            start_battle(player, current_event)
-                        sub_state = "show_event"
-                    else:
-                        text_log.add(
-                            "命運暫時沉寂，沒有新的事件發生。", category="system"
-                        )
-                        text_log.scroll_to_bottom()
-                        sub_state = "wait"
+                    player_animator.start_walk()
+                    pending_walk_event = True
+                    sub_state = "walking"
                     handled_click = True
                 # 點擊事件選項
                 elif (
@@ -195,8 +285,9 @@ while running:
                                 FONT,
                                 current_event,
                                 sub_state,
-                                player_image,
+                                player_animator.current_frame() or player_image,
                                 current_enemy_image,
+                                player_position=tuple(player_animator.position),
                             )
                             pygame.display.flip()
                             result = chosen.get("result")
@@ -210,8 +301,9 @@ while running:
                                 FONT,
                                 current_event,
                                 sub_state,
-                                player_image,
+                                player_animator.current_frame() or player_image,
                                 current_enemy_image,
+                                player_position=tuple(player_animator.position),
                             )
                             pygame.display.flip()
                             battle_continues = False
@@ -247,8 +339,9 @@ while running:
                                     FONT,
                                     current_event,
                                     sub_state,
-                                    player_image,
+                                    player_animator.current_frame() or player_image,
                                     current_enemy_image,
+                                    player_position=tuple(player_animator.position),
                                 )
                                 pygame.display.flip()
                             break
@@ -270,14 +363,49 @@ while running:
             FONT,
             current_event,
             sub_state,
-            player_image,
+            player_animator.current_frame() or player_image,
             current_enemy_image,
+            player_position=tuple(player_animator.position),
         )
         pygame.display.flip()
         # 暫停兩秒讓玩家看清訊息
         pygame.time.delay(2000)
         running = False
         continue
+
+    dt_ms = clock.tick(60)
+    dt = dt_ms / 1000.0
+    player_animator.update(dt)
+
+    if sub_state == "walking" and player_animator.walk_finished:
+        from event_manager import get_random_event
+
+        if pending_walk_event:
+            pending_walk_event = False
+            current_event = get_random_event(player=player)
+            if current_event:
+                text_log.start_event(current_event.get("id"))
+                text_log.add(current_event["text"])
+                text_log.scroll_to_bottom()
+                image_name = current_event.get("enemy_image")
+                if image_name:
+                    current_enemy_image = pygame.image.load(
+                        res_path("assets", image_name)
+                    ).convert_alpha()
+                    current_enemy_image = pygame.transform.scale(
+                        current_enemy_image, (96, 96)
+                    )
+                else:
+                    current_enemy_image = None
+                if current_event.get("type") == "battle":
+                    start_battle(player, current_event)
+                sub_state = "show_event"
+            else:
+                text_log.add("命運暫時沉寂，沒有新的事件發生。", category="system")
+                text_log.scroll_to_bottom()
+                sub_state = "wait"
+        else:
+            sub_state = "wait"
 
     # 繪製對應畫面
     if game_state == "start_menu":
@@ -294,11 +422,11 @@ while running:
             FONT,
             current_event,
             sub_state,
-            player_image,
+            player_animator.current_frame() or player_image,
             current_enemy_image,
+            player_position=tuple(player_animator.position),
         )
     pygame.display.flip()
-    clock.tick(60)
 
     # 延遲後清除事件
     if pending_clear_event:
