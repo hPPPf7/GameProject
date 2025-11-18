@@ -38,7 +38,7 @@ class PlayerAnimator:
         self.target_height = target_height
         self.idle_frames = self._load_idle_frames()
         self.walk_frames = self._load_walk_frames()
-        self.idle_frame_time = 0.12
+        self.idle_frame_time = 0.35
         self.walk_frame_time = 0.1
         self.walk_duration = 1.2
         self.frame_index = 0
@@ -46,6 +46,10 @@ class PlayerAnimator:
         self.state = "idle"
         self.walk_progress = 0.0
         self.walk_finished = False
+        self.fade_state: Optional[str] = None
+        self.fade_timer = 0.0
+        self.fade_duration = 0.45
+        self.fade_alpha = 0
         self.walk_start_x = UI_AREAS["image"].x + 16
         self.idle_x = UI_AREAS["image"].x + 32
         self.base_y = UI_AREAS["image"].y + 80
@@ -106,10 +110,16 @@ class PlayerAnimator:
         self.frame_index = 0
         self.frame_timer = 0.0
         self.walk_finished = False
+        self.fade_state = None
+        self.fade_alpha = 0
         self.position[0] = self.walk_start_x
 
     def update(self, dt: float):
         self.walk_finished = False
+        self._update_fade(dt)
+        if self.fade_state:
+            return
+        
         frames = self.walk_frames if self.state == "walking" else self.idle_frames
         frame_time = self.walk_frame_time if self.state == "walking" else self.idle_frame_time
 
@@ -121,18 +131,14 @@ class PlayerAnimator:
         if self.state == "walking":
             if self.walk_duration <= 0:
                 self.position[0] = self.walk_end_x
-                self.state = "idle"
-                self.walk_finished = True
+                self._start_fade_out()
             else:
                 self.walk_progress += dt / self.walk_duration
                 self.walk_progress = min(self.walk_progress, 1.0)
                 delta_x = self.walk_end_x - self.walk_start_x
                 self.position[0] = self.walk_start_x + delta_x * self.walk_progress
                 if self.walk_progress >= 1.0:
-                    self.state = "idle"
-                    self.walk_finished = True
-                    self.frame_index = 0
-                    self.frame_timer = 0.0
+                    self._start_fade_out()
         else:
             self.position[0] = self.idle_x
 
@@ -140,7 +146,41 @@ class PlayerAnimator:
         frames = self.walk_frames if self.state == "walking" else self.idle_frames
         if not frames:
             return None
+        if self.fade_state == "out":
+            return None
         return frames[self.frame_index % len(frames)]
+    
+    def _start_fade_out(self):
+        if self.fade_state:
+            return
+        self.fade_state = "out"
+        self.fade_timer = 0.0
+        self.fade_alpha = 0
+
+    def _update_fade(self, dt: float):
+        if not self.fade_state:
+            return
+
+        self.fade_timer += dt
+        progress = min(self.fade_timer / self.fade_duration, 1.0)
+
+        if self.fade_state == "out":
+            self.fade_alpha = int(255 * progress)
+            if progress >= 1.0:
+                self.fade_state = "in"
+                self.fade_timer = 0.0
+                self.fade_alpha = 255
+                self.state = "idle"
+                self.walk_progress = 0.0
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.position[0] = self.idle_x
+        elif self.fade_state == "in":
+            self.fade_alpha = int(255 * (1 - progress))
+            if progress >= 1.0:
+                self.fade_state = None
+                self.fade_alpha = 0
+                self.walk_finished = True
 
 # 視窗設定
 screen = pygame.display.set_mode((512, 768))
@@ -176,6 +216,30 @@ start_text_rect = start_text.get_rect(center=start_button.center)
 exit_button = pygame.Rect(156, 660, 200, 50)
 exit_text = FONT.render("離開遊戲", True, (255, 255, 255))
 exit_text_rect = exit_text.get_rect(center=exit_button.center)
+
+VOLUME_STEP = 0.1
+volume_button_size = 36
+volume_row_y_start = 520
+volume_row_gap = 52
+
+bgm_down_button = pygame.Rect(
+    156 - volume_button_size - 8, volume_row_y_start, volume_button_size, volume_button_size
+)
+bgm_up_button = pygame.Rect(
+    356 + 8, volume_row_y_start, volume_button_size, volume_button_size
+)
+sfx_down_button = pygame.Rect(
+    156 - volume_button_size - 8,
+    volume_row_y_start + volume_row_gap,
+    volume_button_size,
+    volume_button_size,
+)
+sfx_up_button = pygame.Rect(
+    356 + 8,
+    volume_row_y_start + volume_row_gap,
+    volume_button_size,
+    volume_button_size,
+)
 
 # 道具使用設定
 HEALTH_POTION_NAME = "治療藥水"
@@ -243,6 +307,18 @@ while running:
             elif game_state == "start_menu" and exit_button.collidepoint(event.pos):
                 pygame.quit()
                 sys.exit()
+            elif game_state == "start_menu" and bgm_down_button.collidepoint(
+                event.pos
+            ):
+                sound_manager.change_bgm_volume(-VOLUME_STEP)
+            elif game_state == "start_menu" and bgm_up_button.collidepoint(event.pos):
+                sound_manager.change_bgm_volume(VOLUME_STEP)
+            elif game_state == "start_menu" and sfx_down_button.collidepoint(
+                event.pos
+            ):
+                sound_manager.change_sfx_volume(-VOLUME_STEP)
+            elif game_state == "start_menu" and sfx_up_button.collidepoint(event.pos):
+                sound_manager.change_sfx_volume(VOLUME_STEP)
             elif game_state == "main_screen":
                 areas = get_areas_for_mode(player)
                 cinematic = areas.get("mode") == "cinematic"
@@ -411,10 +487,41 @@ while running:
     if game_state == "start_menu":
         screen.blit(start_bg, start_bg.get_rect(center=(256, 384)))
         screen.blit(logo_image, (100, 80))
+
+        def draw_button(rect: pygame.Rect, label: str):
+            pygame.draw.rect(screen, button_color, rect)
+            text_surface = FONT.render(label, True, (255, 255, 255))
+            screen.blit(text_surface, text_surface.get_rect(center=rect.center))
+
+        def draw_volume_row(label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float):
+            row_center_y = down_rect.y + down_rect.height // 2
+            label_surface = FONT.render(label, True, (255, 255, 255))
+            label_rect = label_surface.get_rect(center=(256, row_center_y - 24))
+            screen.blit(label_surface, label_rect)
+
+            draw_button(down_rect, "-")
+            draw_button(up_rect, "+")
+
+            value_surface = FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
+            value_rect = value_surface.get_rect(center=(256, row_center_y))
+            screen.blit(value_surface, value_rect)
+
         pygame.draw.rect(screen, button_color, start_button)
         screen.blit(start_text, start_text_rect)
         pygame.draw.rect(screen, button_color, exit_button)
         screen.blit(exit_text, exit_text_rect)
+        draw_volume_row(
+            "音樂音量",
+            bgm_down_button,
+            bgm_up_button,
+            sound_manager.get_bgm_volume(),
+        )
+        draw_volume_row(
+            "音效音量",
+            sfx_down_button,
+            sfx_up_button,
+            sound_manager.get_sfx_volume(),
+        )
     elif game_state == "main_screen":
         render_ui(
             screen,
@@ -426,6 +533,10 @@ while running:
             current_enemy_image,
             player_position=tuple(player_animator.position),
         )
+    if player_animator.fade_alpha > 0:
+        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, player_animator.fade_alpha))
+        screen.blit(fade_surface, (0, 0))
     pygame.display.flip()
 
     # 延遲後清除事件
