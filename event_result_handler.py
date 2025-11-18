@@ -17,6 +17,7 @@ import text_log
 from typing import Dict, Any, Optional
 
 from battle_system import perform_battle_action
+import sound_manager
 
 MISSION_BRIEF_FLAG = "mission_briefed"
 MISSION_POTION_NAME = "治療藥水"
@@ -40,10 +41,14 @@ def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
     old_value = player[key]
     player[key] += value
 
+    if key == "hp" and value > 0:
+        sound_manager.play_sfx("heal")
+
     if key == "hp" and player[key] <= 0:
         player[key] = 0
         if not player.get("game_over"):
             text_log.add("你因傷重不治，離開人世。", category="system")
+            sound_manager.play_sfx("character_death")
         player["game_over"] = True
     elif player[key] < 0:
         player[key] = 0
@@ -162,6 +167,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         for item in items:
             player["inventory"].append(item)
             text_log.add(f"你獲得了道具：{item}", category="system")
+            sound_manager.play_sfx("pickup")
 
     if "inventory_remove" in result:
         items = result["inventory_remove"]
@@ -182,6 +188,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             if MISSION_POTION_NAME not in inventory:
                 inventory.append(MISSION_POTION_NAME)
                 text_log.add(f"你獲得了道具：{MISSION_POTION_NAME}", category="system")
+                sound_manager.play_sfx("pickup")
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False

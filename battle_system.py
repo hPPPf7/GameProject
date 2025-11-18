@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 import text_log
+import sound_manager
 
 
 @dataclass
@@ -122,6 +123,7 @@ def perform_battle_action(
     escaped = False
 
     if action == "attack":
+        sound_manager.play_sfx("attack")
         enemy_damage = calculate_damage(player_atk, enemy.defense)
         enemy.hp = max(0, enemy.hp - enemy_damage)
         messages.append(f"你對{enemy.name}造成 {enemy_damage} 點傷害！")
@@ -131,11 +133,14 @@ def perform_battle_action(
             messages.append(f"{enemy.name} 被擊倒了！")
             battle_over = True
             victory = True
+            sound_manager.play_sfx("monster_death")
         else:
             # 敵人反擊
             base_damage = calculate_damage(enemy.atk, player_def)
             player_damage = base_damage
             messages.append(f"{enemy.name} 反擊，對你造成 {player_damage} 點傷害！")
+            if player_damage > 0:
+                sound_manager.play_sfx("attack")
 
     elif action == "defend":
         bonus = int(config.get("defense_bonus", player_def))
@@ -145,8 +150,10 @@ def perform_battle_action(
         messages.append(f"你專注防禦，減少了 {bonus} 點傷害。")
         if player_damage > 0:
             messages.append(f"{enemy.name} 仍造成 {player_damage} 點傷害。")
+            sound_manager.play_sfx("attack")
         else:
             messages.append(f"你完全擋下了{enemy.name}的攻擊。")
+            sound_manager.play_sfx("defense")
 
     elif action == "escape":
         chance = float(config.get("escape_chance", 0.5))
@@ -160,12 +167,16 @@ def perform_battle_action(
             base_damage = calculate_damage(enemy.atk, player_def)
             player_damage = base_damage
             messages.append(f"{enemy.name} 乘勢攻擊，對你造成 {player_damage} 點傷害！")
+            if player_damage > 0:
+                sound_manager.play_sfx("attack")
 
     else:
         messages.append("你猶豫不決，什麼也沒做。")
         base_damage = calculate_damage(enemy.atk, player_def)
         player_damage = base_damage
         messages.append(f"{enemy.name} 對你造成 {player_damage} 點傷害！")
+        if player_damage > 0:
+            sound_manager.play_sfx("attack")
 
     if battle_over:
         state["active"] = False

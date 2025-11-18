@@ -11,10 +11,12 @@ import sys
 import text_log
 
 from paths import res_path
+import sound_manager
 
 # 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
 pygame.font.init()
+sound_manager.init_sound()
 
 from ui_manager import (
     UI_AREAS,
@@ -36,6 +38,8 @@ pygame.display.set_caption("菜鳥調查隊日誌")
 icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
+
+sound_manager.play_bgm()
 
 # 載入背景與標誌圖片
 start_bg = pygame.image.load(res_path("assets", "start_background.png"))
@@ -86,6 +90,7 @@ def use_inventory_item(player: dict, index: int) -> bool:
         heal_amount = min(HEALTH_POTION_HEAL, max_hp - current_hp)
         player["hp"] = current_hp + heal_amount
         del inventory[index]
+        sound_manager.play_sfx("heal")
         text_log.add(
             f"你使用了{item_name}，HP 回復 {heal_amount} 點。", category="system"
         )
