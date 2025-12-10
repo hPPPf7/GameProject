@@ -13,6 +13,7 @@ from typing import Optional
 
 from paths import res_path
 import sound_manager
+import save_manager
 
 # 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
@@ -206,40 +207,18 @@ current_enemy_image = None  # 事件中目前使用的敵人立繪
 
 # 字型
 FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
+SMALL_FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 16)
 
 # 開始選單按鈕
-start_button = pygame.Rect(156, 600, 200, 50)
+start_button = pygame.Rect(156, 612, 200, 50)
+continue_button = pygame.Rect(156, 552, 200, 50)
 button_color = (70, 70, 70)
-start_text = FONT.render("開始冒險", True, (255, 255, 255))
-start_text_rect = start_text.get_rect(center=start_button.center)
+continue_color = (90, 70, 40)
 
-exit_button = pygame.Rect(156, 660, 200, 50)
-exit_text = FONT.render("離開遊戲", True, (255, 255, 255))
-exit_text_rect = exit_text.get_rect(center=exit_button.center)
+exit_button = pygame.Rect(156, 672, 200, 50)
 
 VOLUME_STEP = 0.1
-volume_button_size = 36
-volume_row_y_start = 520
-volume_row_gap = 52
-
-bgm_down_button = pygame.Rect(
-    156 - volume_button_size - 8, volume_row_y_start, volume_button_size, volume_button_size
-)
-bgm_up_button = pygame.Rect(
-    356 + 8, volume_row_y_start, volume_button_size, volume_button_size
-)
-sfx_down_button = pygame.Rect(
-    156 - volume_button_size - 8,
-    volume_row_y_start + volume_row_gap,
-    volume_button_size,
-    volume_button_size,
-)
-sfx_up_button = pygame.Rect(
-    356 + 8,
-    volume_row_y_start + volume_row_gap,
-    volume_button_size,
-    volume_button_size,
-)
+settings_button = pygame.Rect(452, 24, 36, 36)
 
 # 道具使用設定
 HEALTH_POTION_NAME = "治療藥水"
@@ -279,7 +258,204 @@ def use_inventory_item(player: dict, index: int) -> bool:
     return False
 
 
+def get_settings_layout(include_navigation: bool):
+    modal_width = 340
+    modal_height = 230 + (110 if include_navigation else 0)
+    modal_rect = pygame.Rect(
+        (512 - modal_width) // 2, (768 - modal_height) // 2, modal_width, modal_height
+    )
+    row_y_start = modal_rect.y + 60
+    button_size = 28
+    gap = 16
+    center_x = modal_rect.centerx
+    controls = {
+        "modal": modal_rect,
+        "bgm_down": pygame.Rect(center_x - 70 - button_size, row_y_start, button_size, button_size),
+        "bgm_up": pygame.Rect(center_x + 70, row_y_start, button_size, button_size),
+        "sfx_down": pygame.Rect(
+            center_x - 70 - button_size, row_y_start + gap + button_size, button_size, button_size
+        ),
+        "sfx_up": pygame.Rect(center_x + 70, row_y_start + gap + button_size, button_size, button_size),
+        "close": pygame.Rect(center_x - 70, modal_rect.bottom - 48, 140, 32),
+    }
+
+    if include_navigation:
+        nav_y = controls["close"].y - 90
+        controls["resume"] = pygame.Rect(center_x - 70, nav_y, 140, 32)
+        controls["to_menu"] = pygame.Rect(center_x - 70, nav_y + 38, 140, 32)
+        controls["quit"] = pygame.Rect(center_x - 70, nav_y + 76, 140, 32)
+
+    return controls
+
+
+def draw_button(surface: pygame.Surface, rect: pygame.Rect, label: str, *, color=(70, 70, 70), font=FONT):
+    pygame.draw.rect(surface, color, rect, border_radius=6)
+    text_surface = font.render(label, True, (255, 255, 255))
+    surface.blit(text_surface, text_surface.get_rect(center=rect.center))
+
+
+def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
+    controls = get_settings_layout(include_navigation)
+    modal = controls["modal"]
+    pygame.draw.rect(surface, (40, 40, 60), modal, border_radius=8)
+    pygame.draw.rect(surface, (120, 120, 140), modal, 2, border_radius=8)
+
+    title = FONT.render("設定", True, (255, 255, 255))
+    surface.blit(title, title.get_rect(center=(modal.centerx, modal.y + 24)))
+
+    def draw_volume_row(label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float):
+        label_surface = SMALL_FONT.render(label, True, (230, 230, 230))
+        surface.blit(label_surface, (modal.x + 28, down_rect.y + 4))
+        draw_button(surface, down_rect, "-", font=SMALL_FONT)
+        draw_button(surface, up_rect, "+", font=SMALL_FONT)
+        value_surface = SMALL_FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
+        surface.blit(value_surface, value_surface.get_rect(center=(modal.centerx, down_rect.centery)))
+
+    draw_volume_row(
+        "音樂音量",
+        controls["bgm_down"],
+        controls["bgm_up"],
+        sound_manager.get_bgm_volume(),
+    )
+    draw_volume_row(
+        "音效音量",
+        controls["sfx_down"],
+        controls["sfx_up"],
+        sound_manager.get_sfx_volume(),
+    )
+
+    if include_navigation:
+        draw_button(surface, controls["resume"], "繼續遊戲")
+        draw_button(surface, controls["to_menu"], "回到主畫面", color=(90, 70, 40))
+        draw_button(surface, controls["quit"], "離開遊戲", color=(100, 40, 40))
+
+    draw_button(surface, controls["close"], "關閉")
+
+
+def handle_settings_click(pos, include_navigation: bool):
+    global game_state, show_settings_popup
+
+    controls = get_settings_layout(include_navigation)
+    modal = controls["modal"]
+
+    if not modal.collidepoint(pos):
+        show_settings_popup = False
+        return True
+
+    if controls["bgm_down"].collidepoint(pos):
+        sound_manager.change_bgm_volume(-VOLUME_STEP)
+        return True
+    if controls["bgm_up"].collidepoint(pos):
+        sound_manager.change_bgm_volume(VOLUME_STEP)
+        return True
+    if controls["sfx_down"].collidepoint(pos):
+        sound_manager.change_sfx_volume(-VOLUME_STEP)
+        return True
+    if controls["sfx_up"].collidepoint(pos):
+        sound_manager.change_sfx_volume(VOLUME_STEP)
+        return True
+
+    if include_navigation:
+        if controls["resume"].collidepoint(pos):
+            show_settings_popup = False
+            return True
+        if controls["to_menu"].collidepoint(pos):
+            persist_game_state()
+            show_settings_popup = False
+            game_state = "start_menu"
+            return True
+        if controls["quit"].collidepoint(pos):
+            persist_game_state()
+            pygame.quit()
+            sys.exit()
+
+    if controls["close"].collidepoint(pos):
+        show_settings_popup = False
+        return True
+
+    return False
+
+
+def load_enemy_image_from_event(event_data):
+    if not event_data:
+        return None
+    image_name = event_data.get("enemy_image")
+    if not image_name:
+        return None
+    try:
+        image_surface = pygame.image.load(res_path("assets", image_name)).convert_alpha()
+    except (FileNotFoundError, pygame.error):
+        return None
+    return pygame.transform.scale(image_surface, (96, 96))
+
+
+def persist_game_state():
+    if game_state != "main_screen":
+        return
+
+    save_manager.save_game(
+        {
+            "player": player,
+            "game_state": game_state,
+            "sub_state": sub_state,
+            "current_event": current_event,
+            "pending_walk_event": pending_walk_event,
+            "pending_clear_event": pending_clear_event,
+            "clear_event_timer": clear_event_timer,
+            "text_log": text_log.export_state(),
+        }
+    )
+    global has_save_file
+    has_save_file = True
+
+
+def start_new_adventure():
+    global player, game_state, sub_state, current_event, pending_walk_event
+    global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
+    global has_save_file
+
+    text_log.reset()
+    player = init_player_state()
+    game_state = "main_screen"
+    sub_state = "wait"
+    current_event = None
+    pending_walk_event = False
+    pending_clear_event = False
+    clear_event_timer = 0
+    current_enemy_image = None
+    show_settings_popup = False
+    save_manager.clear_save()
+    has_save_file = False
+
+
+def load_saved_adventure() -> bool:
+    global player, game_state, sub_state, current_event, pending_walk_event
+    global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
+    global has_save_file
+
+    data = save_manager.load_game()
+    if not data:
+        return False
+
+    player = data.get("player", init_player_state())
+    text_log.load_state(data.get("text_log"))
+    game_state = "main_screen"
+    sub_state = data.get("sub_state", "wait")
+    if sub_state == "walking":
+        sub_state = "wait"
+        data["pending_walk_event"] = False
+    current_event = data.get("current_event")
+    pending_walk_event = data.get("pending_walk_event", False)
+    pending_clear_event = data.get("pending_clear_event", False)
+    clear_event_timer = data.get("clear_event_timer", 0)
+    current_enemy_image = load_enemy_image_from_event(current_event)
+    show_settings_popup = False
+    has_save_file = True
+    return True
+
+
 # 初始化玩家狀態
+text_log.reset()
 player = init_player_state()
 
 # 遊戲狀態變數
@@ -290,6 +466,8 @@ pending_walk_event = False
 
 pending_clear_event = False
 clear_event_timer = 0
+show_settings_popup = False
+has_save_file = save_manager.has_save()
 
 # 主要遊戲迴圈
 running = True
@@ -302,23 +480,23 @@ while running:
             running = False
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if game_state == "start_menu" and start_button.collidepoint(event.pos):
-                game_state = "main_screen"
+            if show_settings_popup:
+                if handle_settings_click(event.pos, game_state == "main_screen"):
+                    continue
+
+            if settings_button.collidepoint(event.pos):
+                show_settings_popup = True
+                continue
+
+            if game_state == "start_menu" and has_save_file and continue_button.collidepoint(
+                event.pos
+            ):
+                load_saved_adventure()
+            elif game_state == "start_menu" and start_button.collidepoint(event.pos):
+                start_new_adventure()
             elif game_state == "start_menu" and exit_button.collidepoint(event.pos):
                 pygame.quit()
                 sys.exit()
-            elif game_state == "start_menu" and bgm_down_button.collidepoint(
-                event.pos
-            ):
-                sound_manager.change_bgm_volume(-VOLUME_STEP)
-            elif game_state == "start_menu" and bgm_up_button.collidepoint(event.pos):
-                sound_manager.change_bgm_volume(VOLUME_STEP)
-            elif game_state == "start_menu" and sfx_down_button.collidepoint(
-                event.pos
-            ):
-                sound_manager.change_sfx_volume(-VOLUME_STEP)
-            elif game_state == "start_menu" and sfx_up_button.collidepoint(event.pos):
-                sound_manager.change_sfx_volume(VOLUME_STEP)
             elif game_state == "main_screen":
                 areas = get_areas_for_mode(player)
                 cinematic = areas.get("mode") == "cinematic"
@@ -488,40 +666,19 @@ while running:
         screen.blit(start_bg, start_bg.get_rect(center=(256, 384)))
         screen.blit(logo_image, (100, 80))
 
-        def draw_button(rect: pygame.Rect, label: str):
-            pygame.draw.rect(screen, button_color, rect)
-            text_surface = FONT.render(label, True, (255, 255, 255))
-            screen.blit(text_surface, text_surface.get_rect(center=rect.center))
+        if has_save_file:
+            draw_button(screen, continue_button, "繼續冒險", color=continue_color)
 
-        def draw_volume_row(label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float):
-            row_center_y = down_rect.y + down_rect.height // 2
-            label_surface = FONT.render(label, True, (255, 255, 255))
-            label_rect = label_surface.get_rect(center=(256, row_center_y - 24))
-            screen.blit(label_surface, label_rect)
+        draw_button(screen, start_button, "開始冒險")
+        draw_button(screen, exit_button, "離開遊戲")
 
-            draw_button(down_rect, "-")
-            draw_button(up_rect, "+")
-
-            value_surface = FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
-            value_rect = value_surface.get_rect(center=(256, row_center_y))
-            screen.blit(value_surface, value_rect)
-
-        pygame.draw.rect(screen, button_color, start_button)
-        screen.blit(start_text, start_text_rect)
-        pygame.draw.rect(screen, button_color, exit_button)
-        screen.blit(exit_text, exit_text_rect)
-        draw_volume_row(
-            "音樂音量",
-            bgm_down_button,
-            bgm_up_button,
-            sound_manager.get_bgm_volume(),
+        summary_surface = SMALL_FONT.render(
+            f"音樂 {int(sound_manager.get_bgm_volume() * 100)}% / 音效 {int(sound_manager.get_sfx_volume() * 100)}%",
+            True,
+            (230, 230, 230),
         )
-        draw_volume_row(
-            "音效音量",
-            sfx_down_button,
-            sfx_up_button,
-            sound_manager.get_sfx_volume(),
-        )
+        summary_rect = summary_surface.get_rect(right=settings_button.x - 8, centery=settings_button.centery)
+        screen.blit(summary_surface, summary_rect)
     elif game_state == "main_screen":
         render_ui(
             screen,
@@ -533,10 +690,14 @@ while running:
             current_enemy_image,
             player_position=tuple(player_animator.position),
         )
+    draw_button(screen, settings_button, "設定", font=SMALL_FONT)
+    if show_settings_popup:
+        draw_settings_popup(screen, game_state == "main_screen")
     if player_animator.fade_alpha > 0:
         fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, player_animator.fade_alpha))
         screen.blit(fade_surface, (0, 0))
+    persist_game_state()
     pygame.display.flip()
 
     # 延遲後清除事件
