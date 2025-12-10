@@ -4,26 +4,20 @@
     "max_hp": 20,
     "atk": 5,
     "def": 3,
-    "inventory": [
-      "治療藥水"
-    ],
+    "inventory": [],
     "fate": 50,
     "fate_history": [],
     "fate_path_locked": false,
     "fate_locked_band": null,
     "refusal_streak": 0,
-    "flags": {
-      "mission_briefed": true
-    },
-    "steps": 1,
+    "flags": {},
+    "steps": 0,
     "chapter": 1,
     "forced_event": null,
     "ending_prepared": false,
     "midband_counter": 0,
     "event_cooldowns": {},
-    "consumed_events": [
-      "任務簡報"
-    ],
+    "consumed_events": [],
     "game_over": false
   },
   "game_state": "main_screen",
@@ -33,50 +27,9 @@
   "pending_clear_event": false,
   "clear_event_timer": 0,
   "text_log": {
-    "log_history": [
-      {
-        "text": "── 事件 01：任務簡報 ──",
-        "category": "event_header",
-        "event_id": 1
-      },
-      {
-        "text": "旁白：基地地下的簡報室燈光昏黃，投影機嗡鳴成一種催眠的噪音。你還沒坐熱椅子，門就被推開。\n黎恩隊長把一疊夾著紅色封條的資料推到你面前，眼神裡全是倦意。\n黎恩：『菜鳥，別再做夢了。這回換你出外勤。』",
-        "category": "narration",
-        "event_id": 1
-      },
-      {
-        "text": "你選擇了：「任務簡報請說。」",
-        "category": "choice",
-        "event_id": 1
-      },
-      {
-        "text": "黎恩：『前哨站東北方的淺川村整村失聯，連偵查用的傀儡都回傳錯碼。\n你帶上錄製器，找出失聯原因，若遇到異常立刻上報。明白嗎？』\n旁白：你挺直背脊，口乾舌燥地點頭。出發的時刻到了。",
-        "category": "narration",
-        "event_id": 1
-      },
-      {
-        "text": "任務派遣：調查淺川村失聯事件。",
-        "category": "narration",
-        "event_id": 1
-      },
-      {
-        "text": "旗標觸發：mission_briefed",
-        "category": "system",
-        "event_id": 1
-      },
-      {
-        "text": "任務已建立：調查淺川村",
-        "category": "system",
-        "event_id": 1
-      },
-      {
-        "text": "你獲得了道具：治療藥水",
-        "category": "system",
-        "event_id": 1
-      }
-    ],
+    "log_history": [],
     "log_offset": 0,
-    "current_event_id": 1,
-    "next_event_id": 2
+    "current_event_id": null,
+    "next_event_id": 1
   }
 }

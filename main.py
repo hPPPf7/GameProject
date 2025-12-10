@@ -260,30 +260,37 @@ def use_inventory_item(player: dict, index: int) -> bool:
 
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
-    modal_height = 230 + (110 if include_navigation else 0)
+    modal_height = 230 + (130 if include_navigation else 0)
     modal_rect = pygame.Rect(
         (512 - modal_width) // 2, (768 - modal_height) // 2, modal_width, modal_height
     )
     row_y_start = modal_rect.y + 60
     button_size = 28
-    gap = 16
+    row_gap = 16
+    horizontal_offset = 40
+    button_width = 140
+    button_height = 32
     center_x = modal_rect.centerx
     controls = {
         "modal": modal_rect,
-        "bgm_down": pygame.Rect(center_x - 70 - button_size, row_y_start, button_size, button_size),
-        "bgm_up": pygame.Rect(center_x + 70, row_y_start, button_size, button_size),
+        "bgm_down": pygame.Rect(center_x - horizontal_offset - button_size, row_y_start, button_size, button_size),
+        "bgm_up": pygame.Rect(center_x + horizontal_offset, row_y_start, button_size, button_size),
         "sfx_down": pygame.Rect(
-            center_x - 70 - button_size, row_y_start + gap + button_size, button_size, button_size
+            center_x - horizontal_offset - button_size, row_y_start + row_gap + button_size, button_size, button_size
         ),
-        "sfx_up": pygame.Rect(center_x + 70, row_y_start + gap + button_size, button_size, button_size),
-        "close": pygame.Rect(center_x - 70, modal_rect.bottom - 48, 140, 32),
+        "sfx_up": pygame.Rect(center_x + horizontal_offset, row_y_start + row_gap + button_size, button_size, button_size),
+        "close": pygame.Rect(center_x - button_width // 2, modal_rect.bottom - 48, button_width, button_height),
     }
 
     if include_navigation:
-        nav_y = controls["close"].y - 90
-        controls["resume"] = pygame.Rect(center_x - 70, nav_y, 140, 32)
-        controls["to_menu"] = pygame.Rect(center_x - 70, nav_y + 38, 140, 32)
-        controls["quit"] = pygame.Rect(center_x - 70, nav_y + 76, 140, 32)
+        nav_gap = 12
+        nav_margin = 16
+        nav_block_height = button_height * 2 + nav_gap
+        nav_y = controls["close"].y - nav_block_height - nav_margin
+        controls["to_menu"] = pygame.Rect(center_x - button_width // 2, nav_y, button_width, button_height)
+        controls["quit"] = pygame.Rect(
+            center_x - button_width // 2, nav_y + button_height + nav_gap, button_width, button_height
+        )
 
     return controls
 
@@ -325,7 +332,6 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     )
 
     if include_navigation:
-        draw_button(surface, controls["resume"], "繼續遊戲")
         draw_button(surface, controls["to_menu"], "回到主畫面", color=(90, 70, 40))
         draw_button(surface, controls["quit"], "離開遊戲", color=(100, 40, 40))
 
@@ -356,9 +362,6 @@ def handle_settings_click(pos, include_navigation: bool):
         return True
 
     if include_navigation:
-        if controls["resume"].collidepoint(pos):
-            show_settings_popup = False
-            return True
         if controls["to_menu"].collidepoint(pos):
             persist_game_state()
             show_settings_popup = False

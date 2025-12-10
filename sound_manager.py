@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from typing import Any
+
 import pygame
 
 from paths import res_path
@@ -11,6 +15,7 @@ _initialized = False
 
 _bgm_volume = 0.7
 _sfx_volume = 0.7
+_settings_file = Path(res_path("data", "settings.json"))
 
 SFX_FILES = {
     "heal": "healing.wav",
@@ -28,6 +33,8 @@ def init_sound() -> None:
     global _initialized
     if _initialized:
         return
+
+    _load_volumes()
 
     if not pygame.mixer.get_init():
         pygame.mixer.init()
@@ -75,6 +82,7 @@ def set_bgm_volume(value: float) -> float:
     global _bgm_volume
     _bgm_volume = max(0.0, min(1.0, value))
     _apply_bgm_volume()
+    _save_volumes()
     return _bgm_volume
 
 
@@ -84,6 +92,7 @@ def set_sfx_volume(value: float) -> float:
     global _sfx_volume
     _sfx_volume = max(0.0, min(1.0, value))
     _apply_sfx_volume()
+    _save_volumes()
     return _sfx_volume
 
 
@@ -110,3 +119,38 @@ def _apply_sfx_volume() -> None:
         return
     for sound in _sfx_cache.values():
         sound.set_volume(_sfx_volume)
+
+
+def _load_volumes() -> None:
+    """Load volume settings from disk if available."""
+
+    global _bgm_volume, _sfx_volume
+    if not _settings_file.exists():
+        return
+
+    try:
+        data: dict[str, Any] = json.loads(_settings_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+
+    _bgm_volume = _clamp_volume(data.get("bgm_volume", _bgm_volume))
+    _sfx_volume = _clamp_volume(data.get("sfx_volume", _sfx_volume))
+
+
+def _save_volumes() -> None:
+    """Persist current volume settings to disk."""
+
+    payload = {"bgm_volume": _bgm_volume, "sfx_volume": _sfx_volume}
+    try:
+        _settings_file.parent.mkdir(parents=True, exist_ok=True)
+        _settings_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        # Ignore save failures to avoid crashing audio controls
+        pass
+
+
+def _clamp_volume(value: Any) -> float:
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 0.7

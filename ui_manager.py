@@ -334,7 +334,9 @@ def render_ui(
     mode = areas.get("mode")
     enemy_info = get_enemy_display_info(player)
 
-    # 圖像區域
+    # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
+    old_clip = screen.get_clip()
+    screen.set_clip(areas["image"])
     screen.blit(starting_image, areas["image"].topleft)
 
     # 若有傳入立繪則繪製玩家與敵人
@@ -362,6 +364,8 @@ def render_ui(
             160,
             120,
         )
+    # 恢復全局裁切，後續 UI 不受限
+    screen.set_clip(old_clip)
 
     if enemy_info and enemy_rect:
         enemy_name, enemy_hp, enemy_max = enemy_info
