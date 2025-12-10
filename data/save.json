@@ -1,35 +1,255 @@
 {
   "player": {
-    "hp": 20,
+    "hp": 18,
     "max_hp": 20,
     "atk": 5,
     "def": 3,
-    "inventory": [],
-    "fate": 50,
-    "fate_history": [],
+    "inventory": [
+      "治療藥水"
+    ],
+    "fate": 48,
+    "fate_history": [
+      48
+    ],
     "fate_path_locked": false,
     "fate_locked_band": null,
     "refusal_streak": 0,
-    "flags": {},
-    "steps": 0,
+    "flags": {
+      "mission_briefed": true
+    },
+    "steps": 2,
     "chapter": 1,
     "forced_event": null,
     "ending_prepared": false,
-    "midband_counter": 0,
-    "event_cooldowns": {},
-    "consumed_events": [],
+    "midband_counter": 2,
+    "event_cooldowns": {
+      "荒野小型魔物戰": 2,
+      "荒野拾石": 2
+    },
+    "consumed_events": [
+      "任務簡報",
+      "荒野拾石"
+    ],
     "game_over": false
   },
   "game_state": "main_screen",
-  "sub_state": "wait",
-  "current_event": null,
+  "sub_state": "show_event",
+  "current_event": {
+    "id": "荒野拾石",
+    "type": "normal",
+    "chapter": 1,
+    "weight": 4,
+    "cooldown": 2,
+    "once": true,
+    "tags": [
+      "荒野",
+      "物品"
+    ],
+    "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+    "options": [
+      {
+        "text": "撿起來",
+        "result": {
+          "text": "你撿起了石頭，手心一陣發熱。岩石微不可察地脈動了一下。",
+          "effect": {
+            "fate": 1
+          },
+          "inventory_add": "奇怪的石頭",
+          "flags_set": [
+            "got_weird_rock"
+          ],
+          "emit_log": "你透過耳麥報告：『撿到一塊還在發熱的石頭，先帶著。』"
+        }
+      },
+      {
+        "text": "無視它",
+        "result": {
+          "text": "你選擇不理會，繼續前進。微風像是在嘆氣。",
+          "effect": {
+            "fate": -1
+          }
+        }
+      }
+    ]
+  },
   "pending_walk_event": false,
   "pending_clear_event": false,
   "clear_event_timer": 0,
   "text_log": {
-    "log_history": [],
+    "log_history": [
+      {
+        "text": "── 事件 01：任務簡報 ──",
+        "category": "event_header",
+        "event_id": 1
+      },
+      {
+        "text": "旁白：基地地下的簡報室燈光昏黃，投影機嗡鳴成一種催眠的噪音。你還沒坐熱椅子，門就被推開。\n黎恩隊長把一疊夾著紅色封條的資料推到你面前，眼神裡全是倦意。\n黎恩：『菜鳥，別再做夢了。這回換你出外勤。』",
+        "category": "narration",
+        "event_id": 1
+      },
+      {
+        "text": "你選擇了：「任務簡報請說。」",
+        "category": "choice",
+        "event_id": 1
+      },
+      {
+        "text": "黎恩：『前哨站東北方的淺川村整村失聯，連偵查用的傀儡都回傳錯碼。\n你帶上錄製器，找出失聯原因，若遇到異常立刻上報。明白嗎？』\n旁白：你挺直背脊，口乾舌燥地點頭。出發的時刻到了。",
+        "category": "narration",
+        "event_id": 1
+      },
+      {
+        "text": "任務派遣：調查淺川村失聯事件。",
+        "category": "narration",
+        "event_id": 1
+      },
+      {
+        "text": "旗標觸發：mission_briefed",
+        "category": "system",
+        "event_id": 1
+      },
+      {
+        "text": "任務已建立：調查淺川村",
+        "category": "system",
+        "event_id": 1
+      },
+      {
+        "text": "你獲得了道具：治療藥水",
+        "category": "system",
+        "event_id": 1
+      },
+      {
+        "text": "",
+        "category": "spacer",
+        "event_id": 2
+      },
+      {
+        "text": "── 事件 02：荒野小型魔物戰 ──",
+        "category": "event_header",
+        "event_id": 2
+      },
+      {
+        "text": "一隻小型魔物從草叢竄出！",
+        "category": "narration",
+        "event_id": 2
+      },
+      {
+        "text": "戰鬥開始：小型魔物 (HP 12, ATK 4, DEF 1)",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "你選擇了：攻擊",
+        "category": "choice",
+        "event_id": 2
+      },
+      {
+        "text": "你調整呼吸，鎖定敵人的破綻。",
+        "category": "narration",
+        "event_id": 2
+      },
+      {
+        "text": "你對小型魔物造成 4 點傷害！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 剩餘 8/12 HP。",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 反擊，對你造成 1 點傷害！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "HP 20 -1 → 19",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "你選擇了：攻擊",
+        "category": "choice",
+        "event_id": 2
+      },
+      {
+        "text": "你調整呼吸，鎖定敵人的破綻。",
+        "category": "narration",
+        "event_id": 2
+      },
+      {
+        "text": "你對小型魔物造成 4 點傷害！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 剩餘 4/12 HP。",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 反擊，對你造成 1 點傷害！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "HP 19 -1 → 18",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "你選擇了：攻擊",
+        "category": "choice",
+        "event_id": 2
+      },
+      {
+        "text": "你調整呼吸，鎖定敵人的破綻。",
+        "category": "narration",
+        "event_id": 2
+      },
+      {
+        "text": "你對小型魔物造成 4 點傷害！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 剩餘 0/12 HP。",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "小型魔物 被擊倒了！",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "命運值 50 → 48",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "黎恩的聲音從耳麥傳來：『做得好，別讓它靠近村子。』",
+        "category": "system",
+        "event_id": 2
+      },
+      {
+        "text": "",
+        "category": "spacer",
+        "event_id": 3
+      },
+      {
+        "text": "── 事件 03：荒野拾石 ──",
+        "category": "event_header",
+        "event_id": 3
+      },
+      {
+        "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+        "category": "narration",
+        "event_id": 3
+      }
+    ],
     "log_offset": 0,
-    "current_event_id": null,
-    "next_event_id": 1
+    "current_event_id": 3,
+    "next_event_id": 4
   }
 }
