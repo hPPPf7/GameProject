@@ -36,6 +36,8 @@ starting_image = pygame.transform.scale(starting_image, UI_AREAS["image"].size)
 
 ITEM_ICON_FILES = {
     "治療藥水": "health_potion.png",
+    "奇怪的石頭": "weird_rock.png",
+    "草織護符": "grasswoven_talisman.png",
 }
 
 _ITEM_ICON_CACHE: dict[str, Optional[pygame.Surface]] = {}

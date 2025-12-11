@@ -5,26 +5,30 @@
     "atk": 5,
     "def": 3,
     "inventory": [
-      "治療藥水"
+      "治療藥水",
+      "奇怪的石頭"
     ],
-    "fate": 48,
+    "fate": 46,
     "fate_history": [
-      48
+      48,
+      45,
+      46
     ],
     "fate_path_locked": false,
     "fate_locked_band": null,
     "refusal_streak": 0,
     "flags": {
-      "mission_briefed": true
+      "mission_briefed": true,
+      "got_weird_rock": true
     },
-    "steps": 2,
-    "chapter": 1,
+    "steps": 4,
+    "chapter": 2,
     "forced_event": null,
     "ending_prepared": false,
-    "midband_counter": 2,
+    "midband_counter": 4,
     "event_cooldowns": {
-      "荒野小型魔物戰": 2,
-      "荒野拾石": 2
+      "荒野拾石": 1,
+      "村民盯著石頭": 2
     },
     "consumed_events": [
       "任務簡報",
@@ -35,38 +39,43 @@
   "game_state": "main_screen",
   "sub_state": "show_event",
   "current_event": {
-    "id": "荒野拾石",
-    "type": "normal",
-    "chapter": 1,
+    "id": "村民盯著石頭",
+    "type": "dialogue",
+    "chapter": 2,
     "weight": 4,
     "cooldown": 2,
-    "once": true,
+    "once": false,
     "tags": [
-      "荒野",
-      "物品"
+      "村民",
+      "線索"
     ],
-    "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+    "text": "你遇到一位喃喃自語的村民，他盯著你手上的石頭看。",
+    "condition": {
+      "chapter_is": 2,
+      "flag_on": [
+        "got_weird_rock"
+      ]
+    },
     "options": [
       {
-        "text": "撿起來",
+        "text": "仔細傾聽",
         "result": {
-          "text": "你撿起了石頭，手心一陣發熱。岩石微不可察地脈動了一下。",
+          "text": "他提到一個被遺忘的地名：『灰烬凹地』……還問你是否聽過『樣本#07』。",
           "effect": {
-            "fate": 1
+            "fate": 2
           },
-          "inventory_add": "奇怪的石頭",
           "flags_set": [
-            "got_weird_rock"
+            "got_gray_pit_hint"
           ],
-          "emit_log": "你透過耳麥報告：『撿到一塊還在發熱的石頭，先帶著。』"
+          "emit_log": "村民貼近你的耳邊：『灰燼凹地，他們在那裡唱樣本的名字。』"
         }
       },
       {
-        "text": "無視它",
+        "text": "打斷他",
         "result": {
-          "text": "你選擇不理會，繼續前進。微風像是在嘆氣。",
+          "text": "他沉默了一會兒，然後走開了。臨走前留下一句：『太陽會換殼。』",
           "effect": {
-            "fate": -1
+            "fate": -2
           }
         }
       }
@@ -238,18 +247,108 @@
         "event_id": 3
       },
       {
-        "text": "── 事件 03：荒野拾石 ──",
+        "text": "── 事件 03：蘑菇合唱團 ──",
         "category": "event_header",
         "event_id": 3
       },
       {
-        "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+        "text": "一群會唱歌的蘑菇繞著你踢踏舞，合聲奇妙地和諧。",
         "category": "narration",
         "event_id": 3
+      },
+      {
+        "text": "你選擇了：跟著哼（加入合唱）",
+        "category": "choice",
+        "event_id": 3
+      },
+      {
+        "text": "你融入節奏，心情意外平靜，世界似乎合理了一點。",
+        "category": "narration",
+        "event_id": 3
+      },
+      {
+        "text": "命運值 48 → 45",
+        "category": "system",
+        "event_id": 3
+      },
+      {
+        "text": "第 2 章揭開帷幕，命運的重量更加沈重。",
+        "category": "narration",
+        "event_id": 3
+      },
+      {
+        "text": "",
+        "category": "spacer",
+        "event_id": 4
+      },
+      {
+        "text": "── 事件 04：荒野拾石 ──",
+        "category": "event_header",
+        "event_id": 4
+      },
+      {
+        "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+        "category": "narration",
+        "event_id": 4
+      },
+      {
+        "text": "你選擇了：撿起來",
+        "category": "choice",
+        "event_id": 4
+      },
+      {
+        "text": "你撿起了石頭，手心一陣發熱。岩石微不可察地脈動了一下。",
+        "category": "narration",
+        "event_id": 4
+      },
+      {
+        "text": "你透過耳麥報告：『撿到一塊還在發熱的石頭，先帶著。』",
+        "category": "narration",
+        "event_id": 4
+      },
+      {
+        "text": "命運值 45 → 46",
+        "category": "system",
+        "event_id": 4
+      },
+      {
+        "text": "你獲得了道具：奇怪的石頭",
+        "category": "system",
+        "event_id": 4
+      },
+      {
+        "text": "旗標觸發：got_weird_rock",
+        "category": "system",
+        "event_id": 4
+      },
+      {
+        "text": "奇怪的石頭 暫時無法使用。",
+        "category": "system",
+        "event_id": 4
+      },
+      {
+        "text": "奇怪的石頭 暫時無法使用。",
+        "category": "system",
+        "event_id": 4
+      },
+      {
+        "text": "",
+        "category": "spacer",
+        "event_id": 5
+      },
+      {
+        "text": "── 事件 05：村民盯著石頭 ──",
+        "category": "event_header",
+        "event_id": 5
+      },
+      {
+        "text": "你遇到一位喃喃自語的村民，他盯著你手上的石頭看。",
+        "category": "narration",
+        "event_id": 5
       }
     ],
     "log_offset": 0,
-    "current_event_id": 3,
-    "next_event_id": 4
+    "current_event_id": 5,
+    "next_event_id": 6
   }
 }
