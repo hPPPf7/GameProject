@@ -74,9 +74,8 @@ def _apply_cooldown(event: Dict, player) -> None:
 
 
 def _mark_consumed(event: Dict, player) -> None:
-    if event.get("once"):
-        consumed = _ensure_consumed_set(player)
-        consumed.add(event["id"])
+    consumed = _ensure_consumed_set(player)
+    consumed.add(event["id"])
 
 
 def _prepare_event(player, event: Optional[Dict]) -> Optional[Dict]:
@@ -181,15 +180,25 @@ def get_random_event(event_types=None, player=None):
         player["forced_event"] = None
         forced_event = get_event_by_id(forced_event_id)
         if forced_event:
-            return _prepare_event(player, forced_event)
-        print(
-            f"[event_manager] 找不到強制事件 {forced_event_id}，改以一般事件取代。"
-        )
+            if _was_consumed(forced_event, player):
+                print(
+                    f"[event_manager] 強制事件 {forced_event_id} 已觸發過，改以一般事件取代。"
+                )
+            else:
+                return _prepare_event(player, forced_event)
+        else:
+            print(
+                f"[event_manager] 找不到強制事件 {forced_event_id}，改以一般事件取代。"
+            )
 
     streak = _increment_midband_counter(player)
     if streak >= MIDBAND_LIMIT:
         trigger_event = get_event_by_id(FATE_TRIGGER_MIDBAND_ID)
-        if trigger_event and is_event_condition_met(trigger_event, player):
+        if (
+            trigger_event
+            and not _was_consumed(trigger_event, player)
+            and is_event_condition_met(trigger_event, player)
+        ):
             player["midband_counter"] = 0
             return _prepare_event(player, trigger_event)
 
@@ -197,7 +206,7 @@ def get_random_event(event_types=None, player=None):
     for event in ALL_EVENTS:
         if event.get("type") not in event_types:
             continue
-        if event.get("once") and _was_consumed(event, player):
+        if _was_consumed(event, player):
             continue
         if _is_on_cooldown(event, player):
             continue
