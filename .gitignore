@@ -7,3 +7,10 @@ __pycache__/
 # PyInstaller build artifacts
 build/
 *.spec
+
+# Local runtime data (should not be committed)
+data/save.json
+data/settings.json
+
+# Developer environments
+.venv/
