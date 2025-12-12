@@ -22,14 +22,30 @@ OPTIONS_X = STATUS_X + STATUS_WIDTH + GAP
 OPTIONS_WIDTH = 448 - (OPTIONS_X - STATUS_X)
 
 UI_AREAS = {
-    "image": pygame.Rect(32, 32, 448, 200),
-    "log": pygame.Rect(32, 244, 448, 230),
-    "status": pygame.Rect(STATUS_X, 488, STATUS_WIDTH, 132),
+    "image": pygame.Rect(32, 16, 448, 299),
+    "log": pygame.Rect(32, 331, 448, 256),
+    "status": pygame.Rect(STATUS_X, 603, STATUS_WIDTH, 132),
     "options": [
-        pygame.Rect(OPTIONS_X, 488 + i * 45, OPTIONS_WIDTH, 40) for i in range(3)
+        pygame.Rect(OPTIONS_X, 603 + i * 45, OPTIONS_WIDTH, 40) for i in range(3)
     ],
-    "inventory_preview": pygame.Rect(32, 640, 448, 80),
+    "inventory_preview": pygame.Rect(32, 751, 448, 80),
 }
+
+# Updated layout: narrower status, wider options, longer log, and panels shifted down.
+STATUS_WIDTH = 170
+OPTIONS_X = STATUS_X + STATUS_WIDTH + GAP
+OPTIONS_WIDTH = 448 - (OPTIONS_X - STATUS_X)
+
+UI_AREAS = {
+    "image": pygame.Rect(32, 16, 448, 299),
+    "log": pygame.Rect(32, 331, 448, 256),
+    "status": pygame.Rect(STATUS_X, 603, STATUS_WIDTH, 132),
+    "options": [
+        pygame.Rect(OPTIONS_X, 603 + i * 45, OPTIONS_WIDTH, 40) for i in range(3)
+    ],
+    "inventory_preview": pygame.Rect(32, 751, 448, 80),
+}
+UI_HEIGHT = UI_AREAS["inventory_preview"].bottom + 16
 
 starting_image = pygame.image.load(res_path("assets", "starting_area.png"))
 starting_image = pygame.transform.scale(starting_image, UI_AREAS["image"].size)
@@ -178,7 +194,7 @@ def get_areas_for_mode(player: dict) -> dict:
         right_x = STATUS_X + STATUS_WIDTH + GAP + OPTIONS_WIDTH
         options_rect = pygame.Rect(
             left_x,
-            log_rect.bottom + 16,
+            log_rect.bottom + 10,
             right_x - left_x,
             240,
         )
@@ -346,9 +362,10 @@ def render_ui(
         if player_position:
             player_pos = (int(player_position[0]), int(player_position[1]))
         else:
+            player_height = player_image.get_height()
             player_pos = (
                 areas["image"].x + 32,
-                areas["image"].y + 80,
+                areas["image"].bottom - player_height - 16,
             )
         screen.blit(player_image, player_pos)
     enemy_rect: Optional[pygame.Rect] = None
@@ -408,7 +425,10 @@ def render_ui(
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
     # 組出換行後的日誌內容
     max_width = areas["log"].width - 16  # 扣除邊距
-    visible_lines = text_log.get_visible_lines(font, max_width)
+    visible_line_count = max(1, (areas["log"].height - 16) // 24)
+    visible_lines = text_log.get_visible_lines(
+        font, max_width, visible_lines=visible_line_count
+    )
     color_map = {
         "narration": (255, 255, 255),
         "choice": (180, 200, 255),

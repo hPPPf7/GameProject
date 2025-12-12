@@ -22,6 +22,7 @@ sound_manager.init_sound()
 
 from ui_manager import (
     UI_AREAS,
+    UI_HEIGHT,
     get_option_rects,
     get_areas_for_mode,
     get_inventory_slots,
@@ -53,7 +54,7 @@ class PlayerAnimator:
         self.fade_alpha = 0
         self.walk_start_x = UI_AREAS["image"].x + 16
         self.idle_x = UI_AREAS["image"].x + 32
-        self.base_y = UI_AREAS["image"].y + 80
+        self.base_y = UI_AREAS["image"].bottom - self.target_height - 16
         first_walk_frame = self.walk_frames[0] if self.walk_frames else None
         walk_width = first_walk_frame.get_width() if first_walk_frame else self.target_height
         self.walk_end_x = max(
@@ -184,10 +185,13 @@ class PlayerAnimator:
                 self.walk_finished = True
 
 # 視窗設定
-screen = pygame.display.set_mode((512, 768))
+SCREEN_WIDTH = 512
+SCREEN_HEIGHT = UI_HEIGHT
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("菜鳥調查隊日誌")
 icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
+SCREEN_RECT = screen.get_rect()
 clock = pygame.time.Clock()
 
 sound_manager.play_bgm()
@@ -210,12 +214,16 @@ FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
 SMALL_FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 16)
 
 # 開始選單按鈕
-start_button = pygame.Rect(156, 612, 200, 50)
-continue_button = pygame.Rect(156, 552, 200, 50)
+button_width = 200
+button_height = 50
+button_gap = 60
+button_base_y = SCREEN_HEIGHT - 240
+start_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y, button_width, button_height)
+continue_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y - button_gap, button_width, button_height)
 button_color = (70, 70, 70)
 continue_color = (90, 70, 40)
 
-exit_button = pygame.Rect(156, 672, 200, 50)
+exit_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y + button_gap, button_width, button_height)
 
 VOLUME_STEP = 0.1
 settings_button = pygame.Rect(452, 24, 36, 36)
@@ -261,8 +269,12 @@ def use_inventory_item(player: dict, index: int) -> bool:
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
     modal_height = 230 + (130 if include_navigation else 0)
+    screen_width, screen_height = screen.get_size()
     modal_rect = pygame.Rect(
-        (512 - modal_width) // 2, (768 - modal_height) // 2, modal_width, modal_height
+        (screen_width - modal_width) // 2,
+        (screen_height - modal_height) // 2,
+        modal_width,
+        modal_height,
     )
     row_y_start = modal_rect.y + 60
     button_size = 28
@@ -666,7 +678,7 @@ while running:
 
     # 繪製對應畫面
     if game_state == "start_menu":
-        screen.blit(start_bg, start_bg.get_rect(center=(256, 384)))
+        screen.blit(start_bg, start_bg.get_rect(center=SCREEN_RECT.center))
         screen.blit(logo_image, (100, 80))
 
         if has_save_file:
