@@ -358,6 +358,7 @@ def render_ui(
     screen.blit(starting_image, areas["image"].topleft)
 
     # 若有傳入立繪則繪製玩家與敵人
+    player_bottom = areas["image"].bottom - 16
     if player_image:
         if player_position:
             player_pos = (int(player_position[0]), int(player_position[1]))
@@ -367,14 +368,13 @@ def render_ui(
                 areas["image"].x + 32,
                 areas["image"].bottom - player_height - 16,
             )
+        player_bottom = player_pos[1] + player_image.get_height()
         screen.blit(player_image, player_pos)
     enemy_rect: Optional[pygame.Rect] = None
     if enemy_image:
         enemy_rect = enemy_image.get_rect()
-        enemy_rect.topleft = (
-            areas["image"].right - enemy_rect.width - 32,
-            areas["image"].y + 80,
-        )
+        enemy_rect.x = areas["image"].right - enemy_rect.width - 32
+        enemy_rect.bottom = player_bottom
         screen.blit(enemy_image, enemy_rect.topleft)
     elif enemy_info:
         enemy_rect = pygame.Rect(
