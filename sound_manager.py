@@ -8,14 +8,14 @@ from typing import Any
 
 import pygame
 
-from paths import res_path
+from paths import res_path, user_data_path
 
 _sfx_cache: dict[str, pygame.mixer.Sound] = {}
 _initialized = False
 
 _bgm_volume = 0.7
 _sfx_volume = 0.7
-_settings_file = Path(res_path("data", "settings.json"))
+_settings_file = Path(user_data_path("settings.json"))
 
 SFX_FILES = {
     "heal": "healing.wav",

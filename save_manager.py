@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Dict
 
-from paths import res_path
+from pathlib import Path
+
+from paths import user_data_path
 
 
 def _save_file() -> Path:
-    return Path(res_path("data", "save.json"))
+    return Path(user_data_path("save.json"))
 
 
 def has_save() -> bool:
