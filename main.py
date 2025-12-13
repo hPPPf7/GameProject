@@ -41,14 +41,24 @@ class PlayerAnimator:
         self.target_height = target_height
         self.idle_frames = self._load_idle_frames()
         self.walk_frames = self._load_walk_frames()
+        self.attack_frames = self._load_attack_frames()
         self.idle_frame_time = 0.35
         self.walk_frame_time = 0.1
+        self.attack_frame_time = 0.07
         self.walk_duration = 1.2
+        self.attack_approach_duration = 0.35
+        self.attack_return_duration = 0.3
+        self.attack_target_x = 0.0
+        self.attack_start_x = 0.0
+        self.attack_return_start_x = 0.0
+        self.attack_gap = 12
+        self.attack_sfx_played = False
         self.frame_index = 0
         self.frame_timer = 0.0
         self.state = "idle"
         self.walk_progress = 0.0
         self.walk_finished = False
+        self.attack_finished = True
         self.fade_state: Optional[str] = None
         self.fade_timer = 0.0
         self.fade_duration = 0.45
@@ -105,6 +115,15 @@ class PlayerAnimator:
             frames.append(self._scale_to_height(frame))
         return frames
 
+    def _load_attack_frames(self) -> list[pygame.Surface]:
+        frames: list[pygame.Surface] = []
+        for i in range(1, 10):
+            frame = pygame.image.load(
+                res_path("assets", "images", "player", "attack", f"{i}.png")
+            ).convert_alpha()
+            frames.append(self._scale_to_height(frame))
+        return frames
+
     def start_walk(self):
         if not self.walk_frames:
             self.walk_finished = True
@@ -119,8 +138,35 @@ class PlayerAnimator:
         self.fade_alpha = 0
         self.position[0] = self.walk_start_x
 
+    def start_attack(self, enemy_width: Optional[int] = None):
+        frames_width = (
+            self.attack_frames[0].get_width() if self.attack_frames else self.target_height
+        )
+        enemy_w = enemy_width or self.target_height
+        enemy_x = UI_AREAS["image"].right - enemy_w - 32
+        target_x = enemy_x - frames_width + self.attack_gap
+        min_x = UI_AREAS["image"].x + 8
+        self.attack_target_x = max(min_x, target_x)
+        self.state = "attack_approach"
+        self.walk_progress = 0.0
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.walk_finished = False
+        self.attack_finished = False
+        self.fade_state = None
+        self.fade_alpha = 0
+        self.attack_start_x = self.idle_x
+        self.position[0] = self.idle_x
+        self.attack_sfx_played = False
+
     def update(self, dt: float):
         self.walk_finished = False
+        self.attack_finished = False
+
+        if self.state in ("attack_approach", "attacking", "attack_return"):
+            self._update_attack(dt)
+            return
+
         self._update_fade(dt)
         if self.fade_state:
             return
@@ -150,7 +196,12 @@ class PlayerAnimator:
             self.position[0] = self.idle_x
 
     def current_frame(self) -> Optional[pygame.Surface]:
-        frames = self.walk_frames if self.state == "walking" else self.idle_frames
+        if self.state == "attacking":
+            frames = self.attack_frames
+        elif self.state in ("attack_approach", "attack_return", "walking"):
+            frames = self.walk_frames
+        else:
+            frames = self.idle_frames
         if not frames:
             return None
         if self.fade_state == "out":
@@ -188,6 +239,66 @@ class PlayerAnimator:
                 self.fade_state = None
                 self.fade_alpha = 0
                 self.walk_finished = True
+
+    def _update_attack(self, dt: float):
+        if self.state == "attack_approach":
+            self._advance_frames(self.walk_frames, self.walk_frame_time, dt)
+            duration = max(0.01, self.attack_approach_duration)
+            self.walk_progress += dt / duration
+            self.walk_progress = min(self.walk_progress, 1.0)
+            start_x = self.attack_start_x
+            delta_x = self.attack_target_x - start_x
+            self.position[0] = start_x + delta_x * self.walk_progress
+            if self.walk_progress >= 1.0:
+                self.state = "attacking"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.walk_progress = 0.0
+                if not self.attack_sfx_played:
+                    sound_manager.play_sfx("attack")
+                    self.attack_sfx_played = True
+        elif self.state == "attacking":
+            frames = self.attack_frames
+            if not frames:
+                self.state = "attack_return"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.walk_progress = 0.0
+                self.attack_return_start_x = self.position[0]
+            else:
+                self.frame_timer += dt
+                if self.frame_timer >= self.attack_frame_time:
+                    self.frame_timer = 0.0
+                    self.frame_index += 1
+                    if self.frame_index >= len(frames):
+                        self.state = "attack_return"
+                        self.frame_index = 0
+                        self.frame_timer = 0.0
+                        self.walk_progress = 0.0
+                        self.attack_return_start_x = self.position[0]
+        elif self.state == "attack_return":
+            self._advance_frames(self.walk_frames, self.walk_frame_time, dt)
+            duration = max(0.01, self.attack_return_duration)
+            self.walk_progress += dt / duration
+            self.walk_progress = min(self.walk_progress, 1.0)
+            start_x = self.attack_return_start_x
+            delta_x = self.idle_x - start_x
+            self.position[0] = start_x + delta_x * self.walk_progress
+            if self.walk_progress >= 1.0:
+                self.state = "idle"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.attack_finished = True
+
+    def _advance_frames(
+        self, frames: list[pygame.Surface], frame_time: float, dt: float
+    ):
+        if not frames:
+            return
+        self.frame_timer += dt
+        if self.frame_timer >= frame_time:
+            self.frame_timer %= frame_time
+            self.frame_index = (self.frame_index + 1) % len(frames)
 
 
 # 視窗設定
@@ -484,7 +595,7 @@ def persist_game_state():
 def start_new_adventure():
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
-    global has_save_file
+    global has_save_file, pending_result, pending_result_requires_attack
 
     text_log.reset()
     player = init_player_state()
@@ -498,12 +609,14 @@ def start_new_adventure():
     show_settings_popup = False
     save_manager.clear_save()
     has_save_file = False
+    pending_result = None
+    pending_result_requires_attack = False
 
 
 def load_saved_adventure() -> bool:
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
-    global has_save_file
+    global has_save_file, pending_result, pending_result_requires_attack
 
     data = save_manager.load_game()
     if not data:
@@ -523,7 +636,68 @@ def load_saved_adventure() -> bool:
     current_enemy_image = load_enemy_image_from_event(current_event)
     show_settings_popup = False
     has_save_file = True
+    pending_result = None
+    pending_result_requires_attack = False
     return True
+
+
+def apply_result_and_advance(result):
+    """Apply the chosen result, advance battle state, and refresh UI."""
+
+    global pending_clear_event, clear_event_timer, sub_state, current_event
+    if not result:
+        return
+
+    handle_event_result(player, result)
+    text_log.scroll_to_bottom()
+
+    render_ui(
+        screen,
+        player,
+        FONT,
+        current_event,
+        sub_state,
+        player_animator.current_frame() or player_image,
+        current_enemy_image,
+        player_position=tuple(player_animator.position),
+    )
+    pygame.display.flip()
+
+    battle_continues = False
+    if current_event and current_event.get("type") == "battle":
+        battle_continues = is_battle_active(player)
+
+    if not battle_continues:
+        forced_event = post_event_update(player)
+        if forced_event:
+            player["forced_event"] = forced_event
+    if battle_continues:
+        pending_clear_event = False
+        clear_event_timer = 0
+        sub_state = "show_event"
+    else:
+        pending_clear_event = True
+        clear_event_timer = 1
+        sub_state = "after_result"
+
+
+def try_apply_pending_result(force: bool = False):
+    """Apply pending result once ready (after attack animation when required)."""
+
+    global pending_result, pending_result_requires_attack
+
+    if not pending_result:
+        return
+
+    if pending_result_requires_attack and not force:
+        if not player_animator.attack_finished:
+            return
+
+    result = pending_result
+    pending_result = None
+    pending_result_requires_attack = False
+
+    apply_result_and_advance(result)
 
 
 # 初始化玩家狀態
@@ -540,6 +714,8 @@ pending_clear_event = False
 clear_event_timer = 0
 show_settings_popup = False
 has_save_file = save_manager.has_save()
+pending_result = None
+pending_result_requires_attack = False
 
 # 主要遊戲迴圈
 running = True
@@ -594,67 +770,54 @@ while running:
                     and current_event
                     and "options" in current_event
                 ):
-                    option_rects = get_option_rects(
-                        sub_state, current_event, player, areas
-                    )
-                    for i, rect in enumerate(option_rects):
-                        if i >= len(current_event["options"]):
-                            continue
-                        if rect.collidepoint(event.pos):
-                            chosen = current_event["options"][i]
-                            text_log.add(
-                                f"你選擇了：{chosen['text']}", category="choice"
-                            )
-                            text_log.scroll_to_bottom()
-                            # 立即重繪以顯示選擇結果
-                            render_ui(
-                                screen,
-                                player,
-                                FONT,
-                                current_event,
-                                sub_state,
-                                player_animator.current_frame() or player_image,
-                                current_enemy_image,
-                                player_position=tuple(player_animator.position),
-                            )
-                            pygame.display.flip()
-                            result = chosen.get("result")
-                            if result:
-                                handle_event_result(player, result)
+                    if pending_result_requires_attack:
+                        handled_click = True
+                    else:
+                        option_rects = get_option_rects(
+                            sub_state, current_event, player, areas
+                        )
+                        for i, rect in enumerate(option_rects):
+                            if i >= len(current_event["options"]):
+                                continue
+                            if rect.collidepoint(event.pos):
+                                chosen = current_event["options"][i]
+                                text_log.add(
+                                    f"你選擇了：{chosen['text']}", category="choice"
+                                )
                                 text_log.scroll_to_bottom()
-                            # 套用結果後再次重繪
-                            render_ui(
-                                screen,
-                                player,
-                                FONT,
-                                current_event,
-                                sub_state,
-                                player_animator.current_frame() or player_image,
-                                current_enemy_image,
-                                player_position=tuple(player_animator.position),
-                            )
-                            pygame.display.flip()
-                            battle_continues = False
-                            if current_event.get("type") == "battle":
-                                battle_continues = is_battle_active(player)
-
-                            if not battle_continues:
-                                # 只在當前事件完全結束時才推進進度
-                                forced_event = post_event_update(player)
-                                if forced_event:
-                                    player["forced_event"] = forced_event
-                            if battle_continues:
-                                pending_clear_event = False
-                                clear_event_timer = 0
-                                sub_state = "show_event"
-                            else:
-                                # 標記事件，於下一輪迴圈清除
-                                pending_clear_event = True
-                                clear_event_timer = 1
-                                sub_state = "after_result"
-                            handled_click = True
-                            break
-                if not handled_click and not cinematic:
+                                result = chosen.get("result")
+                                wait_for_attack = bool(
+                                    result and result.get("battle_action") == "attack"
+                                )
+                                if wait_for_attack:
+                                    enemy_w = (
+                                        current_enemy_image.get_width()
+                                        if current_enemy_image
+                                        else None
+                                    )
+                                    player_animator.start_attack(enemy_width=enemy_w)
+                                pending_result = result
+                                pending_result_requires_attack = wait_for_attack
+                                # 立即重繪以顯示選擇或攻擊起手
+                                render_ui(
+                                    screen,
+                                    player,
+                                    FONT,
+                                    current_event,
+                                    sub_state,
+                                    player_animator.current_frame() or player_image,
+                                    current_enemy_image,
+                                    player_position=tuple(player_animator.position),
+                                )
+                                pygame.display.flip()
+                                try_apply_pending_result(force=not wait_for_attack)
+                                handled_click = True
+                                break
+                if (
+                    not handled_click
+                    and not cinematic
+                    and not pending_result_requires_attack
+                ):
                     for slot in get_inventory_slots(player, areas):
                         if (
                             slot.rect.collidepoint(event.pos)
@@ -704,6 +867,7 @@ while running:
     dt_ms = clock.tick(60)
     dt = dt_ms / 1000.0
     player_animator.update(dt)
+    try_apply_pending_result()
 
     if sub_state == "walking" and player_animator.walk_finished:
         from event_manager import get_random_event

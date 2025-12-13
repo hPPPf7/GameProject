@@ -141,7 +141,6 @@ def perform_battle_action(
         attempt = state["attack_attempts"]
         chance = float(config.get("attack_chance", DEFAULT_ATTACK_CHANCE))
         success = attempt >= max_turns or random.random() < chance
-        sound_manager.play_sfx("attack")
         if success:
             messages.append(f"你擊倒了 {enemy.name}！")
             battle_over = True
@@ -168,14 +167,12 @@ def perform_battle_action(
             durability = max(0, durability - durability_loss)
             messages.append("逃跑失敗，你耗費了體力。")
             messages.append(f"耐久 {durability}/{max_durability}")
-            sound_manager.play_sfx("attack")
 
     else:
         durability_loss = 1
         durability = max(0, durability - durability_loss)
         messages.append("你猶豫不決，錯失時機。")
         messages.append(f"耐久 {durability}/{max_durability}")
-        sound_manager.play_sfx("attack")
 
     if not battle_over and durability <= 0:
         battle_over = True
