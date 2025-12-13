@@ -4,6 +4,7 @@ import pygame
 import text_log
 
 from paths import res_path
+from battle_system import DEFAULT_DURABILITY
 
 
 def is_cinematic_mode(player: dict) -> bool:
@@ -215,6 +216,27 @@ def get_areas_for_mode(player: dict) -> dict:
     }
 
 
+def _get_durability_display(player: dict) -> tuple[int, int]:
+    """
+    Return (current, max) durability for display.
+
+    During battle, read from battle_state; otherwise show full default durability.
+    """
+    if not player:
+        return DEFAULT_DURABILITY, DEFAULT_DURABILITY
+
+    battle_state = player.get("battle_state") or {}
+    if battle_state:
+        current = int(battle_state.get("durability", DEFAULT_DURABILITY))
+        maximum = int(battle_state.get("max_durability", DEFAULT_DURABILITY))
+        if maximum <= 0:
+            maximum = DEFAULT_DURABILITY
+        current = max(0, min(current, maximum))
+        return current, maximum
+
+    return DEFAULT_DURABILITY, DEFAULT_DURABILITY
+
+
 def get_option_rects(
     sub_state: str,
     current_event,
@@ -386,7 +408,8 @@ def render_ui(
     # 恢復全局裁切，後續 UI 不受限
     screen.set_clip(old_clip)
 
-    if enemy_info and enemy_rect:
+    draw_enemy_hp_bar = False  # 保留程式碼結構但預設不顯示怪物血條
+    if draw_enemy_hp_bar and enemy_info and enemy_rect:
         enemy_name, enemy_hp, enemy_max = enemy_info
         bar_width = max(enemy_rect.width, 160)
         bar_height = 14
@@ -447,10 +470,9 @@ def render_ui(
         status_rect = areas["status_rect"]
         pygame.draw.rect(screen, COLORS["status"], status_rect)
 
+        current_durability, max_durability = _get_durability_display(player)
         rows = [
-            ("hp", "HP", player.get("hp", 0)),
-            ("atk", "ATK", player.get("atk", 0)),
-            ("def", "DEF", player.get("def", 0)),
+            (None, f"耐久 {current_durability}/{max_durability}", None),
         ]
         
         icon_size = 32
@@ -463,7 +485,7 @@ def render_ui(
 
         for i, (attr_key, label, value) in enumerate(rows):
             row_top = status_rect.y + padding_y + i * (row_height + row_spacing)
-            icon = get_attribute_icon(attr_key, icon_size)
+            icon = get_attribute_icon(attr_key, icon_size) if attr_key else None
             if icon:
                 icon_rect = icon.get_rect()
                 icon_rect.x = status_rect.x + padding_x
@@ -478,7 +500,7 @@ def render_ui(
             )
             draw_text(
                 screen,
-                f"{label}: {value}",
+                label if value is None else f"{label}: {value}",
                 text_rect,
                 font,
                 center=False,

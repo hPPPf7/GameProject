@@ -99,6 +99,9 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     - ``emit_log``: additional messages to append to the log.
     - ``refuse``: if truthy, increment the refusal streak and potentially
       trigger a fate trigger event.
+    - ``defeat_text`` / ``defeat_effect`` / ``defeat_log``: applied when a
+      battle ends without 勝利 or 撤退（耐久耗盡等情況）。
+    - ``forced_event_on_defeat``: optional forced jump when 戰鬥失敗。
 
     The return value is a forced event ID if one should be queued.
     """
@@ -116,13 +119,16 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         battle_outcome = perform_battle_action(player, battle_action, result)
         for message in battle_outcome.get("messages", []):
             text_log.add(message, category="system")
-        player_damage = battle_outcome.get("player_damage", 0)
-        if player_damage:
-            _apply_numeric_change(player, "hp", -player_damage)
 
         # 允許戰鬥行動指定後續的強制事件
         if battle_outcome.get("battle_over") and result.get("forced_event_on_end"):
             forced_event = forced_event or result.get("forced_event_on_end")
+        if (
+            battle_outcome.get("battle_over")
+            and (not battle_outcome.get("victory"))
+            and (not battle_outcome.get("escaped"))
+        ):
+            forced_event = forced_event or result.get("forced_event_on_defeat")
 
         if battle_outcome.get("battle_over"):
             if battle_outcome.get("victory"):
@@ -144,6 +150,19 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                     result.get("escape_effect") or {},
                     result.get("escape_text") or primary_text or "撤退",
                 )
+            else:
+                _apply_effects(
+                    player,
+                    result.get("defeat_effect") or {},
+                    result.get("defeat_text") or primary_text or "戰鬥失敗",
+                )
+                defeat_log = result.get("defeat_log")
+                if defeat_log:
+                    if isinstance(defeat_log, list):
+                        for entry in defeat_log:
+                            text_log.add(entry, category="system")
+                    else:
+                        text_log.add(defeat_log, category="system")
 
     # 若有指定則額外寫入日誌
     if "emit_log" in result:

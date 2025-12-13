@@ -34,6 +34,7 @@ from event_result_handler import handle_event_result
 from fate_system import post_event_update
 from battle_system import start_battle, is_battle_active, clear_battle_state
 
+
 # 簡易的玩家動畫控制器
 class PlayerAnimator:
     def __init__(self, target_height: int = 96):
@@ -56,7 +57,9 @@ class PlayerAnimator:
         self.idle_x = UI_AREAS["image"].x + 32
         self.base_y = UI_AREAS["image"].bottom - self.target_height - 16
         first_walk_frame = self.walk_frames[0] if self.walk_frames else None
-        walk_width = first_walk_frame.get_width() if first_walk_frame else self.target_height
+        walk_width = (
+            first_walk_frame.get_width() if first_walk_frame else self.target_height
+        )
         self.walk_end_x = max(
             self.walk_start_x,
             UI_AREAS["image"].right - walk_width - 16,
@@ -121,9 +124,11 @@ class PlayerAnimator:
         self._update_fade(dt)
         if self.fade_state:
             return
-        
+
         frames = self.walk_frames if self.state == "walking" else self.idle_frames
-        frame_time = self.walk_frame_time if self.state == "walking" else self.idle_frame_time
+        frame_time = (
+            self.walk_frame_time if self.state == "walking" else self.idle_frame_time
+        )
 
         self.frame_timer += dt
         if self.frame_timer >= frame_time and frames:
@@ -151,7 +156,7 @@ class PlayerAnimator:
         if self.fade_state == "out":
             return None
         return frames[self.frame_index % len(frames)]
-    
+
     def _start_fade_out(self):
         if self.fade_state:
             return
@@ -183,6 +188,7 @@ class PlayerAnimator:
                 self.fade_state = None
                 self.fade_alpha = 0
                 self.walk_finished = True
+
 
 # 視窗設定
 SCREEN_WIDTH = 512
@@ -218,12 +224,24 @@ button_width = 200
 button_height = 50
 button_gap = 60
 button_base_y = SCREEN_HEIGHT - 240
-start_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y, button_width, button_height)
-continue_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y - button_gap, button_width, button_height)
+start_button = pygame.Rect(
+    (SCREEN_WIDTH - button_width) // 2, button_base_y, button_width, button_height
+)
+continue_button = pygame.Rect(
+    (SCREEN_WIDTH - button_width) // 2,
+    button_base_y - button_gap,
+    button_width,
+    button_height,
+)
 button_color = (70, 70, 70)
 continue_color = (90, 70, 40)
 
-exit_button = pygame.Rect((SCREEN_WIDTH - button_width) // 2, button_base_y + button_gap, button_width, button_height)
+exit_button = pygame.Rect(
+    (SCREEN_WIDTH - button_width) // 2,
+    button_base_y + button_gap,
+    button_width,
+    button_height,
+)
 
 VOLUME_STEP = 0.1
 settings_button = pygame.Rect(452, 24, 36, 36)
@@ -285,13 +303,33 @@ def get_settings_layout(include_navigation: bool):
     center_x = modal_rect.centerx
     controls = {
         "modal": modal_rect,
-        "bgm_down": pygame.Rect(center_x - horizontal_offset - button_size, row_y_start, button_size, button_size),
-        "bgm_up": pygame.Rect(center_x + horizontal_offset, row_y_start, button_size, button_size),
-        "sfx_down": pygame.Rect(
-            center_x - horizontal_offset - button_size, row_y_start + row_gap + button_size, button_size, button_size
+        "bgm_down": pygame.Rect(
+            center_x - horizontal_offset - button_size,
+            row_y_start,
+            button_size,
+            button_size,
         ),
-        "sfx_up": pygame.Rect(center_x + horizontal_offset, row_y_start + row_gap + button_size, button_size, button_size),
-        "close": pygame.Rect(center_x - button_width // 2, modal_rect.bottom - 48, button_width, button_height),
+        "bgm_up": pygame.Rect(
+            center_x + horizontal_offset, row_y_start, button_size, button_size
+        ),
+        "sfx_down": pygame.Rect(
+            center_x - horizontal_offset - button_size,
+            row_y_start + row_gap + button_size,
+            button_size,
+            button_size,
+        ),
+        "sfx_up": pygame.Rect(
+            center_x + horizontal_offset,
+            row_y_start + row_gap + button_size,
+            button_size,
+            button_size,
+        ),
+        "close": pygame.Rect(
+            center_x - button_width // 2,
+            modal_rect.bottom - 48,
+            button_width,
+            button_height,
+        ),
     }
 
     if include_navigation:
@@ -299,15 +337,27 @@ def get_settings_layout(include_navigation: bool):
         nav_margin = 16
         nav_block_height = button_height * 2 + nav_gap
         nav_y = controls["close"].y - nav_block_height - nav_margin
-        controls["to_menu"] = pygame.Rect(center_x - button_width // 2, nav_y, button_width, button_height)
+        controls["to_menu"] = pygame.Rect(
+            center_x - button_width // 2, nav_y, button_width, button_height
+        )
         controls["quit"] = pygame.Rect(
-            center_x - button_width // 2, nav_y + button_height + nav_gap, button_width, button_height
+            center_x - button_width // 2,
+            nav_y + button_height + nav_gap,
+            button_width,
+            button_height,
         )
 
     return controls
 
 
-def draw_button(surface: pygame.Surface, rect: pygame.Rect, label: str, *, color=(70, 70, 70), font=FONT):
+def draw_button(
+    surface: pygame.Surface,
+    rect: pygame.Rect,
+    label: str,
+    *,
+    color=(70, 70, 70),
+    font=FONT,
+):
     pygame.draw.rect(surface, color, rect, border_radius=6)
     text_surface = font.render(label, True, (255, 255, 255))
     surface.blit(text_surface, text_surface.get_rect(center=rect.center))
@@ -322,13 +372,18 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     title = FONT.render("設定", True, (255, 255, 255))
     surface.blit(title, title.get_rect(center=(modal.centerx, modal.y + 24)))
 
-    def draw_volume_row(label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float):
+    def draw_volume_row(
+        label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float
+    ):
         label_surface = SMALL_FONT.render(label, True, (230, 230, 230))
         surface.blit(label_surface, (modal.x + 28, down_rect.y + 4))
         draw_button(surface, down_rect, "-", font=SMALL_FONT)
         draw_button(surface, up_rect, "+", font=SMALL_FONT)
         value_surface = SMALL_FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
-        surface.blit(value_surface, value_surface.get_rect(center=(modal.centerx, down_rect.centery)))
+        surface.blit(
+            value_surface,
+            value_surface.get_rect(center=(modal.centerx, down_rect.centery)),
+        )
 
     draw_volume_row(
         "音樂音量",
@@ -398,7 +453,9 @@ def load_enemy_image_from_event(event_data):
     if not image_name:
         return None
     try:
-        image_surface = pygame.image.load(res_path("assets", image_name)).convert_alpha()
+        image_surface = pygame.image.load(
+            res_path("assets", image_name)
+        ).convert_alpha()
     except (FileNotFoundError, pygame.error):
         return None
     return pygame.transform.scale(image_surface, (96, 96))
@@ -503,8 +560,10 @@ while running:
                 show_settings_popup = True
                 continue
 
-            if game_state == "start_menu" and has_save_file and continue_button.collidepoint(
-                event.pos
+            if (
+                game_state == "start_menu"
+                and has_save_file
+                and continue_button.collidepoint(event.pos)
             ):
                 load_saved_adventure()
             elif game_state == "start_menu" and start_button.collidepoint(event.pos):
@@ -692,7 +751,9 @@ while running:
             True,
             (230, 230, 230),
         )
-        summary_rect = summary_surface.get_rect(right=settings_button.x - 8, centery=settings_button.centery)
+        summary_rect = summary_surface.get_rect(
+            right=settings_button.x - 8, centery=settings_button.centery
+        )
         screen.blit(summary_surface, summary_rect)
     elif game_state == "main_screen":
         render_ui(
