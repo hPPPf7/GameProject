@@ -35,6 +35,10 @@ from fate_system import (
 def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
     """Apply a numeric change to the given player stat with logging."""
 
+    # 已移除 HP/ATK/DEF 屬性，忽略相關變更以避免冗餘日誌
+    if key.lower() in {"hp", "atk", "def"}:
+        return
+
     if key not in player:
         return
 
@@ -105,6 +109,9 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     The return value is a forced event ID if one should be queued.
     """
+    # 每個事件執行前重置本次事件的命運變更記號
+    player["_fate_changed_in_event"] = False
+
     primary_text = result.get("text")
     if primary_text:
         print("【事件結果】", primary_text)

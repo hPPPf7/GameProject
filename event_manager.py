@@ -8,17 +8,20 @@ implements the midband fate trigger that forces the player into a
 decision if their fate value hovers too long within the neutral band.
 """
 
+import copy
 import json
 import random
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from paths import res_path
 
-MIDBAND_MIN = 40
-MIDBAND_MAX = 60
+MIDBAND_MIN = 34
+MIDBAND_MAX = 66
 MIDBAND_LIMIT = 3
 FATE_TRIGGER_MIDBAND_ID = "命運介入"
 INTRO_EVENT_ID = "任務簡報"
+FIRST_WILD_EVENT_ID = "荒野拾石"
+FIRST_BATTLE_EVENT_ID = "荒野小型魔物戰"
 
 
 # 載入所有事件資料
@@ -38,6 +41,49 @@ def _ensure_consumed_set(player) -> set:
         consumed = set(consumed)
         player["consumed_events"] = consumed
     return consumed
+
+
+def _check_condition(condition: Dict, player) -> bool:
+    if not condition:
+        return True
+
+    fate_value = player.get("fate", 0)
+    if "fate_min" in condition and fate_value < condition["fate_min"]:
+        return False
+    if "fate_max" in condition and fate_value > condition["fate_max"]:
+        return False
+
+    hp_value = player.get("hp", 0)
+    if "hp_min" in condition and hp_value < condition["hp_min"]:
+        return False
+    if "hp_max" in condition and hp_value > condition["hp_max"]:
+        return False
+
+    current_chapter = player.get("chapter", 1)
+    if "chapter_is" in condition and current_chapter != condition["chapter_is"]:
+        return False
+    if "chapter_min" in condition and current_chapter < condition["chapter_min"]:
+        return False
+    if "chapter_max" in condition and current_chapter > condition["chapter_max"]:
+        return False
+
+    inventory: Sequence[str] = player.get("inventory", [])
+    for item in condition.get("inventory_has", []):
+        if item not in inventory:
+            return False
+    for item in condition.get("inventory_not", []):
+        if item in inventory:
+            return False
+
+    flags = player.get("flags", {})
+    for flag in condition.get("flag_on", []):
+        if not flags.get(flag):
+            return False
+    for flag in condition.get("flag_off", []):
+        if flags.get(flag):
+            return False
+
+    return True
 
 
 def _tick_cooldowns(player) -> None:
@@ -81,9 +127,10 @@ def _mark_consumed(event: Dict, player) -> None:
 def _prepare_event(player, event: Optional[Dict]) -> Optional[Dict]:
     if not event:
         return None
+    resolved = _resolve_event_variants(event, player)
     _apply_cooldown(event, player)
     _mark_consumed(event, player)
-    return event
+    return resolved
 
 
 def is_event_condition_met(event: Dict, player) -> bool:
@@ -96,48 +143,86 @@ def is_event_condition_met(event: Dict, player) -> bool:
         return False
 
     condition = event.get("condition") or {}
-
-    fate_value = player.get("fate", 0)
-    if "fate_min" in condition and fate_value < condition["fate_min"]:
+    if not _check_condition(condition, player):
         return False
-    if "fate_max" in condition and fate_value > condition["fate_max"]:
-        return False
-
-    hp_value = player.get("hp", 0)
-    if "hp_min" in condition and hp_value < condition["hp_min"]:
-        return False
-    if "hp_max" in condition and hp_value > condition["hp_max"]:
-        return False
-
-    current_chapter = player.get("chapter", 1)
-    if "chapter_is" in condition and current_chapter != condition["chapter_is"]:
-        return False
-    if "chapter_min" in condition and current_chapter < condition["chapter_min"]:
-        return False
-    if "chapter_max" in condition and current_chapter > condition["chapter_max"]:
-        return False
-
-    inventory: Sequence[str] = player.get("inventory", [])
-    for item in condition.get("inventory_has", []):
-        if item not in inventory:
-            return False
-    for item in condition.get("inventory_not", []):
-        if item in inventory:
-            return False
-
-    flags = player.get("flags", {})
-    for flag in condition.get("flag_on", []):
-        if not flags.get(flag):
-            return False
-    for flag in condition.get("flag_off", []):
-        if flags.get(flag):
-            return False
 
     return True
 
 
 def get_event_by_id(event_id: str) -> Optional[Dict]:
     return EVENT_LOOKUP.get(event_id)
+
+
+def _get_fate_style(player) -> str:
+    fate = player.get("fate", 50)
+    if fate >= 67:
+        return "absurd"
+    if fate <= 33:
+        return "rational"
+    return "neutral"
+
+
+def _resolve_text_value(payload: Dict, style: str) -> Optional[str]:
+    variants = payload.get("text_variants")
+    if isinstance(variants, dict):
+        return (
+            variants.get(style)
+            or variants.get("neutral")
+            or variants.get("normal")
+            or payload.get("text")
+        )
+
+    key_map = {
+        "neutral": "text_neutral",
+        "rational": "text_rational",
+        "absurd": "text_absurd",
+    }
+    for key in (key_map.get(style), key_map.get("neutral"), "text"):
+        if key and payload.get(key):
+            return payload[key]
+    return payload.get("text")
+
+
+def _merge_dicts(base: Optional[Dict], override: Optional[Dict]) -> Dict:
+    merged: Dict = copy.deepcopy(base or {})
+    if override:
+        merged.update(override)
+    return merged
+
+
+def _resolve_result(option: Dict, style: str) -> Dict:
+    base_result = option.get("result") or {}
+    variants = option.get("result_variants") or {}
+    override = variants.get(style) or variants.get("neutral") or variants.get("normal")
+    resolved = _merge_dicts(base_result, override)
+
+    text_value = _resolve_text_value(resolved, style)
+    if text_value:
+        resolved["text"] = text_value
+    return resolved
+
+
+def _is_option_available(option: Dict, player) -> bool:
+    return _check_condition(option.get("condition") or {}, player)
+
+
+def _resolve_event_variants(event: Dict, player) -> Dict:
+    style = _get_fate_style(player)
+    resolved = copy.deepcopy(event)
+    resolved["_variant"] = style
+    text_value = _resolve_text_value(resolved, style)
+    if text_value:
+        resolved["text"] = text_value
+
+    options = []
+    for option in event.get("options", []):
+        if not _is_option_available(option, player):
+            continue
+        resolved_option = copy.deepcopy(option)
+        resolved_option["result"] = _resolve_result(option, style)
+        options.append(resolved_option)
+    resolved["options"] = options
+    return resolved
 
 
 def _increment_midband_counter(player) -> int:
@@ -174,6 +259,13 @@ def get_random_event(event_types=None, player=None):
             and not _was_consumed(intro_event, player)
         ):
             return _prepare_event(player, intro_event)
+        # 遊戲開局固定順序：荒野拾石 -> 荒野小型魔物戰
+        first_wild = get_event_by_id(FIRST_WILD_EVENT_ID)
+        if first_wild and not _was_consumed(first_wild, player):
+            return _prepare_event(player, first_wild)
+        first_battle = get_event_by_id(FIRST_BATTLE_EVENT_ID)
+        if first_battle and not _was_consumed(first_battle, player):
+            return _prepare_event(player, first_battle)
 
     forced_event_id = player.get("forced_event") if player else None
     if forced_event_id:

@@ -16,8 +16,8 @@ import text_log
 # 命運範圍與臨界值 -------------------------------------------------
 FATE_MIN = 0
 FATE_MAX = 100
-HIGH_THRESHOLD = 70
-LOW_THRESHOLD = 39
+HIGH_THRESHOLD = 67
+LOW_THRESHOLD = 33
 
 # 調校常數 ----------------------------------------------------------
 MAX_NORMAL_DELTA = 10
@@ -91,6 +91,9 @@ def apply_fate_change(player: Dict, change: FateChange) -> None:
     if len(history) > 10:
         history.pop(0)
 
+    # 標記本事件已經變更過命運值，避免後續再自動微調
+    player["_fate_changed_in_event"] = True
+
     text_log.add(f"命運值 {old_value} → {new_value}", category="system")
 
 
@@ -128,6 +131,10 @@ def advance_chapter_if_needed(player: Dict) -> Optional[int]:
 
 
 def apply_chapter_bias(player: Dict) -> None:
+    # 若本事件已經變更命運值，避免再自動微調造成重複日誌
+    if player.get("_fate_changed_in_event"):
+        return
+
     chapter = player.get("chapter", 1)
     current_band = determine_band(player.get("fate", 50))
 
@@ -183,9 +190,13 @@ def post_event_update(player: Dict) -> Optional[str]:
 
     forced_event = maybe_lock_main_path(player)
     if forced_event:
+        player["_fate_changed_in_event"] = False
         return forced_event
 
-    return maybe_prepare_ending(player)
+    result = maybe_prepare_ending(player)
+    # 清除本事件的命運變更記號
+    player["_fate_changed_in_event"] = False
+    return result
 
 
 def handle_refusal(player: Dict) -> Optional[str]:
