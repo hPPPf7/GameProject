@@ -48,8 +48,40 @@ UI_AREAS = {
 }
 UI_HEIGHT = UI_AREAS["inventory_preview"].bottom + 16
 
-starting_image = pygame.image.load(res_path("assets", "starting_area.png"))
-starting_image = pygame.transform.scale(starting_image, UI_AREAS["image"].size)
+DEFAULT_BACKGROUND = "starting_area.png"
+
+# Cache scaled backgrounds so we only load and resize each file once.
+_BACKGROUND_CACHE: dict[str, pygame.Surface] = {}
+
+
+def _load_background(name: str) -> pygame.Surface:
+    if not name:
+        name = DEFAULT_BACKGROUND
+    cached = _BACKGROUND_CACHE.get(name)
+    if cached:
+        return cached
+    try:
+        loaded = pygame.image.load(res_path("assets", name))
+    except (FileNotFoundError, pygame.error):
+        if name != DEFAULT_BACKGROUND:
+            return _load_background(DEFAULT_BACKGROUND)
+        fallback = pygame.Surface(UI_AREAS["image"].size)
+        fallback.fill((20, 20, 20))
+        _BACKGROUND_CACHE[name] = fallback
+        return fallback
+    scaled = pygame.transform.scale(loaded, UI_AREAS["image"].size)
+    _BACKGROUND_CACHE[name] = scaled
+    return scaled
+
+
+def get_background_surface(event) -> pygame.Surface:
+    """Return the background surface for the given event (cached)."""
+
+    name = DEFAULT_BACKGROUND
+    if event:
+        name = event.get("background") or DEFAULT_BACKGROUND
+    return _load_background(name)
+
 
 ITEM_ICON_FILES = {
     "治療藥水": "health_potion.png",
@@ -378,7 +410,8 @@ def render_ui(
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
     old_clip = screen.get_clip()
     screen.set_clip(areas["image"])
-    screen.blit(starting_image, areas["image"].topleft)
+    background = get_background_surface(current_event)
+    screen.blit(background, areas["image"].topleft)
 
     # 若有傳入立繪則繪製玩家與敵人
     player_bottom = areas["image"].bottom - 16

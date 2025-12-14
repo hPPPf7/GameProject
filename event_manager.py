@@ -22,12 +22,16 @@ FATE_TRIGGER_MIDBAND_ID = "命運介入"
 INTRO_EVENT_ID = "任務簡報"
 FIRST_WILD_EVENT_ID = "荒野拾石"
 FIRST_BATTLE_EVENT_ID = "荒野小型魔物戰"
+DEFAULT_BACKGROUND = "starting_area.png"
 
 
 # 載入所有事件資料
 def load_events(path: str = res_path("data", "story_data.json")):
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        events = json.load(f)
+    for event in events:
+        event.setdefault("background", DEFAULT_BACKGROUND)
+    return events
 
 
 # 將所有事件快取在這些全域變數中以加速存取
