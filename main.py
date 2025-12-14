@@ -51,7 +51,7 @@ class PlayerAnimator:
         self.attack_target_x = 0.0
         self.attack_start_x = 0.0
         self.attack_return_start_x = 0.0
-        self.attack_gap = 12
+        self.attack_gap = 0
         self.attack_sfx_played = False
         self.frame_index = 0
         self.frame_timer = 0.0
@@ -138,12 +138,21 @@ class PlayerAnimator:
         self.fade_alpha = 0
         self.position[0] = self.walk_start_x
 
-    def start_attack(self, enemy_width: Optional[int] = None):
+    def start_attack(
+        self,
+        enemy_width: Optional[int] = None,
+        enemy_position: Optional[tuple[float, float]] = None,
+    ):
         frames_width = (
-            self.attack_frames[0].get_width() if self.attack_frames else self.target_height
+            self.attack_frames[0].get_width()
+            if self.attack_frames
+            else self.target_height
         )
         enemy_w = enemy_width or self.target_height
-        enemy_x = UI_AREAS["image"].right - enemy_w - 32
+        if enemy_position:
+            enemy_x = float(enemy_position[0])
+        else:
+            enemy_x = UI_AREAS["image"].right - enemy_w - 32
         target_x = enemy_x - frames_width + self.attack_gap
         min_x = UI_AREAS["image"].x + 8
         self.attack_target_x = max(min_x, target_x)
@@ -301,6 +310,219 @@ class PlayerAnimator:
             self.frame_index = (self.frame_index + 1) % len(frames)
 
 
+# 敵人動畫目標高度與垂直偏移（讓野豬更大且略微靠下）
+ENEMY_TARGET_HEIGHT = 230
+ENEMY_VERTICAL_OFFSET = 60
+ENEMY_RIGHT_MARGIN = -20
+
+
+class EnemyAnimator:
+    def __init__(self, target_height: int = 96):
+        self.target_height = target_height
+        self.frames: list[pygame.Surface] = []
+        self.idle_frame: Optional[pygame.Surface] = None
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.idle_frame_time = 0.25
+        self.attack_frame_time = 0.08
+        self.approach_duration = 0.32
+        self.return_duration = 0.32
+        self.attack_progress = 0.0
+        self.state = "idle"
+        self.base_y = (
+            UI_AREAS["image"].bottom - self.target_height - 16 + ENEMY_VERTICAL_OFFSET
+        )
+        self.idle_x = UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
+        self.position = [self.idle_x, self.base_y]
+        self.attack_target_x = self.idle_x
+        self.attack_start_x = self.idle_x
+        self.attack_return_start_x = self.idle_x
+        self.attack_finished = True
+        self.attack_sfx_played = False
+
+    def _scale_to_height(self, surface: pygame.Surface) -> pygame.Surface:
+        width = surface.get_width()
+        height = surface.get_height()
+        if height <= 0:
+            return surface
+        ratio = self.target_height / height
+        return pygame.transform.smoothscale(
+            surface, (int(width * ratio), self.target_height)
+        )
+
+    def clear(self):
+        self.frames = []
+        self.idle_frame = None
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.attack_progress = 0.0
+        self.state = "idle"
+        self.base_y = (
+            UI_AREAS["image"].bottom - self.target_height - 16 + ENEMY_VERTICAL_OFFSET
+        )
+        self.idle_x = UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
+        self.position = [self.idle_x, self.base_y]
+        self.attack_target_x = self.idle_x
+        self.attack_start_x = self.idle_x
+        self.attack_return_start_x = self.idle_x
+        self.attack_finished = True
+        self.attack_sfx_played = False
+
+    def set_frames(self, frames: list[pygame.Surface]):
+        scaled = [self._scale_to_height(frame) for frame in frames if frame]
+        self.frames = scaled
+        self.idle_frame = scaled[0] if scaled else None
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.attack_progress = 0.0
+        self.state = "idle"
+        first = self.current_frame()
+        if first:
+            self.base_y = (
+                UI_AREAS["image"].bottom
+                - first.get_height()
+                - 16
+                + ENEMY_VERTICAL_OFFSET
+            )
+            self.idle_x = (
+                UI_AREAS["image"].right - first.get_width() - ENEMY_RIGHT_MARGIN
+            )
+        else:
+            self.base_y = (
+                UI_AREAS["image"].bottom
+                - self.target_height
+                - 16
+                + ENEMY_VERTICAL_OFFSET
+            )
+            self.idle_x = (
+                UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
+            )
+        self.position = [self.idle_x, self.base_y]
+        self.attack_target_x = self.idle_x
+        self.attack_start_x = self.idle_x
+        self.attack_return_start_x = self.idle_x
+        self.attack_finished = True
+        self.attack_sfx_played = False
+
+    def set_static_image(self, frame: Optional[pygame.Surface]):
+        if frame is None:
+            self.clear()
+            return
+        self.set_frames([frame])
+
+    def current_frame(self) -> Optional[pygame.Surface]:
+        if self.state in {"attack_approach", "attacking", "attack_return"}:
+            if self.frames:
+                return self.frames[self.frame_index % len(self.frames)]
+        return self.idle_frame or (self.frames[0] if self.frames else None)
+
+    def start_attack(
+        self,
+        player_surface: Optional[pygame.Surface],
+        player_position: Optional[tuple[float, float]],
+    ) -> bool:
+        frame = self.current_frame()
+        if frame is None:
+            self.attack_finished = True
+            return False
+
+        player_w = player_surface.get_width() if player_surface else self.target_height
+        player_h = player_surface.get_height() if player_surface else self.target_height
+        if player_position:
+            player_x, player_y = player_position
+        else:
+            player_x = UI_AREAS["image"].x + 32
+            player_y = UI_AREAS["image"].bottom - player_h - 16
+
+        self.base_y = player_y + player_h - frame.get_height() + ENEMY_VERTICAL_OFFSET
+        self.position[1] = self.base_y
+        self.attack_start_x = self.idle_x
+        target_x = player_x + player_w - 12
+        min_x = UI_AREAS["image"].x + 24
+        max_x = self.idle_x - 12
+        self.attack_target_x = max(min_x, min(target_x, max_x))
+        self.attack_progress = 0.0
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.state = "attack_approach"
+        self.attack_finished = False
+        self.attack_sfx_played = False
+        return True
+
+    def update(self, dt: float):
+        if self.state == "attack_approach":
+            self._advance_frames(self.attack_frame_time, dt)
+            duration = max(0.01, self.approach_duration)
+            self.attack_progress += dt / duration
+            self.attack_progress = min(self.attack_progress, 1.0)
+            delta_x = self.attack_target_x - self.attack_start_x
+            self.position[0] = self.attack_start_x + delta_x * self.attack_progress
+            if self.attack_progress >= 1.0:
+                self.state = "attacking"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.attack_progress = 0.0
+        elif self.state == "attacking":
+            if not self.frames:
+                self.state = "attack_return"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.attack_progress = 0.0
+                self.attack_return_start_x = self.position[0]
+            else:
+                self.frame_timer += dt
+                if self.frame_timer >= self.attack_frame_time:
+                    self.frame_timer %= self.attack_frame_time
+                    next_index = self.frame_index + 1
+                    if next_index >= len(self.frames):
+                        if not self.attack_sfx_played:
+                            sound_manager.play_sfx("attack")
+                            self.attack_sfx_played = True
+                        self.state = "attack_return"
+                        self.frame_index = max(0, len(self.frames) - 1)
+                        self.frame_timer = 0.0
+                        self.attack_progress = 0.0
+                        self.attack_return_start_x = self.position[0]
+                    else:
+                        self.frame_index = next_index
+        elif self.state == "attack_return":
+            self._advance_frames(self.attack_frame_time, dt)
+            duration = max(0.01, self.return_duration)
+            self.attack_progress += dt / duration
+            self.attack_progress = min(self.attack_progress, 1.0)
+            delta_x = self.idle_x - self.attack_return_start_x
+            self.position[0] = (
+                self.attack_return_start_x + delta_x * self.attack_progress
+            )
+            if self.attack_progress >= 1.0:
+                self.state = "idle"
+                self.frame_index = 0
+                self.frame_timer = 0.0
+                self.position[0] = self.idle_x
+                self.attack_finished = True
+        else:
+            if self.frames and len(self.frames) > 1:
+                self.frame_timer += dt
+                if self.frame_timer >= self.idle_frame_time:
+                    self.frame_timer %= self.idle_frame_time
+                    self.frame_index = (self.frame_index + 1) % len(self.frames)
+            self.position[0] = self.idle_x
+            self.position[1] = self.base_y
+            if self.attack_finished is False:
+                self.attack_finished = True
+
+    def is_attacking(self) -> bool:
+        return self.state in {"attack_approach", "attacking", "attack_return"}
+
+    def _advance_frames(self, frame_time: float, dt: float):
+        if not self.frames:
+            return
+        self.frame_timer += dt
+        if self.frame_timer >= frame_time:
+            self.frame_timer %= frame_time
+            self.frame_index = (self.frame_index + 1) % len(self.frames)
+
+
 # 視窗設定
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = UI_HEIGHT
@@ -324,7 +546,9 @@ player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_
 player_image = pygame.transform.scale(player_image, (96, 96))
 player_animator = PlayerAnimator(target_height=96)
 
+enemy_animator = EnemyAnimator(target_height=ENEMY_TARGET_HEIGHT)
 current_enemy_image = None  # 事件中目前使用的敵人立繪
+enemy_attack_active = False
 
 # 字型
 FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
@@ -557,19 +781,50 @@ def handle_settings_click(pos, include_navigation: bool):
     return False
 
 
-def load_enemy_image_from_event(event_data):
+def load_enemy_assets_from_event(event_data):
     if not event_data:
-        return None
+        return None, []
+    primary_image = None
+    frames: list[pygame.Surface] = []
+    frame_names = event_data.get("enemy_frames") or []
+    for name in frame_names:
+        try:
+            frame_surface = pygame.image.load(res_path("assets", name)).convert_alpha()
+        except (FileNotFoundError, pygame.error):
+            continue
+        frames.append(
+            pygame.transform.scale(
+                frame_surface, (ENEMY_TARGET_HEIGHT, ENEMY_TARGET_HEIGHT)
+            )
+        )
+    if frames:
+        primary_image = frames[0]
     image_name = event_data.get("enemy_image")
-    if not image_name:
-        return None
-    try:
-        image_surface = pygame.image.load(
-            res_path("assets", image_name)
-        ).convert_alpha()
-    except (FileNotFoundError, pygame.error):
-        return None
-    return pygame.transform.scale(image_surface, (96, 96))
+    if primary_image is None and image_name:
+        try:
+            image_surface = pygame.image.load(
+                res_path("assets", image_name)
+            ).convert_alpha()
+        except (FileNotFoundError, pygame.error):
+            primary_image = None
+        else:
+            primary_image = pygame.transform.scale(
+                image_surface, (ENEMY_TARGET_HEIGHT, ENEMY_TARGET_HEIGHT)
+            )
+    return primary_image, frames
+
+
+def update_enemy_visuals(event_data):
+    """Load enemy sprites for the current event and refresh the animator."""
+    global current_enemy_image
+
+    current_enemy_image, frames = load_enemy_assets_from_event(event_data)
+    if frames:
+        enemy_animator.set_frames(frames)
+    elif current_enemy_image:
+        enemy_animator.set_static_image(current_enemy_image)
+    else:
+        enemy_animator.clear()
 
 
 def persist_game_state():
@@ -596,6 +851,7 @@ def start_new_adventure():
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
+    global enemy_attack_active, pending_result_is_battle_action
 
     text_log.reset()
     player = init_player_state()
@@ -606,17 +862,21 @@ def start_new_adventure():
     pending_clear_event = False
     clear_event_timer = 0
     current_enemy_image = None
+    enemy_animator.clear()
+    enemy_attack_active = False
     show_settings_popup = False
     save_manager.clear_save()
     has_save_file = False
     pending_result = None
     pending_result_requires_attack = False
+    pending_result_is_battle_action = False
 
 
 def load_saved_adventure() -> bool:
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
+    global enemy_attack_active, pending_result_is_battle_action
 
     data = save_manager.load_game()
     if not data:
@@ -633,20 +893,22 @@ def load_saved_adventure() -> bool:
     pending_walk_event = data.get("pending_walk_event", False)
     pending_clear_event = data.get("pending_clear_event", False)
     clear_event_timer = data.get("clear_event_timer", 0)
-    current_enemy_image = load_enemy_image_from_event(current_event)
+    update_enemy_visuals(current_event)
     show_settings_popup = False
     has_save_file = True
     pending_result = None
     pending_result_requires_attack = False
+    pending_result_is_battle_action = False
+    enemy_attack_active = False
     return True
 
 
-def apply_result_and_advance(result):
+def apply_result_and_advance(result, *, from_battle_action: bool = False) -> bool:
     """Apply the chosen result, advance battle state, and refresh UI."""
 
     global pending_clear_event, clear_event_timer, sub_state, current_event
     if not result:
-        return
+        return False
 
     handle_event_result(player, result)
     text_log.scroll_to_bottom()
@@ -658,8 +920,9 @@ def apply_result_and_advance(result):
         current_event,
         sub_state,
         player_animator.current_frame() or player_image,
-        current_enemy_image,
+        enemy_animator.current_frame() or current_enemy_image,
         player_position=tuple(player_animator.position),
+        enemy_position=tuple(enemy_animator.position),
     )
     pygame.display.flip()
 
@@ -679,12 +942,14 @@ def apply_result_and_advance(result):
         pending_clear_event = True
         clear_event_timer = 1
         sub_state = "after_result"
+    return battle_continues
 
 
 def try_apply_pending_result(force: bool = False):
     """Apply pending result once ready (after attack animation when required)."""
 
     global pending_result, pending_result_requires_attack
+    global pending_result_is_battle_action, enemy_attack_active
 
     if not pending_result:
         return
@@ -696,8 +961,18 @@ def try_apply_pending_result(force: bool = False):
     result = pending_result
     pending_result = None
     pending_result_requires_attack = False
+    is_battle_action = pending_result_is_battle_action
+    pending_result_is_battle_action = False
 
-    apply_result_and_advance(result)
+    battle_continues = apply_result_and_advance(
+        result, from_battle_action=is_battle_action
+    )
+
+    if is_battle_action and battle_continues:
+        player_surface = player_animator.current_frame() or player_image
+        player_pos = tuple(player_animator.position)
+        if enemy_animator.start_attack(player_surface, player_pos):
+            enemy_attack_active = True
 
 
 # 初始化玩家狀態
@@ -716,6 +991,8 @@ show_settings_popup = False
 has_save_file = save_manager.has_save()
 pending_result = None
 pending_result_requires_attack = False
+pending_result_is_battle_action = False
+enemy_attack_active = False
 
 # 主要遊戲迴圈
 running = True
@@ -770,7 +1047,7 @@ while running:
                     and current_event
                     and "options" in current_event
                 ):
-                    if pending_result_requires_attack:
+                    if pending_result_requires_attack or enemy_attack_active:
                         handled_click = True
                     else:
                         option_rects = get_option_rects(
@@ -786,16 +1063,26 @@ while running:
                                 )
                                 text_log.scroll_to_bottom()
                                 result = chosen.get("result")
+                                pending_result_is_battle_action = bool(
+                                    result and result.get("battle_action")
+                                )
                                 wait_for_attack = bool(
                                     result and result.get("battle_action") == "attack"
                                 )
                                 if wait_for_attack:
+                                    enemy_surface = (
+                                        enemy_animator.current_frame()
+                                        or current_enemy_image
+                                    )
                                     enemy_w = (
-                                        current_enemy_image.get_width()
-                                        if current_enemy_image
+                                        enemy_surface.get_width()
+                                        if enemy_surface
                                         else None
                                     )
-                                    player_animator.start_attack(enemy_width=enemy_w)
+                                    enemy_pos = tuple(enemy_animator.position)
+                                    player_animator.start_attack(
+                                        enemy_width=enemy_w, enemy_position=enemy_pos
+                                    )
                                 pending_result = result
                                 pending_result_requires_attack = wait_for_attack
                                 # 立即重繪以顯示選擇或攻擊起手
@@ -806,8 +1093,10 @@ while running:
                                     current_event,
                                     sub_state,
                                     player_animator.current_frame() or player_image,
-                                    current_enemy_image,
+                                    enemy_animator.current_frame()
+                                    or current_enemy_image,
                                     player_position=tuple(player_animator.position),
+                                    enemy_position=tuple(enemy_animator.position),
                                 )
                                 pygame.display.flip()
                                 try_apply_pending_result(force=not wait_for_attack)
@@ -817,6 +1106,7 @@ while running:
                     not handled_click
                     and not cinematic
                     and not pending_result_requires_attack
+                    and not enemy_attack_active
                 ):
                     for slot in get_inventory_slots(player, areas):
                         if (
@@ -831,8 +1121,10 @@ while running:
                                     current_event,
                                     sub_state,
                                     player_animator.current_frame() or player_image,
-                                    current_enemy_image,
+                                    enemy_animator.current_frame()
+                                    or current_enemy_image,
                                     player_position=tuple(player_animator.position),
+                                    enemy_position=tuple(enemy_animator.position),
                                 )
                                 pygame.display.flip()
                             break
@@ -855,8 +1147,9 @@ while running:
             current_event,
             sub_state,
             player_animator.current_frame() or player_image,
-            current_enemy_image,
+            enemy_animator.current_frame() or current_enemy_image,
             player_position=tuple(player_animator.position),
+            enemy_position=tuple(enemy_animator.position),
         )
         pygame.display.flip()
         # 暫停兩秒讓玩家看清訊息
@@ -867,6 +1160,9 @@ while running:
     dt_ms = clock.tick(60)
     dt = dt_ms / 1000.0
     player_animator.update(dt)
+    enemy_animator.update(dt)
+    if enemy_attack_active and enemy_animator.attack_finished:
+        enemy_attack_active = False
     try_apply_pending_result()
 
     if sub_state == "walking" and player_animator.walk_finished:
@@ -879,16 +1175,8 @@ while running:
                 text_log.start_event(current_event.get("id"))
                 text_log.add(current_event["text"])
                 text_log.scroll_to_bottom()
-                image_name = current_event.get("enemy_image")
-                if image_name:
-                    current_enemy_image = pygame.image.load(
-                        res_path("assets", image_name)
-                    ).convert_alpha()
-                    current_enemy_image = pygame.transform.scale(
-                        current_enemy_image, (96, 96)
-                    )
-                else:
-                    current_enemy_image = None
+                update_enemy_visuals(current_event)
+                enemy_attack_active = False
                 if current_event.get("type") == "battle":
                     start_battle(player, current_event)
                 sub_state = "show_event"
@@ -927,8 +1215,9 @@ while running:
             current_event,
             sub_state,
             player_animator.current_frame() or player_image,
-            current_enemy_image,
+            enemy_animator.current_frame() or current_enemy_image,
             player_position=tuple(player_animator.position),
+            enemy_position=tuple(enemy_animator.position),
         )
     draw_button(screen, settings_button, "設定", font=SMALL_FONT)
     if show_settings_popup:
@@ -949,6 +1238,8 @@ while running:
                 clear_battle_state(player)
             current_event = None
             current_enemy_image = None
+            enemy_animator.clear()
+            enemy_attack_active = False
             sub_state = "wait"
             pending_clear_event = False
 

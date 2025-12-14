@@ -75,25 +75,25 @@
     "cooldown": 3,
     "once": false,
     "tags": [
-      "戰鬥",
-      "小型魔物"
+      "??",
+      "野豬"
     ],
     "condition": {
       "chapter_max": 1
     },
-    "text": "一隻小型魔物從草叢竄出！",
-    "enemy_image": "red_maneater.png",
+    "text": "一頭野豬從草叢竄出！",
+    "enemy_image": "images/wild_boar/1.png",
     "options": [
       {
         "text": "攻擊",
         "result": {
-          "text": "你調整呼吸，鎖定敵人的破綻。",
+          "text": "你調整呼吸，鎖定野豬的破綻。",
           "battle_action": "attack",
-          "victory_text": "你擊倒了小型魔物。",
+          "victory_text": "你擊倒了野豬。",
           "victory_effect": {
             "fate": -2
           },
-          "victory_log": "黎恩的聲音從耳麥傳來：『做得好，別讓它靠近村子。』"
+          "victory_log": "黎恩的聲音從耳麥傳來：『做得好，別讓野豬靠近村子。』"
         },
         "result_variants": {}
       },
@@ -103,7 +103,7 @@
           "text": "你試圖找機會撤離。",
           "battle_action": "escape",
           "escape_chance": 0.7,
-          "escape_text": "你成功脫離戰鬥。",
+          "escape_text": "你成功脫離野豬。",
           "escape_effect": {
             "fate": 1
           }
@@ -112,12 +112,21 @@
       }
     ],
     "enemy": {
-      "name": "小型魔物",
+      "name": "野豬",
       "hp": 12,
       "atk": 4,
       "def": 1
     },
-    "text_variants": {}
+    "text_variants": {},
+    "enemy_frames": [
+      "images/wild_boar/1.png",
+      "images/wild_boar/2.png",
+      "images/wild_boar/3.png",
+      "images/wild_boar/4.png",
+      "images/wild_boar/5.png",
+      "images/wild_boar/6.png",
+      "images/wild_boar/7.png"
+    ]
   },
   {
     "id": "峭壁回音",

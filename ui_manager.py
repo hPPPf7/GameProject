@@ -363,6 +363,7 @@ def render_ui(
     player_image=None,
     enemy_image=None,
     player_position=None,
+    enemy_position=None,
 ):
     """
     Draw the main UI components: image area, log area, status panel, options,
@@ -395,8 +396,11 @@ def render_ui(
     enemy_rect: Optional[pygame.Rect] = None
     if enemy_image:
         enemy_rect = enemy_image.get_rect()
-        enemy_rect.x = areas["image"].right - enemy_rect.width - 32
-        enemy_rect.bottom = player_bottom
+        if enemy_position:
+            enemy_rect.topleft = (int(enemy_position[0]), int(enemy_position[1]))
+        else:
+            enemy_rect.x = areas["image"].right - enemy_rect.width - 32
+            enemy_rect.bottom = player_bottom
         screen.blit(enemy_image, enemy_rect.topleft)
     elif enemy_info:
         enemy_rect = pygame.Rect(
