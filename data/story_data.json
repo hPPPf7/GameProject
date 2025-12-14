@@ -653,7 +653,7 @@
       "rational": "村莊邊緣的草叢間不正常地竄動著靜電火花，空氣裡隱隱有燒焦的味道。",
       "absurd": "整個村莊的邊界都籠罩在詭異的靜電場中，藍白色的電光沿著草叢蜿蜒游走，如同無形的生物在匍匐爬行。"
     },
-    "background": "starting_area.png"
+    "background": "static_grassland.png"
   },
   {
     "id": "石頭共鳴",
@@ -859,7 +859,7 @@
       "rational": "在叢林深處，你找到一扇隱蔽的合金門。電子門鎖的螢幕閃爍著「ID驗證中…」，等待合法身份刷證。",
       "absurd": "越過種種障礙後，你來到廢棄研究據點的隱藏入口前。鐵門上的電子鎖不停閃爍「ID驗證中…」，你心底莫名湧起一股熟悉感，彷彿這扇門認識你。"
     },
-    "background": "starting_area.png"
+    "background": "research_site_entrance.png"
   },
   {
     "id": "守衛傀儡戰",
@@ -988,7 +988,7 @@
       "rational": "你突然注意到天空開始異常地閃爍——太陽忽明忽暗，彷彿有人在每秒替換它的外殼，一秒閃爍了三次。",
       "absurd": "頭頂的天空瘋狂地閃爍，太陽的模樣在瞬間連續改變，像是不斷撕下又換上不同的面具。一秒之內，光球出現了三種截然不同的形態。"
     },
-    "background": "starting_area.png"
+    "background": "sun_flicker.png"
   },
   {
     "id": "會議殘影",

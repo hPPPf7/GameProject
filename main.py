@@ -28,6 +28,7 @@ from ui_manager import (
     get_inventory_slots,
     is_cinematic_mode,
     render_ui,
+    DEFAULT_BACKGROUND,
 )
 from player_state import init_player_state
 from event_result_handler import handle_event_result
@@ -851,7 +852,7 @@ def start_new_adventure():
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
-    global enemy_attack_active, pending_result_is_battle_action
+    global enemy_attack_active, pending_result_is_battle_action, current_background_name
 
     text_log.reset()
     player = init_player_state()
@@ -864,6 +865,7 @@ def start_new_adventure():
     current_enemy_image = None
     enemy_animator.clear()
     enemy_attack_active = False
+    current_background_name = DEFAULT_BACKGROUND
     show_settings_popup = False
     save_manager.clear_save()
     has_save_file = False
@@ -876,7 +878,7 @@ def load_saved_adventure() -> bool:
     global player, game_state, sub_state, current_event, pending_walk_event
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
-    global enemy_attack_active, pending_result_is_battle_action
+    global enemy_attack_active, pending_result_is_battle_action, current_background_name
 
     data = save_manager.load_game()
     if not data:
@@ -890,6 +892,11 @@ def load_saved_adventure() -> bool:
         sub_state = "wait"
         data["pending_walk_event"] = False
     current_event = data.get("current_event")
+    current_background_name = (
+        current_event.get("background", DEFAULT_BACKGROUND)
+        if current_event
+        else DEFAULT_BACKGROUND
+    )
     pending_walk_event = data.get("pending_walk_event", False)
     pending_clear_event = data.get("pending_clear_event", False)
     clear_event_timer = data.get("clear_event_timer", 0)
@@ -907,6 +914,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
     """Apply the chosen result, advance battle state, and refresh UI."""
 
     global pending_clear_event, clear_event_timer, sub_state, current_event
+    global current_background_name
     if not result:
         return False
 
@@ -918,6 +926,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         player,
         FONT,
         current_event,
+        current_background_name,
         sub_state,
         player_animator.current_frame() or player_image,
         enemy_animator.current_frame() or current_enemy_image,
@@ -978,6 +987,7 @@ def try_apply_pending_result(force: bool = False):
 # 初始化玩家狀態
 text_log.reset()
 player = init_player_state()
+current_background_name = DEFAULT_BACKGROUND
 
 # 遊戲狀態變數
 game_state = "start_menu"
@@ -1091,6 +1101,7 @@ while running:
                                     player,
                                     FONT,
                                     current_event,
+                                    current_background_name,
                                     sub_state,
                                     player_animator.current_frame() or player_image,
                                     enemy_animator.current_frame()
@@ -1119,6 +1130,7 @@ while running:
                                     player,
                                     FONT,
                                     current_event,
+                                    current_background_name,
                                     sub_state,
                                     player_animator.current_frame() or player_image,
                                     enemy_animator.current_frame()
@@ -1145,6 +1157,7 @@ while running:
             player,
             FONT,
             current_event,
+            current_background_name,
             sub_state,
             player_animator.current_frame() or player_image,
             enemy_animator.current_frame() or current_enemy_image,
@@ -1172,6 +1185,9 @@ while running:
             pending_walk_event = False
             current_event = get_random_event(player=player)
             if current_event:
+                current_background_name = current_event.get(
+                    "background", DEFAULT_BACKGROUND
+                )
                 text_log.start_event(current_event.get("id"))
                 text_log.add(current_event["text"])
                 text_log.scroll_to_bottom()
@@ -1213,6 +1229,7 @@ while running:
             player,
             FONT,
             current_event,
+            current_background_name,
             sub_state,
             player_animator.current_frame() or player_image,
             enemy_animator.current_frame() or current_enemy_image,

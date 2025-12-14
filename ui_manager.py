@@ -74,13 +74,10 @@ def _load_background(name: str) -> pygame.Surface:
     return scaled
 
 
-def get_background_surface(event) -> pygame.Surface:
-    """Return the background surface for the given event (cached)."""
+def get_background_surface(name: Optional[str]) -> pygame.Surface:
+    """Return the background surface for the given background name (cached)."""
 
-    name = DEFAULT_BACKGROUND
-    if event:
-        name = event.get("background") or DEFAULT_BACKGROUND
-    return _load_background(name)
+    return _load_background(name or DEFAULT_BACKGROUND)
 
 
 ITEM_ICON_FILES = {
@@ -391,6 +388,7 @@ def render_ui(
     player,
     font,
     current_event=None,
+    background_name: Optional[str] = None,
     sub_state="wait",
     player_image=None,
     enemy_image=None,
@@ -410,7 +408,7 @@ def render_ui(
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
     old_clip = screen.get_clip()
     screen.set_clip(areas["image"])
-    background = get_background_surface(current_event)
+    background = get_background_surface(background_name)
     screen.blit(background, areas["image"].topleft)
 
     # 若有傳入立繪則繪製玩家與敵人
