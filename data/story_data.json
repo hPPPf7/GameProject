@@ -875,8 +875,14 @@
     "condition": {
       "chapter_is": 3
     },
-    "text": "研究據點外的守衛傀儡甦醒，手臂刀刃閃爍藍光。",
-    "enemy_image": "red_maneater.png",
+  "text": "研究據點外的守衛傀儡甦醒，手臂刀刃閃爍藍光。",
+  "enemy_image": "images/robot/1.png",
+  "enemy_frames": [
+    "images/robot/1.png",
+    "images/robot/2.png",
+    "images/robot/3.png",
+    "images/robot/4.png"
+  ],
     "options": [
       {
         "text": "鎖定核心",

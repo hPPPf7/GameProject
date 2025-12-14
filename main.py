@@ -312,14 +312,42 @@ class PlayerAnimator:
 
 
 # 敵人動畫目標高度與垂直偏移（讓野豬更大且略微靠下）
-ENEMY_TARGET_HEIGHT = 230
-ENEMY_VERTICAL_OFFSET = 60
-ENEMY_RIGHT_MARGIN = -20
+ENEMY_DEFAULT_CONFIG = {
+    "target_height": 230,
+    "vertical_offset": 60,
+    "right_margin": -20,
+}
+ENEMY_VISUAL_CONFIGS = {
+    "wild_boar": ENEMY_DEFAULT_CONFIG.copy(),
+    "robot": {
+        "target_height": 230,
+        "vertical_offset": 20,  # slightly higher
+        "right_margin": -20,
+        "approach_frame_count": 2,
+        "attack_frame_count": 2,
+        "enemy_attack_gap": -20,  # move closer when attacking
+        "player_attack_gap": -20,  # move player closer when attacking this enemy
+    },
+}
 
 
 class EnemyAnimator:
-    def __init__(self, target_height: int = 96):
+    def __init__(
+        self,
+        target_height: int = 96,
+        *,
+        vertical_offset: int = 0,
+        right_margin: int = 0,
+        approach_frame_count: Optional[int] = None,
+        attack_frame_count: Optional[int] = None,
+        attack_gap: int = 0,
+    ):
         self.target_height = target_height
+        self.vertical_offset = vertical_offset
+        self.right_margin = right_margin
+        self.approach_frame_count = approach_frame_count
+        self.attack_frame_count = attack_frame_count
+        self.attack_gap = attack_gap
         self.frames: list[pygame.Surface] = []
         self.idle_frame: Optional[pygame.Surface] = None
         self.frame_index = 0
@@ -330,16 +358,9 @@ class EnemyAnimator:
         self.return_duration = 0.32
         self.attack_progress = 0.0
         self.state = "idle"
-        self.base_y = (
-            UI_AREAS["image"].bottom - self.target_height - 16 + ENEMY_VERTICAL_OFFSET
-        )
-        self.idle_x = UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
-        self.position = [self.idle_x, self.base_y]
-        self.attack_target_x = self.idle_x
-        self.attack_start_x = self.idle_x
-        self.attack_return_start_x = self.idle_x
         self.attack_finished = True
         self.attack_sfx_played = False
+        self._reset_position()
 
     def _scale_to_height(self, surface: pygame.Surface) -> pygame.Surface:
         width = surface.get_width()
@@ -351,6 +372,37 @@ class EnemyAnimator:
             surface, (int(width * ratio), self.target_height)
         )
 
+    def _reset_position(self, frame_size: Optional[tuple[int, int]] = None):
+        frame_w, frame_h = (
+            frame_size if frame_size else (self.target_height, self.target_height)
+        )
+        self.base_y = (
+            UI_AREAS["image"].bottom - frame_h - 16 + self.vertical_offset
+        )
+        self.idle_x = UI_AREAS["image"].right - frame_w - self.right_margin
+        self.position = [self.idle_x, self.base_y]
+        self.attack_target_x = self.idle_x
+        self.attack_start_x = self.idle_x
+        self.attack_return_start_x = self.idle_x
+
+    def apply_config(
+        self,
+        *,
+        target_height: int,
+        vertical_offset: int,
+        right_margin: int,
+        approach_frame_count: Optional[int] = None,
+        attack_frame_count: Optional[int] = None,
+        attack_gap: int = 0,
+    ):
+        self.target_height = target_height
+        self.vertical_offset = vertical_offset
+        self.right_margin = right_margin
+        self.approach_frame_count = approach_frame_count
+        self.attack_frame_count = attack_frame_count
+        self.attack_gap = attack_gap
+        self._reset_position()
+
     def clear(self):
         self.frames = []
         self.idle_frame = None
@@ -358,16 +410,9 @@ class EnemyAnimator:
         self.frame_timer = 0.0
         self.attack_progress = 0.0
         self.state = "idle"
-        self.base_y = (
-            UI_AREAS["image"].bottom - self.target_height - 16 + ENEMY_VERTICAL_OFFSET
-        )
-        self.idle_x = UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
-        self.position = [self.idle_x, self.base_y]
-        self.attack_target_x = self.idle_x
-        self.attack_start_x = self.idle_x
-        self.attack_return_start_x = self.idle_x
         self.attack_finished = True
         self.attack_sfx_played = False
+        self._reset_position()
 
     def set_frames(self, frames: list[pygame.Surface]):
         scaled = [self._scale_to_height(frame) for frame in frames if frame]
@@ -379,29 +424,9 @@ class EnemyAnimator:
         self.state = "idle"
         first = self.current_frame()
         if first:
-            self.base_y = (
-                UI_AREAS["image"].bottom
-                - first.get_height()
-                - 16
-                + ENEMY_VERTICAL_OFFSET
-            )
-            self.idle_x = (
-                UI_AREAS["image"].right - first.get_width() - ENEMY_RIGHT_MARGIN
-            )
+            self._reset_position((first.get_width(), first.get_height()))
         else:
-            self.base_y = (
-                UI_AREAS["image"].bottom
-                - self.target_height
-                - 16
-                + ENEMY_VERTICAL_OFFSET
-            )
-            self.idle_x = (
-                UI_AREAS["image"].right - self.target_height - ENEMY_RIGHT_MARGIN
-            )
-        self.position = [self.idle_x, self.base_y]
-        self.attack_target_x = self.idle_x
-        self.attack_start_x = self.idle_x
-        self.attack_return_start_x = self.idle_x
+            self._reset_position()
         self.attack_finished = True
         self.attack_sfx_played = False
 
@@ -435,10 +460,12 @@ class EnemyAnimator:
             player_x = UI_AREAS["image"].x + 32
             player_y = UI_AREAS["image"].bottom - player_h - 16
 
-        self.base_y = player_y + player_h - frame.get_height() + ENEMY_VERTICAL_OFFSET
+        self.base_y = (
+            player_y + player_h - frame.get_height() + self.vertical_offset
+        )
         self.position[1] = self.base_y
         self.attack_start_x = self.idle_x
-        target_x = player_x + player_w - 12
+        target_x = player_x + player_w - 12 + self.attack_gap
         min_x = UI_AREAS["image"].x + 24
         max_x = self.idle_x - 12
         self.attack_target_x = max(min_x, min(target_x, max_x))
@@ -452,7 +479,18 @@ class EnemyAnimator:
 
     def update(self, dt: float):
         if self.state == "attack_approach":
-            self._advance_frames(self.attack_frame_time, dt)
+            segment_end = (
+                self.approach_frame_count
+                if self.approach_frame_count
+                else len(self.frames)
+            )
+            self._advance_frames_segment(
+                self.attack_frame_time,
+                dt,
+                0,
+                max(1, segment_end),
+                loop=True,
+            )
             duration = max(0.01, self.approach_duration)
             self.attack_progress += dt / duration
             self.attack_progress = min(self.attack_progress, 1.0)
@@ -460,7 +498,11 @@ class EnemyAnimator:
             self.position[0] = self.attack_start_x + delta_x * self.attack_progress
             if self.attack_progress >= 1.0:
                 self.state = "attacking"
-                self.frame_index = 0
+                self.frame_index = (
+                    self.approach_frame_count
+                    if self.approach_frame_count
+                    else 0
+                )
                 self.frame_timer = 0.0
                 self.attack_progress = 0.0
         elif self.state == "attacking":
@@ -471,21 +513,31 @@ class EnemyAnimator:
                 self.attack_progress = 0.0
                 self.attack_return_start_x = self.position[0]
             else:
-                self.frame_timer += dt
-                if self.frame_timer >= self.attack_frame_time:
-                    self.frame_timer %= self.attack_frame_time
-                    next_index = self.frame_index + 1
-                    if next_index >= len(self.frames):
-                        if not self.attack_sfx_played:
-                            sound_manager.play_sfx("attack")
-                            self.attack_sfx_played = True
-                        self.state = "attack_return"
-                        self.frame_index = max(0, len(self.frames) - 1)
-                        self.frame_timer = 0.0
-                        self.attack_progress = 0.0
-                        self.attack_return_start_x = self.position[0]
-                    else:
-                        self.frame_index = next_index
+                attack_start_index = (
+                    self.approach_frame_count if self.approach_frame_count else 0
+                )
+                attack_end_index = (
+                    attack_start_index + self.attack_frame_count
+                    if self.attack_frame_count
+                    else len(self.frames)
+                )
+                self._advance_frames_segment(
+                    self.attack_frame_time,
+                    dt,
+                    attack_start_index,
+                    max(attack_start_index + 1, attack_end_index),
+                    loop=False,
+                )
+                at_segment_end = self.frame_index >= attack_end_index - 1
+                if at_segment_end:
+                    if not self.attack_sfx_played:
+                        sound_manager.play_sfx("attack")
+                        self.attack_sfx_played = True
+                    self.state = "attack_return"
+                    self.frame_index = max(attack_start_index, attack_end_index - 1)
+                    self.frame_timer = 0.0
+                    self.attack_progress = 0.0
+                    self.attack_return_start_x = self.position[0]
         elif self.state == "attack_return":
             self._advance_frames(self.attack_frame_time, dt)
             duration = max(0.01, self.return_duration)
@@ -523,6 +575,28 @@ class EnemyAnimator:
             self.frame_timer %= frame_time
             self.frame_index = (self.frame_index + 1) % len(self.frames)
 
+    def _advance_frames_segment(
+        self,
+        frame_time: float,
+        dt: float,
+        start_index: int,
+        end_index_exclusive: int,
+        *,
+        loop: bool,
+    ):
+        if not self.frames:
+            return
+        if end_index_exclusive <= start_index:
+            return
+        self.frame_timer += dt
+        if self.frame_timer >= frame_time:
+            self.frame_timer %= frame_time
+            next_index = self.frame_index + 1
+            if next_index >= end_index_exclusive:
+                self.frame_index = start_index if loop else end_index_exclusive - 1
+            else:
+                self.frame_index = next_index
+
 
 # 視窗設定
 SCREEN_WIDTH = 512
@@ -547,7 +621,11 @@ player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_
 player_image = pygame.transform.scale(player_image, (96, 96))
 player_animator = PlayerAnimator(target_height=96)
 
-enemy_animator = EnemyAnimator(target_height=ENEMY_TARGET_HEIGHT)
+enemy_animator = EnemyAnimator(
+    target_height=ENEMY_DEFAULT_CONFIG["target_height"],
+    vertical_offset=ENEMY_DEFAULT_CONFIG["vertical_offset"],
+    right_margin=ENEMY_DEFAULT_CONFIG["right_margin"],
+)
 current_enemy_image = None  # 事件中目前使用的敵人立繪
 enemy_attack_active = False
 
@@ -782,11 +860,39 @@ def handle_settings_click(pos, include_navigation: bool):
     return False
 
 
-def load_enemy_assets_from_event(event_data):
+def _derive_enemy_key_from_path(path: str) -> Optional[str]:
+    normalized = str(path).replace("\\", "/")
+    parts = [p for p in normalized.split("/") if p]
+    if not parts:
+        return None
+    stem = parts[-1].split(".")[0]
+    if stem.isdigit() and len(parts) >= 2:
+        return parts[-2]
+    return stem
+
+
+def get_enemy_visual_config(event_data) -> dict:
+    if not event_data:
+        return ENEMY_DEFAULT_CONFIG
+    image_candidates: list[str] = []
+    image_name = event_data.get("enemy_image")
+    if image_name:
+        image_candidates.append(image_name)
+    frame_names = event_data.get("enemy_frames") or []
+    image_candidates.extend(frame_names)
+    for name in image_candidates:
+        key = _derive_enemy_key_from_path(name)
+        if key and key in ENEMY_VISUAL_CONFIGS:
+            return ENEMY_VISUAL_CONFIGS[key]
+    return ENEMY_DEFAULT_CONFIG
+
+
+def load_enemy_assets_from_event(event_data, *, config: dict):
     if not event_data:
         return None, []
     primary_image = None
     frames: list[pygame.Surface] = []
+    target_height = config.get("target_height", ENEMY_DEFAULT_CONFIG["target_height"])
     frame_names = event_data.get("enemy_frames") or []
     for name in frame_names:
         try:
@@ -794,9 +900,7 @@ def load_enemy_assets_from_event(event_data):
         except (FileNotFoundError, pygame.error):
             continue
         frames.append(
-            pygame.transform.scale(
-                frame_surface, (ENEMY_TARGET_HEIGHT, ENEMY_TARGET_HEIGHT)
-            )
+            pygame.transform.scale(frame_surface, (target_height, target_height))
         )
     if frames:
         primary_image = frames[0]
@@ -810,7 +914,7 @@ def load_enemy_assets_from_event(event_data):
             primary_image = None
         else:
             primary_image = pygame.transform.scale(
-                image_surface, (ENEMY_TARGET_HEIGHT, ENEMY_TARGET_HEIGHT)
+                image_surface, (target_height, target_height)
             )
     return primary_image, frames
 
@@ -819,7 +923,22 @@ def update_enemy_visuals(event_data):
     """Load enemy sprites for the current event and refresh the animator."""
     global current_enemy_image
 
-    current_enemy_image, frames = load_enemy_assets_from_event(event_data)
+    config = get_enemy_visual_config(event_data)
+    enemy_animator.apply_config(
+        target_height=config.get("target_height", ENEMY_DEFAULT_CONFIG["target_height"]),
+        vertical_offset=config.get(
+            "vertical_offset", ENEMY_DEFAULT_CONFIG["vertical_offset"]
+        ),
+        right_margin=config.get("right_margin", ENEMY_DEFAULT_CONFIG["right_margin"]),
+        approach_frame_count=config.get("approach_frame_count"),
+        attack_frame_count=config.get("attack_frame_count"),
+        attack_gap=config.get("enemy_attack_gap", 0),
+    )
+    player_animator.attack_gap = config.get("player_attack_gap", 0)
+
+    current_enemy_image, frames = load_enemy_assets_from_event(
+        event_data, config=config
+    )
     if frames:
         enemy_animator.set_frames(frames)
     elif current_enemy_image:
@@ -863,6 +982,11 @@ def start_new_adventure():
     pending_clear_event = False
     clear_event_timer = 0
     current_enemy_image = None
+    enemy_animator.apply_config(
+        target_height=ENEMY_DEFAULT_CONFIG["target_height"],
+        vertical_offset=ENEMY_DEFAULT_CONFIG["vertical_offset"],
+        right_margin=ENEMY_DEFAULT_CONFIG["right_margin"],
+    )
     enemy_animator.clear()
     enemy_attack_active = False
     current_background_name = DEFAULT_BACKGROUND
