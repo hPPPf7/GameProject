@@ -410,7 +410,7 @@
       "rational": "一名全身長滿晶體的村民揮舞著石斧瘋狂衝向你——看來他已失去理智，只剩下攻擊本能。",
       "absurd": "眼前的村民被扭曲成半人半怪，渾身爬滿發光的結晶。祂發出不像人類的尖叫，拖著沉重石斧狂亂地朝你撲來！"
     },
-    "background": "starting_area.png"
+    "background": "asakawa_village.png"
   },
   {
     "id": "村民盯著石頭",
@@ -471,7 +471,7 @@
       "rational": "一個神情恍惚的村民擋在路中喃喃自語，目光緊緊盯著你手中的怪石不放。",
       "absurd": "一個眼神瘋狂的村民貼近你，不停低語著什麼，雙眼死死盯住你掌心發熱的石頭。"
     },
-    "background": "starting_area.png"
+    "background": "asakawa_village.png"
   },
   {
     "id": "村民尋找失物",
@@ -533,7 +533,7 @@
       "rational": "一個渾身顫抖的村民在你身旁來回張望，像在找遺失的重要物件。他注意到你兩手空空，眼中掠過一絲失望。",
       "absurd": "一名慌亂的村民繞著你轉圈，雙眼瘋狂地掃描你全身。見你手上沒有握著石頭，他的臉上掠過難以言喻的恐懼與絕望。"
     },
-    "background": "starting_area.png"
+    "background": "asakawa_village.png"
   },
   {
     "id": "灰燼神龕",
@@ -604,7 +604,7 @@
       "rational": "村莊中央矗立著一座覆滿灰燼的古老神龕。供桌上擺放著幾隻奇特的石化手掌，看起來像某種儀式遺留下的標本。",
       "absurd": "村中央的神龕蒙著厚厚灰燼，供桌上羅列著灰白色的石化手掌，宛如祭品。你盯著那些手掌，竟有種錯覺覺得它們會突然動起來抓住你。"
     },
-    "background": "starting_area.png"
+    "background": "ash_shrine.png"
   },
   {
     "id": "靜電草原",

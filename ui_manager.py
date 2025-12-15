@@ -48,6 +48,7 @@ UI_AREAS = {
 }
 UI_HEIGHT = UI_AREAS["inventory_preview"].bottom + 16
 
+BACKGROUND_DIR = ("assets", "background")
 DEFAULT_BACKGROUND = "starting_area.png"
 
 # Cache scaled backgrounds so we only load and resize each file once.
@@ -60,9 +61,18 @@ def _load_background(name: str) -> pygame.Surface:
     cached = _BACKGROUND_CACHE.get(name)
     if cached:
         return cached
-    try:
-        loaded = pygame.image.load(res_path("assets", name))
-    except (FileNotFoundError, pygame.error):
+    loaded: Optional[pygame.Surface] = None
+    search_paths = [
+        res_path(*BACKGROUND_DIR, name),
+        res_path("assets", name),  # fallback for legacy locations
+    ]
+    for path in search_paths:
+        try:
+            loaded = pygame.image.load(path)
+            break
+        except (FileNotFoundError, pygame.error):
+            continue
+    if loaded is None:
         if name != DEFAULT_BACKGROUND:
             return _load_background(DEFAULT_BACKGROUND)
         fallback = pygame.Surface(UI_AREAS["image"].size)
@@ -80,6 +90,7 @@ def get_background_surface(name: Optional[str]) -> pygame.Surface:
     return _load_background(name or DEFAULT_BACKGROUND)
 
 
+ITEM_ICON_DIR = ("assets", "items")
 ITEM_ICON_FILES = {
     "治療藥水": "health_potion.png",
     "奇怪的石頭": "weird_rock.png",
@@ -112,12 +123,18 @@ def load_item_icon(name: str) -> Optional[pygame.Surface]:
         return None
 
     if name not in _ITEM_ICON_CACHE:
-        try:
-            _ITEM_ICON_CACHE[name] = pygame.image.load(
-                res_path("assets", filename)
-            ).convert_alpha()
-        except (FileNotFoundError, pygame.error):
-            _ITEM_ICON_CACHE[name] = None
+        cached_icon: Optional[pygame.Surface] = None
+        search_paths = [
+            res_path(*ITEM_ICON_DIR, filename),
+            res_path("assets", filename),  # fallback for legacy locations
+        ]
+        for path in search_paths:
+            try:
+                cached_icon = pygame.image.load(path).convert_alpha()
+                break
+            except (FileNotFoundError, pygame.error):
+                continue
+        _ITEM_ICON_CACHE[name] = cached_icon
     return _ITEM_ICON_CACHE.get(name)
 
 
@@ -135,6 +152,7 @@ def get_scaled_item_icon(name: str, size: int) -> Optional[pygame.Surface]:
     scaled = pygame.transform.smoothscale(base_icon, (size, size))
     _SCALED_ICON_CACHE[key] = scaled
     return scaled
+
 
 def get_attribute_icon(name: str, size: int) -> Optional[pygame.Surface]:
     """Return a scaled attribute icon surface when available."""
@@ -509,7 +527,7 @@ def render_ui(
         rows = [
             (None, f"耐久 {current_durability}/{max_durability}", None),
         ]
-        
+
         icon_size = 32
         padding_x = 12
         padding_y = 12
