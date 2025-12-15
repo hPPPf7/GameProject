@@ -344,7 +344,16 @@
       "chapter_is": 2
     },
     "text": "一名村民全身長出石化結晶，拖著石斧朝你撲來！",
-    "enemy_image": "red_maneater.png",
+    "enemy_image": "images/axe_villager/1.png",
+    "enemy_frames": [
+      "images/axe_villager/1.png",
+      "images/axe_villager/2.png",
+      "images/axe_villager/3.png",
+      "images/axe_villager/4.png",
+      "images/axe_villager/5.png",
+      "images/axe_villager/6.png",
+      "images/axe_villager/7.png"
+    ],
     "options": [
       {
         "text": "解除武裝",

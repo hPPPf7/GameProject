@@ -313,19 +313,32 @@ class PlayerAnimator:
 
 # 敵人動畫目標高度與垂直偏移（讓野豬更大且略微靠下）
 ENEMY_DEFAULT_CONFIG = {
-    "target_height": 230,
-    "vertical_offset": 60,
-    "right_margin": -20,
+    # Default enemies scale roughly to player size, no extra offsets
+    "target_height": 110,
+    "vertical_offset": 0,
+    "right_margin": 0,
 }
 ENEMY_VISUAL_CONFIGS = {
-    "wild_boar": ENEMY_DEFAULT_CONFIG.copy(),
+    # Keep boar at the original larger scale
+    "wild_boar": {
+        "target_height": 230,
+        "vertical_offset": 60,
+        "right_margin": -20,
+    },
+    "axe_villager": {
+        "target_height": 110,
+        "vertical_offset": -5,
+        "right_margin": 10,
+        "approach_frame_count": 5,
+        "attack_frame_count": 2,
+    },
     "robot": {
         "target_height": 230,
-        "vertical_offset": 20,  # slightly higher
+        "vertical_offset": 45,  # slightly higher
         "right_margin": -20,
         "approach_frame_count": 2,
         "attack_frame_count": 2,
-        "enemy_attack_gap": -20,  # move closer when attacking
+        "enemy_attack_gap": 20,  # move closer when attacking
         "player_attack_gap": -20,  # move player closer when attacking this enemy
     },
 }
@@ -376,9 +389,7 @@ class EnemyAnimator:
         frame_w, frame_h = (
             frame_size if frame_size else (self.target_height, self.target_height)
         )
-        self.base_y = (
-            UI_AREAS["image"].bottom - frame_h - 16 + self.vertical_offset
-        )
+        self.base_y = UI_AREAS["image"].bottom - frame_h - 16 + self.vertical_offset
         self.idle_x = UI_AREAS["image"].right - frame_w - self.right_margin
         self.position = [self.idle_x, self.base_y]
         self.attack_target_x = self.idle_x
@@ -460,9 +471,7 @@ class EnemyAnimator:
             player_x = UI_AREAS["image"].x + 32
             player_y = UI_AREAS["image"].bottom - player_h - 16
 
-        self.base_y = (
-            player_y + player_h - frame.get_height() + self.vertical_offset
-        )
+        self.base_y = player_y + player_h - frame.get_height() + self.vertical_offset
         self.position[1] = self.base_y
         self.attack_start_x = self.idle_x
         target_x = player_x + player_w - 12 + self.attack_gap
@@ -499,9 +508,7 @@ class EnemyAnimator:
             if self.attack_progress >= 1.0:
                 self.state = "attacking"
                 self.frame_index = (
-                    self.approach_frame_count
-                    if self.approach_frame_count
-                    else 0
+                    self.approach_frame_count if self.approach_frame_count else 0
                 )
                 self.frame_timer = 0.0
                 self.attack_progress = 0.0
@@ -925,7 +932,9 @@ def update_enemy_visuals(event_data):
 
     config = get_enemy_visual_config(event_data)
     enemy_animator.apply_config(
-        target_height=config.get("target_height", ENEMY_DEFAULT_CONFIG["target_height"]),
+        target_height=config.get(
+            "target_height", ENEMY_DEFAULT_CONFIG["target_height"]
+        ),
         vertical_offset=config.get(
             "vertical_offset", ENEMY_DEFAULT_CONFIG["vertical_offset"]
         ),
