@@ -338,8 +338,9 @@ ENEMY_VISUAL_CONFIGS = {
         "right_margin": -20,
         "approach_frame_count": 2,
         "attack_frame_count": 2,
-        "enemy_attack_gap": 20,  # move closer when attacking
-        "player_attack_gap": -20,  # move player closer when attacking this enemy
+        # Heavier transparent padding: push both sides closer during attacks.
+        "enemy_attack_gap": -30,
+        "player_attack_gap": 60,
     },
 }
 
