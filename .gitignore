@@ -1,16 +1,15 @@
-# 忽略 Python 暫存檔
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
 
-# PyInstaller build artifacts
+# PyInstaller
 build/
+dist/
 *.spec
 
-# Local runtime data (should not be committed)
+# Virtual environments
+.venv/
+
+# Runtime / user-specific data
 data/save.json
 data/settings.json
-
-# Developer environments
-.venv/
