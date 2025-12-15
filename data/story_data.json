@@ -424,6 +424,7 @@
       "線索"
     ],
     "text": "你遇到一位喃喃自語的村民，他盯著你手上的石頭看。",
+    "enemy_image": "villager.png",
     "condition": {
       "chapter_is": 2,
       "flag_on": [
@@ -491,6 +492,7 @@
       ]
     },
     "text": "村民的目光穿過你，像是在尋找什麼。他最後看向你空空的雙手。",
+    "enemy_image": "villager.png",
     "options": [
       {
         "text": "問發生了什麼",
@@ -738,6 +740,9 @@
       "線索"
     ],
     "text": "你找到上一任調查員的報告，但多處被塗黑。",
+    "on_enter": {
+      "inventory_add": "塗黑報告"
+    },
     "options": [
       {
         "text": "嘗試反光讀取",
@@ -762,7 +767,8 @@
           "text": "黑煙向上翻滾，像是寫字：『回家』。",
           "effect": {
             "fate": -8
-          }
+          },
+          "inventory_remove": "塗黑報告"
         },
         "result_variants": {
           "rational": {

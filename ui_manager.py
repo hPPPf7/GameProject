@@ -95,6 +95,7 @@ ITEM_ICON_FILES = {
     "治療藥水": "health_potion.png",
     "奇怪的石頭": "weird_rock.png",
     "草織護符": "grasswove_talisman.png",
+    "塗黑報告": "redacted_report.png",
 }
 
 _ITEM_ICON_CACHE: dict[str, Optional[pygame.Surface]] = {}

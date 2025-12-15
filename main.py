@@ -900,16 +900,13 @@ def load_enemy_assets_from_event(event_data, *, config: dict):
         return None, []
     primary_image = None
     frames: list[pygame.Surface] = []
-    target_height = config.get("target_height", ENEMY_DEFAULT_CONFIG["target_height"])
     frame_names = event_data.get("enemy_frames") or []
     for name in frame_names:
         try:
             frame_surface = pygame.image.load(res_path("assets", name)).convert_alpha()
         except (FileNotFoundError, pygame.error):
             continue
-        frames.append(
-            pygame.transform.scale(frame_surface, (target_height, target_height))
-        )
+        frames.append(frame_surface)
     if frames:
         primary_image = frames[0]
     image_name = event_data.get("enemy_image")
@@ -921,9 +918,7 @@ def load_enemy_assets_from_event(event_data, *, config: dict):
         except (FileNotFoundError, pygame.error):
             primary_image = None
         else:
-            primary_image = pygame.transform.scale(
-                image_surface, (target_height, target_height)
-            )
+            primary_image = image_surface
     return primary_image, frames
 
 
@@ -955,6 +950,43 @@ def update_enemy_visuals(event_data):
         enemy_animator.set_static_image(current_enemy_image)
     else:
         enemy_animator.clear()
+
+
+def apply_event_on_enter_effects(player: dict, event: Optional[dict]) -> None:
+    """Apply any passive on-enter effects for the event (e.g., auto-granted items)."""
+
+    if not player or not event or event.get("_on_enter_applied"):
+        return
+
+    enter_effects = event.get("on_enter") or {}
+    if not enter_effects:
+        return
+
+    inventory = player.setdefault("inventory", [])
+
+    inventory_add = enter_effects.get("inventory_add")
+    if inventory_add:
+        items = inventory_add if isinstance(inventory_add, list) else [inventory_add]
+        for item in items:
+            if item in inventory:
+                continue
+            inventory.append(item)
+            text_log.add(f"你獲得了道具：{item}", category="system")
+            sound_manager.play_sfx("pickup")
+
+    inventory_remove = enter_effects.get("inventory_remove")
+    if inventory_remove:
+        items = (
+            inventory_remove
+            if isinstance(inventory_remove, list)
+            else [inventory_remove]
+        )
+        for item in items:
+            if item in inventory:
+                inventory.remove(item)
+                text_log.add(f"你失去了道具：{item}", category="system")
+
+    event["_on_enter_applied"] = True
 
 
 def persist_game_state():
@@ -1324,6 +1356,7 @@ while running:
                 )
                 text_log.start_event(current_event.get("id"))
                 text_log.add(current_event["text"])
+                apply_event_on_enter_effects(player, current_event)
                 text_log.scroll_to_bottom()
                 update_enemy_visuals(current_event)
                 enemy_attack_active = False
