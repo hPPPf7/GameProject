@@ -1243,6 +1243,7 @@ while running:
                     and current_event is None
                     and option_rects
                     and option_rects[0].collidepoint(event.pos)
+                    and not text_log.is_typewriter_animating()
                 ):
                     player_animator.start_walk()
                     pending_walk_event = True
@@ -1254,12 +1255,16 @@ while running:
                     and current_event
                     and "options" in current_event
                 ):
-                    if pending_result_requires_attack or enemy_attack_active:
+                    option_rects = get_option_rects(
+                        sub_state, current_event, player, areas
+                    )
+                    if text_log.is_typewriter_animating() and any(
+                        rect.collidepoint(event.pos) for rect in option_rects
+                    ):
+                        handled_click = True
+                    elif pending_result_requires_attack or enemy_attack_active:
                         handled_click = True
                     else:
-                        option_rects = get_option_rects(
-                            sub_state, current_event, player, areas
-                        )
                         for i, rect in enumerate(option_rects):
                             if i >= len(current_event["options"]):
                                 continue

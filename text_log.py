@@ -336,3 +336,9 @@ def set_typewriter_enabled(enabled: bool) -> None:
 
 def is_typewriter_enabled() -> bool:
     return _typewriter_enabled
+
+
+def is_typewriter_animating() -> bool:
+    """Return True while the current entry is still revealing characters."""
+
+    return bool(_active_entry and _typewriter_enabled)

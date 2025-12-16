@@ -423,6 +423,7 @@ def render_ui(
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
     enemy_info = get_enemy_display_info(player)
+    typewriter_active = text_log.is_typewriter_animating()
 
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
     old_clip = screen.get_clip()
@@ -566,22 +567,42 @@ def render_ui(
     # 繪製選項
     if sub_state == "wait":
         wait_rect = option_rects[0]
-        is_hover = wait_rect.collidepoint(mouse_pos)
-        color = COLORS["option_hover"] if is_hover else COLORS["option"]
+        can_interact = not typewriter_active
+        is_hover = wait_rect.collidepoint(mouse_pos) and can_interact
+        color = (
+            COLORS["option_disabled"]
+            if not can_interact
+            else COLORS["option_hover"]
+            if is_hover
+            else COLORS["option"]
+        )
         pygame.draw.rect(screen, color, wait_rect)
-        draw_text(screen, "前進", wait_rect, font, center=True)
+        if can_interact:
+            draw_text(screen, "前進", wait_rect, font, center=True)
     elif sub_state == "show_event" and current_event:
         options = current_event.get("options", [])
+        show_option_text = not typewriter_active
         for i, rect in enumerate(option_rects):
-            is_hover = rect.collidepoint(mouse_pos)
+            is_hover = rect.collidepoint(mouse_pos) and show_option_text
             if i < len(options):
-                color = COLORS["option_hover"] if is_hover else COLORS["option"]
+                color = (
+                    COLORS["option_disabled"]
+                    if typewriter_active
+                    else COLORS["option_hover"]
+                    if is_hover
+                    else COLORS["option"]
+                )
                 pygame.draw.rect(screen, color, rect)
-                option_text = options[i]["text"]
-                draw_text(screen, option_text, rect, font, center=True)
+                if show_option_text:
+                    option_text = options[i]["text"]
+                    draw_text(screen, option_text, rect, font, center=True)
             else:
                 pygame.draw.rect(screen, COLORS["option_disabled"], rect)
-                draw_text(screen, "……", rect, font, center=True)
+                if show_option_text:
+                    draw_text(screen, "……", rect, font, center=True)
+        if typewriter_active:
+            for rect in option_rects:
+                pygame.draw.rect(screen, COLORS["option_disabled"], rect)
 
     if mode == "normal":
         # 繪製固定六格的背包欄
