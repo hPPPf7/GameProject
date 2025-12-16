@@ -10,7 +10,7 @@ current scroll offset.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 
 @dataclass
@@ -18,6 +18,7 @@ class LogEntry:
     text: str
     category: str = "narration"
     event_id: int | None = None
+    on_show: Optional[Callable[[], None]] = None
 
 
 log_history: list[LogEntry] = []
@@ -51,11 +52,17 @@ def start_event(title: str | None = None) -> None:
     log_offset = 0
 
 
-def add(message: str, *, category: str = "narration", event_id: int | None = None) -> None:
+def add(
+    message: str,
+    *,
+    category: str = "narration",
+    event_id: int | None = None,
+    on_show: Optional[Callable[[], None]] = None,
+) -> None:
     global _current_event_id
     if event_id is None:
         event_id = _current_event_id
-    _enqueue(LogEntry(message, category=category, event_id=event_id))
+    _enqueue(LogEntry(message, category=category, event_id=event_id, on_show=on_show))
 
 
 def scroll_to_bottom() -> None:
@@ -117,6 +124,25 @@ def _should_typewriter(entry: LogEntry) -> bool:
     return _typewriter_enabled and entry.category in _TYPEWRITER_CATEGORIES
 
 
+def _trigger_on_show(entry: LogEntry) -> None:
+    callback = entry.on_show
+    if callback:
+        entry.on_show = None
+        try:
+            callback()
+        except Exception:
+            # Avoid crashing the log pipeline because of side-effect failures.
+            pass
+
+
+def _append_entry(entry: LogEntry) -> None:
+    """Append entry to history and fire its on_show callback once."""
+    global log_offset
+    log_history.append(entry)
+    _trigger_on_show(entry)
+    log_offset = 0
+
+
 def _start_active_entry(entry: LogEntry) -> None:
     global _active_entry, _active_progress
     _active_entry = entry
@@ -125,7 +151,6 @@ def _start_active_entry(entry: LogEntry) -> None:
 
 def _enqueue(entry: LogEntry) -> None:
     """Insert a new entry, respecting the typewriter queue."""
-    global log_offset
     if _active_entry:
         _pending_entries.append(entry)
         return
@@ -134,25 +159,24 @@ def _enqueue(entry: LogEntry) -> None:
         _start_active_entry(entry)
         return
 
-    log_history.append(entry)
-    log_offset = 0
+    _append_entry(entry)
 
 
 def _flush_pending_entries() -> None:
     """Push all pending entries directly into history (no animation)."""
     global log_offset, _pending_entries, _active_entry, _active_progress
     if _active_entry:
-        log_history.append(_active_entry)
+        _append_entry(_active_entry)
         _active_entry = None
         _active_progress = 0.0
     while _pending_entries:
-        log_history.append(_pending_entries.pop(0))
+        _append_entry(_pending_entries.pop(0))
     log_offset = 0
 
 
 def _promote_pending() -> None:
     """Move queued entries into the active slot or history when possible."""
-    global log_offset, _active_entry, _active_progress
+    global _active_entry, _active_progress
     if _active_entry:
         return
     while _pending_entries:
@@ -160,8 +184,7 @@ def _promote_pending() -> None:
         if _should_typewriter(candidate):
             _start_active_entry(candidate)
             return
-        log_history.append(candidate)
-        log_offset = 0
+        _append_entry(candidate)
 
 
 def scroll_up(font, max_width: int, visible_lines: int = 9) -> None:
@@ -315,10 +338,9 @@ def update_typewriter(dt: float) -> None:
 
     if _active_progress >= len(_active_entry.text):
         # Finish the entry and move on.
-        log_history.append(_active_entry)
+        _append_entry(_active_entry)
         _active_progress = 0.0
         _active_entry = None
-        log_offset = 0
         _promote_pending()
 
 

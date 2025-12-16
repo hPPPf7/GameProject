@@ -1001,9 +1001,17 @@ def apply_event_on_enter_effects(player: dict, event: Optional[dict]) -> None:
         for item in items:
             if item in inventory:
                 continue
-            inventory.append(item)
-            text_log.add(f"你獲得了道具：{item}", category="system")
-            sound_manager.play_sfx("pickup")
+
+            def _apply_gain(item_name=item):
+                if item_name not in inventory:
+                    inventory.append(item_name)
+                    sound_manager.play_sfx("pickup")
+
+            text_log.add(
+                f"你獲得了道具:{item}",
+                category="system",
+                on_show=_apply_gain,
+            )
 
     inventory_remove = enter_effects.get("inventory_remove")
     if inventory_remove:
@@ -1014,8 +1022,17 @@ def apply_event_on_enter_effects(player: dict, event: Optional[dict]) -> None:
         )
         for item in items:
             if item in inventory:
-                inventory.remove(item)
-                text_log.add(f"你失去了道具：{item}", category="system")
+
+                def _apply_loss(item_name=item):
+                    if item_name in inventory:
+                        inventory.remove(item_name)
+                        sound_manager.play_sfx("pickup")
+
+                text_log.add(
+                    f"你失去了道具:{item}",
+                    category="system",
+                    on_show=_apply_loss,
+                )
 
     event["_on_enter_applied"] = True
 

@@ -185,24 +185,39 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     if effect:
         _apply_effects(player, effect, primary_text or "事件效果")
 
-    # 背包異動
+    # 背包異動：在橘色提示出現時同步音效與背包更新
+    inventory = player.setdefault("inventory", [])
     if "inventory_add" in result:
         items = result["inventory_add"]
         if not isinstance(items, list):
             items = [items]
         for item in items:
-            player["inventory"].append(item)
-            text_log.add(f"你獲得了道具：{item}", category="system")
-            sound_manager.play_sfx("pickup")
+            def _apply_gain(item_name=item):
+                if item_name not in player["inventory"]:
+                    player["inventory"].append(item_name)
+                    sound_manager.play_sfx("pickup")
+
+            text_log.add(
+                f"你獲得了道具:{item}",
+                category="system",
+                on_show=_apply_gain,
+            )
 
     if "inventory_remove" in result:
         items = result["inventory_remove"]
         if not isinstance(items, list):
             items = [items]
         for item in items:
-            if item in player["inventory"]:
-                player["inventory"].remove(item)
-                text_log.add(f"你失去了道具：{item}", category="system")
+            def _apply_loss(item_name=item):
+                if item_name in player["inventory"]:
+                    player["inventory"].remove(item_name)
+                    sound_manager.play_sfx("pickup")
+
+            text_log.add(
+                f"你失去了道具:{item}",
+                category="system",
+                on_show=_apply_loss,
+            )
 
     # 旗標管理
     for flag in result.get("flags_set", []) or []:
@@ -212,9 +227,16 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             text_log.add("任務已建立：調查淺川村", category="system")
             inventory = player.setdefault("inventory", [])
             if MISSION_POTION_NAME not in inventory:
-                inventory.append(MISSION_POTION_NAME)
-                text_log.add(f"你獲得了道具：{MISSION_POTION_NAME}", category="system")
-                sound_manager.play_sfx("pickup")
+                def _apply_brief_reward():
+                    if MISSION_POTION_NAME not in inventory:
+                        inventory.append(MISSION_POTION_NAME)
+                        sound_manager.play_sfx("pickup")
+
+                text_log.add(
+                    f"你獲得了道具:{MISSION_POTION_NAME}",
+                    category="system",
+                    on_show=_apply_brief_reward,
+                )
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False
