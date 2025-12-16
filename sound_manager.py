@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 import pygame
 
-from paths import res_path, user_data_path
+import settings_manager
+from paths import res_path
 
 _sfx_cache: dict[str, pygame.mixer.Sound] = {}
 _initialized = False
 
 _bgm_volume = 0.7
 _sfx_volume = 0.7
-_settings_file = Path(user_data_path("settings.json"))
 
 SFX_FILES = {
     "heal": "healing.wav",
@@ -125,14 +123,7 @@ def _load_volumes() -> None:
     """Load volume settings from disk if available."""
 
     global _bgm_volume, _sfx_volume
-    if not _settings_file.exists():
-        return
-
-    try:
-        data: dict[str, Any] = json.loads(_settings_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return
-
+    data: dict[str, Any] = settings_manager.load_settings()
     _bgm_volume = _clamp_volume(data.get("bgm_volume", _bgm_volume))
     _sfx_volume = _clamp_volume(data.get("sfx_volume", _sfx_volume))
 
@@ -140,13 +131,9 @@ def _load_volumes() -> None:
 def _save_volumes() -> None:
     """Persist current volume settings to disk."""
 
-    payload = {"bgm_volume": _bgm_volume, "sfx_volume": _sfx_volume}
-    try:
-        _settings_file.parent.mkdir(parents=True, exist_ok=True)
-        _settings_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    except OSError:
-        # Ignore save failures to avoid crashing audio controls
-        pass
+    settings_manager.save_settings(
+        {"bgm_volume": _bgm_volume, "sfx_volume": _sfx_volume}
+    )
 
 
 def _clamp_volume(value: Any) -> float:

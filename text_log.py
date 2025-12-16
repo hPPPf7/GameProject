@@ -12,6 +12,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
+import settings_manager
+
+
+def _load_typewriter_preference() -> bool:
+    """Read the persisted typewriter toggle; default to True on missing/invalid data."""
+
+    settings = settings_manager.load_settings()
+    stored = settings.get("typewriter_enabled")
+    if isinstance(stored, bool):
+        return stored
+    if stored is None:
+        return True
+    return bool(stored)
+
+
+def _save_typewriter_preference(enabled: bool) -> None:
+    """Write the current typewriter toggle to the shared settings file."""
+
+    settings_manager.save_settings({"typewriter_enabled": bool(enabled)})
+
 
 @dataclass
 class LogEntry:
@@ -28,7 +48,7 @@ _next_event_id: int = 1
 _pending_entries: List[LogEntry] = []
 _active_entry: Optional[LogEntry] = None
 _active_progress: float = 0.0
-_typewriter_enabled: bool = True
+_typewriter_enabled: bool = _load_typewriter_preference()
 TYPEWRITER_SPEED = 40.0  # characters per second
 _TYPEWRITER_CATEGORIES = {"narration"}
 
@@ -83,7 +103,7 @@ def reset() -> None:
     _pending_entries = []
     _active_entry = None
     _active_progress = 0.0
-    _typewriter_enabled = True
+    _typewriter_enabled = _load_typewriter_preference()
 
 
 def wrap_text(text: str, font, max_width: int) -> list[str]:
@@ -265,6 +285,7 @@ def load_state(state: dict | None) -> None:
     _current_event_id = state.get("current_event_id")
     _next_event_id = state.get("next_event_id", 1)
     _typewriter_enabled = state.get("typewriter_enabled", True)
+    _save_typewriter_preference(_typewriter_enabled)
 
     _pending_entries = [
         LogEntry(
@@ -350,6 +371,7 @@ def set_typewriter_enabled(enabled: bool) -> None:
     if _typewriter_enabled == enabled:
         return
     _typewriter_enabled = enabled
+    _save_typewriter_preference(_typewriter_enabled)
     if not enabled:
         _flush_pending_entries()
     else:
