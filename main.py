@@ -708,7 +708,7 @@ def use_inventory_item(player: dict, index: int) -> bool:
 
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
-    modal_height = 230 + (130 if include_navigation else 0)
+    modal_height = 280 + (130 if include_navigation else 0)
     screen_width, screen_height = screen.get_size()
     modal_rect = pygame.Rect(
         (screen_width - modal_width) // 2,
@@ -719,32 +719,45 @@ def get_settings_layout(include_navigation: bool):
     row_y_start = modal_rect.y + 60
     button_size = 28
     row_gap = 16
-    horizontal_offset = 40
     button_width = 140
     button_height = 32
     center_x = modal_rect.centerx
+    label_x = modal_rect.x + 24
+    toggle_left = modal_rect.centerx + 40 - button_width // 2
+    toggle_right = toggle_left + button_width
+    down_x = toggle_left
+    up_x = toggle_right - button_size
     controls = {
         "modal": modal_rect,
         "bgm_down": pygame.Rect(
-            center_x - horizontal_offset - button_size,
+            down_x,
             row_y_start,
             button_size,
             button_size,
         ),
         "bgm_up": pygame.Rect(
-            center_x + horizontal_offset, row_y_start, button_size, button_size
+            up_x,
+            row_y_start,
+            button_size,
+            button_size,
         ),
         "sfx_down": pygame.Rect(
-            center_x - horizontal_offset - button_size,
+            down_x,
             row_y_start + row_gap + button_size,
             button_size,
             button_size,
         ),
         "sfx_up": pygame.Rect(
-            center_x + horizontal_offset,
+            up_x,
             row_y_start + row_gap + button_size,
             button_size,
             button_size,
+        ),
+        "typewriter_toggle": pygame.Rect(
+            toggle_left,
+            row_y_start + 2 * (row_gap + button_size),
+            button_width,
+            button_height,
         ),
         "close": pygame.Rect(
             center_x - button_width // 2,
@@ -787,6 +800,8 @@ def draw_button(
 
 def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     controls = get_settings_layout(include_navigation)
+    label_x = controls["modal"].x + 24
+    toggle_center_x = controls["typewriter_toggle"].centerx
     modal = controls["modal"]
     pygame.draw.rect(surface, (40, 40, 60), modal, border_radius=8)
     pygame.draw.rect(surface, (120, 120, 140), modal, 2, border_radius=8)
@@ -798,13 +813,13 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float
     ):
         label_surface = SMALL_FONT.render(label, True, (230, 230, 230))
-        surface.blit(label_surface, (modal.x + 28, down_rect.y + 4))
+        surface.blit(label_surface, (label_x, down_rect.y + 4))
         draw_button(surface, down_rect, "-", font=SMALL_FONT)
         draw_button(surface, up_rect, "+", font=SMALL_FONT)
         value_surface = SMALL_FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
         surface.blit(
             value_surface,
-            value_surface.get_rect(center=(modal.centerx, down_rect.centery)),
+            value_surface.get_rect(center=(toggle_center_x, down_rect.centery)),
         )
 
     draw_volume_row(
@@ -818,6 +833,19 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         controls["sfx_down"],
         controls["sfx_up"],
         sound_manager.get_sfx_volume(),
+    )
+    typewriter_label = "文字逐字播放"
+    typewriter_rect = controls["typewriter_toggle"]
+    typewriter_state = text_log.is_typewriter_enabled()
+    state_text = "開啟" if typewriter_state else "關閉"
+    label_surface = SMALL_FONT.render(typewriter_label, True, (230, 230, 230))
+    surface.blit(label_surface, (label_x, typewriter_rect.y + 6))
+    draw_button(
+        surface,
+        typewriter_rect,
+        state_text,
+        font=SMALL_FONT,
+        color=(90, 70, 40) if typewriter_state else (70, 70, 70),
     )
 
     if include_navigation:
@@ -848,6 +876,9 @@ def handle_settings_click(pos, include_navigation: bool):
         return True
     if controls["sfx_up"].collidepoint(pos):
         sound_manager.change_sfx_volume(VOLUME_STEP)
+        return True
+    if controls["typewriter_toggle"].collidepoint(pos):
+        text_log.set_typewriter_enabled(not text_log.is_typewriter_enabled())
         return True
 
     if include_navigation:
@@ -1338,6 +1369,7 @@ while running:
 
     dt_ms = clock.tick(60)
     dt = dt_ms / 1000.0
+    text_log.update_typewriter(dt)
     player_animator.update(dt)
     enemy_animator.update(dt)
     if enemy_attack_active and enemy_animator.attack_finished:
