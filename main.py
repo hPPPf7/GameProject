@@ -332,6 +332,11 @@ ENEMY_VISUAL_CONFIGS = {
         "approach_frame_count": 5,
         "attack_frame_count": 2,
     },
+    "villager": {
+        "target_height": 144,  # Enlarge static villager to match player idle scale
+        "vertical_offset": 20,
+        "right_margin": 0,
+    },
     "robot": {
         "target_height": 230,
         "vertical_offset": 45,  # slightly higher
