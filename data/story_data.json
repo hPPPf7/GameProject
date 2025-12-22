@@ -654,7 +654,8 @@
                     "text": "斜光下浮現「樣本#07」「灰燼凹地」等關鍵字。",
                     "effect": {
                         "fate": 8
-                    }
+                    },
+                    "forced_event": "前往研究據點"
                 },
                 "result_variants": {
                     "rational": {

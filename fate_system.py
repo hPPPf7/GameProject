@@ -31,6 +31,13 @@ CHAPTER_THRESHOLDS = {
     5: 12,  # 第五章：十二次探索後推進至結局
 }
 
+CHAPTER_END_EVENTS = {
+    1: ("第一章結束",),
+    2: ("第二章結束",),
+    3: ("自我懷疑", "聯絡", "前往深處"),
+    4: ("終章自問",),
+}
+
 LOCK_EVENTS = {
     "high": "fate_lock_high",
     "mid": "fate_lock_mid",
@@ -71,6 +78,22 @@ def _limit_delta(delta: int, kind: str) -> int:
         "bias": MAX_BIAS_DELTA,
     }.get(kind, MAX_NORMAL_DELTA)
     return max(-limit, min(limit, delta))
+
+
+def _get_consumed_set(player: Dict) -> set:
+    consumed = player.get("consumed_events", set())
+    if isinstance(consumed, list):
+        consumed = set(consumed)
+        player["consumed_events"] = consumed
+    return consumed
+
+
+def _chapter_end_consumed(player: Dict, chapter: int) -> bool:
+    end_ids = CHAPTER_END_EVENTS.get(chapter)
+    if not end_ids:
+        return True
+    consumed = _get_consumed_set(player)
+    return any(event_id in consumed for event_id in end_ids)
 
 
 def apply_fate_change(player: Dict, change: FateChange) -> None:
@@ -119,6 +142,8 @@ def advance_chapter_if_needed(player: Dict) -> Optional[int]:
     """Raise the chapter index when step thresholds are reached."""
     steps = player.get("steps", 0)
     current_chapter = player.get("chapter", 1)
+    if not _chapter_end_consumed(player, current_chapter):
+        return None
     new_chapter = current_chapter
     for chapter, threshold in sorted(CHAPTER_THRESHOLDS.items()):
         if steps >= threshold and chapter > new_chapter:

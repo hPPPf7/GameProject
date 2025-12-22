@@ -23,6 +23,16 @@ INTRO_EVENT_ID = "任務簡報"
 FIRST_WILD_EVENT_ID = "荒野拾石"
 FIRST_BATTLE_EVENT_ID = "荒野小型魔物戰"
 DEFAULT_BACKGROUND = "starting_area.png"
+CHAPTER2_FIRST_EVENT_WITH_ROCK_ID = "村民盯著石頭"
+CHAPTER2_FIRST_EVENT_NO_ROCK_ID = "村民尋找失物"
+CHAPTER3_FIRST_EVENT_ID = "守衛傀儡戰"
+
+CHAPTER_END_EVENTS = {
+    1: ["第一章結束"],
+    2: ["第二章結束"],
+    3: ["自我懷疑", "聯絡", "前往深處"],
+    4: ["終章自問"],
+}
 
 
 # 載入所有事件資料
@@ -137,7 +147,7 @@ def is_event_condition_met(event: Dict, player) -> bool:
         player = {}
 
     required_chapter = event.get("chapter")
-    if required_chapter and player.get("chapter", 1) < required_chapter:
+    if required_chapter is not None and player.get("chapter", 1) != required_chapter:
         return False
 
     condition = event.get("condition") or {}
@@ -232,6 +242,47 @@ def _increment_midband_counter(player) -> int:
     return player["midband_counter"]
 
 
+def _get_chapter_start_event(player) -> Optional[Dict]:
+    chapter = player.get("chapter", 1)
+    if chapter == 2:
+        flags = player.get("flags", {})
+        event_id = (
+            CHAPTER2_FIRST_EVENT_WITH_ROCK_ID
+            if flags.get("got_weird_rock")
+            else CHAPTER2_FIRST_EVENT_NO_ROCK_ID
+        )
+        event = get_event_by_id(event_id)
+        if event and not _was_consumed(event, player) and is_event_condition_met(event, player):
+            return event
+        return None
+    if chapter == 3:
+        event = get_event_by_id(CHAPTER3_FIRST_EVENT_ID)
+        if event and not _was_consumed(event, player) and is_event_condition_met(event, player):
+            return event
+    return None
+
+
+def _pick_chapter_end_event(player, event_types) -> Optional[Dict]:
+    chapter = player.get("chapter", 1)
+    end_ids = CHAPTER_END_EVENTS.get(chapter)
+    if not end_ids:
+        return None
+    for event_id in end_ids:
+        event = get_event_by_id(event_id)
+        if not event:
+            continue
+        if event.get("type") not in event_types:
+            continue
+        if _was_consumed(event, player):
+            continue
+        if _is_on_cooldown(event, player):
+            continue
+        if not is_event_condition_met(event, player):
+            continue
+        return event
+    return None
+
+
 def get_random_event(event_types=None, player=None):
     """
     Return a random event matching the given types and player state.
@@ -250,20 +301,25 @@ def get_random_event(event_types=None, player=None):
     # 確保任務簡報在其他遭遇前觸發
     if player is not None:
         player.setdefault("flags", {})
-        intro_event = get_event_by_id(INTRO_EVENT_ID)
-        if (
-            intro_event
-            and not player["flags"].get("mission_briefed")
-            and not _was_consumed(intro_event, player)
-        ):
-            return _prepare_event(player, intro_event)
-        # 遊戲開局固定順序：荒野拾石 -> 荒野小型魔物戰
-        first_wild = get_event_by_id(FIRST_WILD_EVENT_ID)
-        if first_wild and not _was_consumed(first_wild, player):
-            return _prepare_event(player, first_wild)
-        first_battle = get_event_by_id(FIRST_BATTLE_EVENT_ID)
-        if first_battle and not _was_consumed(first_battle, player):
-            return _prepare_event(player, first_battle)
+        if player.get("chapter", 1) == 1:
+            intro_event = get_event_by_id(INTRO_EVENT_ID)
+            if (
+                intro_event
+                and not player["flags"].get("mission_briefed")
+                and not _was_consumed(intro_event, player)
+            ):
+                return _prepare_event(player, intro_event)
+            # 遊戲開局固定順序：荒野拾石 -> 荒野小型魔物戰
+            first_wild = get_event_by_id(FIRST_WILD_EVENT_ID)
+            if first_wild and not _was_consumed(first_wild, player):
+                return _prepare_event(player, first_wild)
+            first_battle = get_event_by_id(FIRST_BATTLE_EVENT_ID)
+            if first_battle and not _was_consumed(first_battle, player):
+                return _prepare_event(player, first_battle)
+
+    start_event = _get_chapter_start_event(player)
+    if start_event:
+        return _prepare_event(player, start_event)
 
     forced_event_id = player.get("forced_event") if player else None
     if forced_event_id:
@@ -292,20 +348,31 @@ def get_random_event(event_types=None, player=None):
             player["midband_counter"] = 0
             return _prepare_event(player, trigger_event)
 
+    end_event_ids = set(CHAPTER_END_EVENTS.get(player.get("chapter", 1), []))
+
+    remaining_events: List[Dict] = []
     candidates: List[Tuple[Dict, int]] = []
     for event in ALL_EVENTS:
         if event.get("type") not in event_types:
             continue
+        if event.get("id") in end_event_ids:
+            continue
         if _was_consumed(event, player):
             continue
-        if _is_on_cooldown(event, player):
-            continue
         if not is_event_condition_met(event, player):
+            continue
+        remaining_events.append(event)
+        if _is_on_cooldown(event, player):
             continue
         weight = int(event.get("weight", 1))
         if weight <= 0:
             continue
         candidates.append((event, weight))
+
+    if not remaining_events:
+        end_event = _pick_chapter_end_event(player, event_types)
+        if end_event:
+            return _prepare_event(player, end_event)
 
     if not candidates:
         return None
