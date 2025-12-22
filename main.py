@@ -13,6 +13,23 @@ from paths import res_path
 import sound_manager
 import save_manager
 
+BGM_START_MENU = "Music-0.mp3"
+BGM_CHAPTER_TRACKS = {
+    1: "Music-1.mp3",
+    2: "Music-2.mp3",
+}
+BGM_LATE_TRACK = "Music-345.mp3"
+
+
+def get_bgm_for_chapter(chapter: int) -> str:
+    if chapter >= 3:
+        return BGM_LATE_TRACK
+    return BGM_CHAPTER_TRACKS.get(chapter, BGM_CHAPTER_TRACKS[1])
+
+
+def play_bgm_for_chapter(chapter: int) -> None:
+    sound_manager.play_bgm(get_bgm_for_chapter(chapter))
+
 # 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
 pygame.font.init()
@@ -619,7 +636,7 @@ pygame.display.set_icon(icon)
 SCREEN_RECT = screen.get_rect()
 clock = pygame.time.Clock()
 
-sound_manager.play_bgm()
+sound_manager.play_bgm(BGM_START_MENU)
 
 # 載入背景與標誌圖片
 start_bg = pygame.image.load(res_path("assets", "start_background.png"))
@@ -863,6 +880,7 @@ def handle_settings_click(pos, include_navigation: bool):
             persist_game_state()
             show_settings_popup = False
             game_state = "start_menu"
+            sound_manager.play_bgm(BGM_START_MENU)
             return True
         if controls["quit"].collidepoint(pos):
             persist_game_state()
@@ -1063,6 +1081,7 @@ def start_new_adventure():
     pending_result = None
     pending_result_requires_attack = False
     pending_result_is_battle_action = False
+    play_bgm_for_chapter(player.get("chapter", 1))
 
 
 def load_saved_adventure() -> bool:
@@ -1098,6 +1117,7 @@ def load_saved_adventure() -> bool:
     pending_result_requires_attack = False
     pending_result_is_battle_action = False
     enemy_attack_active = False
+    play_bgm_for_chapter(player.get("chapter", 1))
     return True
 
 
@@ -1108,6 +1128,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
     global current_background_name
     if not result:
         return False
+    previous_chapter = player.get("chapter", 1)
 
     handle_event_result(player, result)
     text_log.scroll_to_bottom()
@@ -1134,6 +1155,9 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         forced_event = post_event_update(player)
         if forced_event:
             player["forced_event"] = forced_event
+    current_chapter = player.get("chapter", 1)
+    if current_chapter != previous_chapter:
+        play_bgm_for_chapter(current_chapter)
     if battle_continues:
         pending_clear_event = False
         clear_event_timer = 0

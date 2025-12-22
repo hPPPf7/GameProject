@@ -14,6 +14,7 @@ _initialized = False
 
 _bgm_volume = 0.7
 _sfx_volume = 0.7
+_current_bgm_track: str | None = None
 
 SFX_FILES = {
     "heal": "healing.wav",
@@ -52,9 +53,13 @@ def play_bgm(track: str = "Music-1.mp3") -> None:
     """Start background music in a loop from the bgm directory."""
 
     init_sound()
+    global _current_bgm_track
+    if track == _current_bgm_track and pygame.mixer.music.get_busy():
+        return
     pygame.mixer.music.load(res_path("assets", "sounds", "bgm", track))
     _apply_bgm_volume()
     pygame.mixer.music.play(-1)
+    _current_bgm_track = track
 
 
 def play_sfx(name: str) -> None:
