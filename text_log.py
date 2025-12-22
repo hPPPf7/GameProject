@@ -348,7 +348,10 @@ def update_typewriter(dt: float) -> None:
     global _active_progress, log_offset, _active_entry
 
     if not _typewriter_enabled:
-        _flush_pending_entries()
+        # Keep scroll position intact when the typewriter is disabled; only flush
+        # queued text once if there is anything pending.
+        if _active_entry or _pending_entries:
+            _flush_pending_entries()
         return
 
     if not _active_entry:
