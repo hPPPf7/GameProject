@@ -21,7 +21,7 @@ MIDBAND_LIMIT = 3
 FATE_TRIGGER_MIDBAND_ID = "命運介入"
 INTRO_EVENT_ID = "任務簡報"
 FIRST_WILD_EVENT_ID = "荒野拾石"
-FIRST_BATTLE_EVENT_ID = "荒野小型魔物戰"
+FIRST_BATTLE_EVENT_ID = "遭遇野豬"
 DEFAULT_BACKGROUND = "starting_area.png"
 CHAPTER2_FIRST_EVENT_WITH_ROCK_ID = "村民盯著石頭"
 CHAPTER2_FIRST_EVENT_NO_ROCK_ID = "村民尋找失物"
@@ -309,7 +309,7 @@ def get_random_event(event_types=None, player=None):
                 and not _was_consumed(intro_event, player)
             ):
                 return _prepare_event(player, intro_event)
-            # 遊戲開局固定順序：荒野拾石 -> 荒野小型魔物戰
+            # 遊戲開局固定順序：荒野拾石 -> 遭遇野豬 -> 其他事件
             first_wild = get_event_by_id(FIRST_WILD_EVENT_ID)
             if first_wild and not _was_consumed(first_wild, player):
                 return _prepare_event(player, first_wild)
