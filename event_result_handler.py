@@ -3,14 +3,9 @@ This module contains logic for processing the outcome of an event option.
 
 When the player selects an option in an event, the corresponding "result"
 dictionary is passed into ``handle_event_result``.  This function applies
-changes to the player's state (HP, ATK, DEF, fate, inventory, flags, etc.),
-emits log messages via ``text_log``, and may set a forced event if the
-story needs to branch immediately.
-
-In addition to the upstream logic, this version adds a simple check for
-player death: whenever HP drops to zero or below, ``game_over`` is set
-to ``True`` and a death message is logged.  Later in the main loop this
-flag is checked to end the game gracefully.
+changes to the player's state (fate, inventory, flags, etc.), emits log
+messages via ``text_log``, and may set a forced event if the story needs
+to branch immediately.
 """
 
 import text_log
@@ -35,35 +30,14 @@ from fate_system import (
 def _apply_numeric_change(player: Dict, key: str, value: int) -> None:
     """Apply a numeric change to the given player stat with logging."""
 
-    # 已移除 HP/ATK/DEF 屬性，忽略相關變更以避免冗餘日誌
-    if key.lower() in {"hp", "atk", "def"}:
-        return
-
     if key not in player:
         return
 
     old_value = player[key]
     player[key] += value
 
-    if key == "hp" and value > 0:
-        sound_manager.play_sfx("heal")
-
-    if key == "hp" and player[key] <= 0:
+    if player[key] < 0:
         player[key] = 0
-        if not player.get("game_over"):
-            text_log.add("你因傷重不治，離開人世。", category="system")
-            sound_manager.play_sfx("character_death")
-        player["game_over"] = True
-    elif player[key] < 0:
-        player[key] = 0
-
-    if key in ["hp", "atk", "def"]:
-        label = key.upper()
-        sign = "+" if value >= 0 else ""
-        text_log.add(
-            f"{label} {old_value} {sign}{value} → {player[key]}",
-            category="system",
-        )
     print(
         f"【數值變化】{key.upper()} {old_value} {'+' if value >= 0 else ''}{value} → {player[key]}"
     )
@@ -93,7 +67,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     ``result`` should have the following optional keys:
 
     - ``text``: a message describing the immediate outcome.
-    - ``effect``: a dict mapping stat names to deltas (e.g. {"hp": -2}).
+    - ``effect``: a dict mapping stat names to deltas (e.g. {"steps": 1}).
     - ``inventory_add`` / ``inventory_remove``: items to gain/lose.
     - ``flags_set`` / ``flags_clear``: booleans to toggle in the player's
       ``flags`` dict.

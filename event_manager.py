@@ -57,12 +57,6 @@ def _check_condition(condition: Dict, player) -> bool:
     if "fate_max" in condition and fate_value > condition["fate_max"]:
         return False
 
-    hp_value = player.get("hp", 0)
-    if "hp_min" in condition and hp_value < condition["hp_min"]:
-        return False
-    if "hp_max" in condition and hp_value > condition["hp_max"]:
-        return False
-
     current_chapter = player.get("chapter", 1)
     if "chapter_is" in condition and current_chapter != condition["chapter_is"]:
         return False

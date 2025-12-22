@@ -101,13 +101,6 @@ ITEM_ICON_FILES = {
 _ITEM_ICON_CACHE: dict[str, Optional[pygame.Surface]] = {}
 _SCALED_ICON_CACHE: dict[tuple[str, int], pygame.Surface] = {}
 
-ATTRIBUTE_ICON_FILES = {
-    "hp": "HP.png",
-    "atk": "ATK.png",
-    "def": "DEF.png",
-}
-
-_ATTRIBUTE_ICON_CACHE: dict[tuple[str, int], Optional[pygame.Surface]] = {}
 
 
 class InventorySlot(NamedTuple):
@@ -155,31 +148,6 @@ def get_scaled_item_icon(name: str, size: int) -> Optional[pygame.Surface]:
     return scaled
 
 
-def get_attribute_icon(name: str, size: int) -> Optional[pygame.Surface]:
-    """Return a scaled attribute icon surface when available."""
-
-    if size <= 0:
-        return None
-
-    cache_key = (name, size)
-    if cache_key in _ATTRIBUTE_ICON_CACHE:
-        return _ATTRIBUTE_ICON_CACHE[cache_key]
-
-    filename = ATTRIBUTE_ICON_FILES.get(name)
-    surface: Optional[pygame.Surface]
-    if not filename:
-        surface = None
-    else:
-        try:
-            loaded = pygame.image.load(res_path("assets", filename)).convert_alpha()
-        except (FileNotFoundError, pygame.error):
-            surface = None
-        else:
-            surface = pygame.transform.smoothscale(loaded, (size, size))
-
-    _ATTRIBUTE_ICON_CACHE[cache_key] = surface
-    return surface
-
 
 COLORS = {
     "image": (40, 80, 40),
@@ -191,45 +159,7 @@ COLORS = {
     "inventory": (90, 90, 40),
     "inventory_slot": (120, 120, 70),
     "inventory_slot_border": (180, 180, 120),
-    "hp_bar_bg": (60, 60, 60),
-    "hp_bar_fill": (200, 60, 60),
-    "hp_bar_border": (240, 240, 240),
 }
-
-
-def get_enemy_display_info(player: Optional[dict]):
-    """Extract the current enemy's display information from the player state."""
-
-    if not player:
-        return None
-
-    battle_state = player.get("battle_state")
-    if not battle_state or not battle_state.get("active"):
-        return None
-
-    enemy = battle_state.get("enemy")
-    if not enemy:
-        return None
-
-    enemy_name = getattr(enemy, "name", None)
-    if enemy_name is None and isinstance(enemy, dict):
-        enemy_name = enemy.get("name")
-    if enemy_name is None:
-        enemy_name = "敵人"
-
-    enemy_hp = getattr(enemy, "hp", None)
-    if enemy_hp is None and isinstance(enemy, dict):
-        enemy_hp = enemy.get("hp", 0)
-    if enemy_hp is None:
-        enemy_hp = 0
-
-    enemy_max = getattr(enemy, "max_hp", None)
-    if enemy_max is None and isinstance(enemy, dict):
-        enemy_max = enemy.get("max_hp", enemy_hp)
-    if enemy_max is None or enemy_max <= 0:
-        enemy_max = max(enemy_hp, 1)
-
-    return enemy_name, enemy_hp, enemy_max
 
 
 def get_areas_for_mode(player: dict) -> dict:
@@ -422,7 +352,6 @@ def render_ui(
     mouse_pos = pygame.mouse.get_pos()
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
-    enemy_info = get_enemy_display_info(player)
     typewriter_active = text_log.is_typewriter_animating()
 
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
@@ -453,51 +382,8 @@ def render_ui(
             enemy_rect.x = areas["image"].right - enemy_rect.width - 32
             enemy_rect.bottom = player_bottom
         screen.blit(enemy_image, enemy_rect.topleft)
-    elif enemy_info:
-        enemy_rect = pygame.Rect(
-            areas["image"].right - 160 - 32,
-            areas["image"].y + 80,
-            160,
-            120,
-        )
     # 恢復全局裁切，後續 UI 不受限
     screen.set_clip(old_clip)
-
-    draw_enemy_hp_bar = False  # 保留程式碼結構但預設不顯示怪物血條
-    if draw_enemy_hp_bar and enemy_info and enemy_rect:
-        enemy_name, enemy_hp, enemy_max = enemy_info
-        bar_width = max(enemy_rect.width, 160)
-        bar_height = 14
-        image_rect = areas["image"]
-        bar_x = enemy_rect.centerx - bar_width // 2
-        min_x = image_rect.left + 16
-        max_x = image_rect.right - bar_width - 16
-        bar_x = max(min_x, min(bar_x, max_x))
-        bar_y = enemy_rect.y - 24
-        bar_y = max(image_rect.top + 16, bar_y)
-        bar_rect = pygame.Rect(bar_x, bar_y, bar_width, bar_height)
-
-        pygame.draw.rect(screen, COLORS["hp_bar_bg"], bar_rect)
-        if enemy_max > 0:
-            hp_ratio = max(0.0, min(enemy_hp / enemy_max, 1.0))
-            fill_width = int(bar_rect.width * hp_ratio)
-        else:
-            fill_width = 0
-        if fill_width > 0:
-            fill_rect = pygame.Rect(bar_rect.x, bar_rect.y, fill_width, bar_rect.height)
-            pygame.draw.rect(screen, COLORS["hp_bar_fill"], fill_rect)
-        pygame.draw.rect(screen, COLORS["hp_bar_border"], bar_rect, 2)
-
-        label_text = f"{enemy_name} {enemy_hp}/{enemy_max}"
-        label_surface = font.render(label_text, True, COLORS["hp_bar_border"])
-        label_rect = label_surface.get_rect(
-            midbottom=(bar_rect.centerx, bar_rect.y - 4)
-        )
-        top_margin = image_rect.top + 4
-        if label_rect.top < top_margin:
-            label_rect.top = top_margin
-            label_rect.centerx = bar_rect.centerx
-        screen.blit(label_surface, label_rect)
 
     # 繪製日誌區域
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
@@ -526,27 +412,17 @@ def render_ui(
         pygame.draw.rect(screen, COLORS["status"], status_rect)
 
         current_durability, max_durability = _get_durability_display(player)
-        rows = [
-            (None, f"耐久 {current_durability}/{max_durability}", None),
-        ]
+        rows = [f"耐久 {current_durability}/{max_durability}"]
 
-        icon_size = 32
+        row_height = 32
         padding_x = 12
         padding_y = 12
         row_spacing = 8
-        row_height = icon_size
-        text_left = status_rect.x + padding_x + icon_size + 8
+        text_left = status_rect.x + padding_x
         text_width = status_rect.width - (text_left - status_rect.x) - padding_x
 
-        for i, (attr_key, label, value) in enumerate(rows):
+        for i, label in enumerate(rows):
             row_top = status_rect.y + padding_y + i * (row_height + row_spacing)
-            icon = get_attribute_icon(attr_key, icon_size) if attr_key else None
-            if icon:
-                icon_rect = icon.get_rect()
-                icon_rect.x = status_rect.x + padding_x
-                icon_rect.centery = row_top + row_height // 2
-                screen.blit(icon, icon_rect)
-
             text_rect = pygame.Rect(
                 text_left,
                 row_top,
@@ -555,7 +431,7 @@ def render_ui(
             )
             draw_text(
                 screen,
-                label if value is None else f"{label}: {value}",
+                label,
                 text_rect,
                 font,
                 center=False,

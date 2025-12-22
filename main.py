@@ -2,8 +2,6 @@
 
 This script sets up pygame, loads assets, and enters the main event loop.
 It coordinates the user interface, the event system, and player state.
-It also handles game over: if the player's HP drops to zero the game
-displays the final state, waits briefly, and then exits.
 """
 
 import pygame
@@ -673,11 +671,6 @@ exit_button = pygame.Rect(
 VOLUME_STEP = 0.1
 settings_button = pygame.Rect(452, 24, 36, 36)
 
-# 道具使用設定
-HEALTH_POTION_NAME = "治療藥水"
-HEALTH_POTION_HEAL = 10
-
-
 def use_inventory_item(player: dict, index: int) -> bool:
     """Use the item at ``index`` in the player's inventory if possible."""
     inventory = player.get("inventory")
@@ -685,27 +678,6 @@ def use_inventory_item(player: dict, index: int) -> bool:
         return False
 
     item_name = inventory[index]
-    if item_name == HEALTH_POTION_NAME:
-        max_hp = player.get("max_hp", player.get("hp", 0))
-        current_hp = player.get("hp", 0)
-        if current_hp >= max_hp:
-            text_log.add(
-                "你的 HP 已經滿了，暫時不需要使用治療藥水。", category="system"
-            )
-            text_log.scroll_to_bottom()
-            return False
-
-        heal_amount = min(HEALTH_POTION_HEAL, max_hp - current_hp)
-        player["hp"] = current_hp + heal_amount
-        del inventory[index]
-        sound_manager.play_sfx("heal")
-        text_log.add(
-            f"你使用了{item_name}，HP 回復 {heal_amount} 點。", category="system"
-        )
-        text_log.add(f"HP +{heal_amount} → {player['hp']}", category="system")
-        text_log.scroll_to_bottom()
-        return True
-
     text_log.add(f"{item_name} 暫時無法使用。", category="system")
     text_log.scroll_to_bottom()
     return False
@@ -1372,27 +1344,6 @@ while running:
                     text_log.scroll_up(FONT, log_width)
                 else:
                     text_log.scroll_down()
-
-    # 檢查是否遊戲結束（玩家死亡）
-    if player.get("game_over"):
-        # 顯示最終狀態與死亡訊息
-        render_ui(
-            screen,
-            player,
-            FONT,
-            current_event,
-            current_background_name,
-            sub_state,
-            player_animator.current_frame() or player_image,
-            enemy_animator.current_frame() or current_enemy_image,
-            player_position=tuple(player_animator.position),
-            enemy_position=tuple(enemy_animator.position),
-        )
-        pygame.display.flip()
-        # 暫停兩秒讓玩家看清訊息
-        pygame.time.delay(2000)
-        running = False
-        continue
 
     dt_ms = clock.tick(60)
     dt = dt_ms / 1000.0

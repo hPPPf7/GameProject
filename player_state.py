@@ -14,10 +14,6 @@ def init_player_state() -> Dict:
     """
     return {
         # 可見屬性
-        "hp": 20,  # 生命值
-        "max_hp": 20,  # 生命值上限
-        "atk": 5,  # 攻擊力
-        "def": 3,  # 防禦力
         "inventory": STARTING_INVENTORY.copy(),  # 背包清單
         # 隱藏數值
         "fate": 50,  # 決定故事走向的命運值
@@ -33,6 +29,4 @@ def init_player_state() -> Dict:
         "midband_counter": 0,
         "event_cooldowns": {},  # 各事件的冷卻計數
         "consumed_events": set(),
-        # 遊戲結束旗標──當玩家死亡時設為 True
-        "game_over": False,
     }

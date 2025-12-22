@@ -93,10 +93,7 @@
             }
         ],
         "enemy": {
-            "name": "野豬",
-            "hp": 12,
-            "atk": 4,
-            "def": 1
+            "name": "野豬"
         },
         "text_variants": {},
         "enemy_frames": [
@@ -350,10 +347,7 @@
             }
         ],
         "enemy": {
-            "name": "結晶化村民",
-            "hp": 18,
-            "atk": 5,
-            "def": 2
+            "name": "結晶化村民"
         },
         "text_variants": {
             "neutral": "一名村民全身長出石化結晶，拖著石斧朝你撲來！",
@@ -833,10 +827,7 @@
             }
         ],
         "enemy": {
-            "name": "守衛傀儡",
-            "hp": 24,
-            "atk": 6,
-            "def": 3
+            "name": "守衛傀儡"
         },
         "text_variants": {
             "neutral": "研究據點外的守衛傀儡甦醒，手臂刀刃閃爍藍光。",
@@ -1116,10 +1107,7 @@
             }
         ],
         "enemy": {
-            "name": "失控樣本",
-            "hp": 28,
-            "atk": 7,
-            "def": 3
+            "name": "失控樣本"
         },
         "text_variants": {
             "neutral": "核心艙室逸散出變異體，半透明的肢體不斷分裂重生。",

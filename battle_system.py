@@ -1,4 +1,4 @@
-"""Battle system module using a durability-based flow instead of HP/ATK/DEF."""
+"""Battle system module using a durability-based flow."""
 
 from __future__ import annotations
 
@@ -21,20 +21,11 @@ class EnemyState:
     """Internal representation of an enemy in battle."""
 
     name: str
-    # Legacy stats kept only for compatibility with saved data/story definitions.
-    max_hp: int
-    hp: int
-    atk: int
-    defense: int
 
     @classmethod
     def from_dict(cls, data: Dict) -> "EnemyState":
         return cls(
             name=data.get("name", "未知生物"),
-            max_hp=int(data.get("hp", 1)),
-            hp=int(data.get("hp", 1)),
-            atk=int(data.get("atk", 0)),
-            defense=int(data.get("def", 0)),
         )
 
 
@@ -48,12 +39,7 @@ def start_battle(player: Dict, event: Dict) -> None:
     enemy_data = event.get("enemy")
     if not enemy_data:
         # Backwards compatibility with older story fields.
-        enemy_data = {
-            "name": event.get("enemy_name", "未知生物"),
-            "hp": event.get("enemy_hp", 1),
-            "atk": event.get("enemy_atk", 0),
-            "def": event.get("enemy_def", 0),
-        }
+        enemy_data = {"name": event.get("enemy_name", "未知生物")}
 
     state = _ensure_battle_state(player)
     enemy = EnemyState.from_dict(enemy_data)
