@@ -52,6 +52,17 @@ _typewriter_enabled: bool = _load_typewriter_preference()
 _typewriter_override: bool | None = None
 TYPEWRITER_SPEED = 40.0  # characters per second
 _TYPEWRITER_CATEGORIES = {"narration"}
+_log_version: int = 0
+_wrap_cache: list[tuple[str, str]] = []
+_wrap_cache_version: int = -1
+_wrap_cache_key: tuple[int, int] | None = None
+
+
+def _invalidate_wrap_cache() -> None:
+    global _log_version, _wrap_cache_version, _wrap_cache
+    _log_version += 1
+    _wrap_cache_version = -1
+    _wrap_cache = []
 
 
 def start_event(title: str | None = None) -> None:
@@ -107,6 +118,7 @@ def reset() -> None:
     _active_progress = 0.0
     _typewriter_enabled = _load_typewriter_preference()
     _typewriter_override = None
+    _invalidate_wrap_cache()
 
 
 def clear_history() -> None:
@@ -122,6 +134,7 @@ def clear_history() -> None:
     _pending_entries = []
     _active_entry = None
     _active_progress = 0.0
+    _invalidate_wrap_cache()
 
 
 def get_current_event_id() -> int | None:
@@ -150,6 +163,7 @@ def set_history(entries: list[dict]) -> None:
             )
         )
     scroll_to_bottom()
+    _invalidate_wrap_cache()
 
 
 def wrap_text(text: str, font, max_width: int) -> list[str]:
@@ -179,10 +193,18 @@ def wrap_text(text: str, font, max_width: int) -> list[str]:
 def _get_wrapped_lines(font, max_width: int) -> list[tuple[str, str]]:
     """Return every log line after wrapping along with its category."""
 
+    global _wrap_cache_version, _wrap_cache_key
+    cache_key = (id(font), max_width)
+    if _wrap_cache_version == _log_version and _wrap_cache_key == cache_key:
+        return _wrap_cache
+
     wrapped: list[tuple[str, str]] = []
     for entry in log_history:
         lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
         wrapped.extend((line, entry.category) for line in lines)
+    _wrap_cache_key = cache_key
+    _wrap_cache_version = _log_version
+    _wrap_cache[:] = wrapped
     return wrapped
 
 
@@ -213,6 +235,7 @@ def _append_entry(entry: LogEntry) -> None:
     log_history.append(entry)
     _trigger_on_show(entry)
     log_offset = 0
+    _invalidate_wrap_cache()
 
 
 def _start_active_entry(entry: LogEntry) -> None:
@@ -261,7 +284,7 @@ def _promote_pending() -> None:
 
 def scroll_up(font, max_width: int, visible_lines: int = 9) -> None:
     global log_offset
-    wrapped = _get_wrapped_lines(font, max_width)
+    wrapped = list(_get_wrapped_lines(font, max_width))
     if _active_entry:
         visible_chars = int(_active_progress)
         visible_text = _active_entry.text[:visible_chars]
@@ -374,12 +397,13 @@ def load_state(state: dict | None) -> None:
             log_history.extend(_pending_entries)
             _pending_entries = []
             log_offset = 0
+    _invalidate_wrap_cache()
 
 
 def get_visible_lines(font, max_width: int, visible_lines: int = 9) -> list[tuple[str, str]]:
     """Return the wrapped lines that should be rendered for the log panel."""
 
-    wrapped = _get_wrapped_lines(font, max_width)
+    wrapped = list(_get_wrapped_lines(font, max_width))
     if _active_entry:
         visible_chars = int(_active_progress)
         visible_text = _active_entry.text[:visible_chars]
