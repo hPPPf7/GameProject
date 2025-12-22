@@ -9,8 +9,10 @@ from battle_system import DEFAULT_DURABILITY
 
 def is_cinematic_mode(player: dict) -> bool:
     """Return True when the UI should collapse into the cinematic layout."""
-    flags = player.get("flags", {}) if player else {}
-    return flags.get("ending_cinematic", False)
+    if not player:
+        return False
+    flags = player.get("flags", {})
+    return bool(flags.get("ending_cinematic") or player.get("intro_cinematic_active"))
 
 
 # 定義介面區域的尺寸與位置：縮窄狀態區塊的寬度，並相應放寬選項區域，
@@ -169,24 +171,49 @@ def get_areas_for_mode(player: dict) -> dict:
     log_rect = UI_AREAS["log"].copy()
 
     if is_cinematic_mode(player):
+        transition = player.get("layout_transition") if player else None
         base_height = UI_AREAS["inventory_preview"].bottom + 16
         image_height = int(image_rect.width * 2 / 3)
         log_height = 160
         gap = 16
         total_height = image_height + gap + log_height
         top_y = max(16, (base_height - total_height) // 2)
-        image_rect = pygame.Rect(
+        cinematic_image = pygame.Rect(
             image_rect.x,
             top_y,
             image_rect.width,
             image_height,
         )
-        log_rect = pygame.Rect(
+        cinematic_log = pygame.Rect(
             log_rect.x,
-            image_rect.bottom + gap,
+            cinematic_image.bottom + gap,
             log_rect.width,
             log_height,
         )
+        image_rect = cinematic_image
+        log_rect = cinematic_log
+
+        if transition:
+            progress = float(transition.get("progress", 0.0))
+            progress = max(0.0, min(1.0, progress))
+            normal_image = UI_AREAS["image"].copy()
+            normal_log = UI_AREAS["log"].copy()
+
+            def _lerp(a: int, b: int, t: float) -> int:
+                return int(round(a + (b - a) * t))
+
+            image_rect = pygame.Rect(
+                _lerp(normal_image.x, cinematic_image.x, progress),
+                _lerp(normal_image.y, cinematic_image.y, progress),
+                _lerp(normal_image.width, cinematic_image.width, progress),
+                _lerp(normal_image.height, cinematic_image.height, progress),
+            )
+            log_rect = pygame.Rect(
+                _lerp(normal_log.x, cinematic_log.x, progress),
+                _lerp(normal_log.y, cinematic_log.y, progress),
+                _lerp(normal_log.width, cinematic_log.width, progress),
+                _lerp(normal_log.height, cinematic_log.height, progress),
+            )
         left_x = STATUS_X
         right_x = STATUS_X + STATUS_WIDTH + GAP + OPTIONS_WIDTH
         options_rect = pygame.Rect(
@@ -485,20 +512,28 @@ def render_ui(
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
     # 繪製選項
+    if player.get("intro_cinematic_active"):
+        option_rects = []
     if sub_state == "wait":
-        wait_rect = option_rects[0]
-        can_interact = not typewriter_active
-        is_hover = wait_rect.collidepoint(mouse_pos) and can_interact
-        color = (
-            COLORS["option_disabled"]
-            if not can_interact
-            else COLORS["option_hover"]
-            if is_hover
-            else COLORS["option"]
-        )
-        pygame.draw.rect(screen, color, wait_rect)
-        if can_interact:
-            draw_text(screen, "前進", wait_rect, font, center=True)
+        if not option_rects:
+            wait_rect = None
+        else:
+            wait_rect = option_rects[0]
+        if not wait_rect:
+            pass
+        else:
+            can_interact = not typewriter_active
+            is_hover = wait_rect.collidepoint(mouse_pos) and can_interact
+            color = (
+                COLORS["option_disabled"]
+                if not can_interact
+                else COLORS["option_hover"]
+                if is_hover
+                else COLORS["option"]
+            )
+            pygame.draw.rect(screen, color, wait_rect)
+            if can_interact:
+                draw_text(screen, "前進", wait_rect, font, center=True)
     elif sub_state == "show_event" and current_event:
         options = current_event.get("options", [])
         show_option_text = not typewriter_active

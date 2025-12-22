@@ -49,6 +49,7 @@ _pending_entries: List[LogEntry] = []
 _active_entry: Optional[LogEntry] = None
 _active_progress: float = 0.0
 _typewriter_enabled: bool = _load_typewriter_preference()
+_typewriter_override: bool | None = None
 TYPEWRITER_SPEED = 40.0  # characters per second
 _TYPEWRITER_CATEGORIES = {"narration"}
 
@@ -95,6 +96,7 @@ def reset() -> None:
 
     global log_history, log_offset, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress, _typewriter_enabled
+    global _typewriter_override
 
     log_history = []
     log_offset = 0
@@ -104,6 +106,7 @@ def reset() -> None:
     _active_entry = None
     _active_progress = 0.0
     _typewriter_enabled = _load_typewriter_preference()
+    _typewriter_override = None
 
 
 def clear_history() -> None:
@@ -119,6 +122,34 @@ def clear_history() -> None:
     _pending_entries = []
     _active_entry = None
     _active_progress = 0.0
+
+
+def get_current_event_id() -> int | None:
+    return _current_event_id
+
+
+def snapshot_history() -> list[dict]:
+    return [
+        {
+            "text": entry.text,
+            "category": entry.category,
+            "event_id": entry.event_id,
+        }
+        for entry in log_history
+    ]
+
+
+def set_history(entries: list[dict]) -> None:
+    clear_history()
+    for entry in entries:
+        log_history.append(
+            LogEntry(
+                text=entry.get("text", ""),
+                category=entry.get("category", "narration"),
+                event_id=entry.get("event_id"),
+            )
+        )
+    scroll_to_bottom()
 
 
 def wrap_text(text: str, font, max_width: int) -> list[str]:
@@ -155,8 +186,14 @@ def _get_wrapped_lines(font, max_width: int) -> list[tuple[str, str]]:
     return wrapped
 
 
+def _effective_typewriter_enabled() -> bool:
+    if _typewriter_override is None:
+        return _typewriter_enabled
+    return _typewriter_override
+
+
 def _should_typewriter(entry: LogEntry) -> bool:
-    return _typewriter_enabled and entry.category in _TYPEWRITER_CATEGORIES
+    return _effective_typewriter_enabled() and entry.category in _TYPEWRITER_CATEGORIES
 
 
 def _trigger_on_show(entry: LogEntry) -> None:
@@ -362,7 +399,7 @@ def update_typewriter(dt: float) -> None:
     """Advance the typewriter animation by ``dt`` seconds."""
     global _active_progress, log_offset, _active_entry
 
-    if not _typewriter_enabled:
+    if not _effective_typewriter_enabled():
         # Keep scroll position intact when the typewriter is disabled; only flush
         # queued text once if there is anything pending.
         if _active_entry or _pending_entries:
@@ -403,4 +440,13 @@ def is_typewriter_enabled() -> bool:
 def is_typewriter_animating() -> bool:
     """Return True while the current entry is still revealing characters."""
 
-    return bool(_active_entry and _typewriter_enabled)
+    return bool(_active_entry and _effective_typewriter_enabled())
+
+
+def set_typewriter_override(enabled: bool | None) -> None:
+    global _typewriter_override
+    _typewriter_override = enabled
+    if enabled is False:
+        _flush_pending_entries()
+    elif enabled is True:
+        _promote_pending()

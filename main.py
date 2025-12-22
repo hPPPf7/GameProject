@@ -21,6 +21,8 @@ BGM_CHAPTER_TRACKS = {
 BGM_LATE_TRACK = "Music-345.mp3"
 ENDING_EXIT_DELAY_MS = 2000
 ENDING_FADE_SPEED = 160.0
+ENDING_LAYOUT_TRANSITION_SEC = 0.6
+INTRO_FADE_SPEED = 260.0
 
 
 def get_bgm_for_chapter(chapter: int) -> str:
@@ -1073,7 +1075,7 @@ def start_new_adventure():
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
 
     text_log.reset()
     player = init_player_state()
@@ -1100,6 +1102,32 @@ def start_new_adventure():
     pending_result_is_battle_action = False
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
+    intro_fade_alpha = 255.0
+    player.pop("intro_cinematic_done", None)
+    player.pop("intro_cinematic_active", None)
+    player.pop("intro_cinematic_ready", None)
+    player.pop("intro_cinematic_exiting", None)
+    player.pop("intro_segments", None)
+    player.pop("intro_segment_index", None)
+    player.pop("layout_transition", None)
+    from event_manager import get_random_event
+
+    current_event = get_random_event(player=player)
+    if current_event:
+        current_background_name = current_event.get("background", DEFAULT_BACKGROUND)
+        text_log.start_event(current_event.get("id"))
+        if (
+            current_event.get("id") == "任務簡報"
+            and not player.get("intro_cinematic_done")
+        ):
+            start_intro_cinematic(current_event)
+        else:
+            text_log.add(current_event["text"])
+            text_log.scroll_to_bottom()
+            update_enemy_visuals(current_event)
+            if current_event.get("type") == "battle":
+                start_battle(player, current_event)
+        sub_state = "show_event"
     play_bgm_for_chapter(player.get("chapter", 1))
 
 
@@ -1108,7 +1136,7 @@ def load_saved_adventure() -> bool:
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
 
     data = save_manager.load_game()
     if not data:
@@ -1127,6 +1155,13 @@ def load_saved_adventure() -> bool:
         if current_event
         else DEFAULT_BACKGROUND
     )
+    if (
+        current_event
+        and current_event.get("id") == "任務簡報"
+        and not player.get("intro_cinematic_done")
+        and not player.get("intro_cinematic_active")
+    ):
+        start_intro_cinematic(current_event)
     pending_walk_event = data.get("pending_walk_event", False)
     pending_clear_event = data.get("pending_clear_event", False)
     clear_event_timer = data.get("clear_event_timer", 0)
@@ -1139,6 +1174,7 @@ def load_saved_adventure() -> bool:
     enemy_attack_active = False
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
+    intro_fade_alpha = 0.0
     play_bgm_for_chapter(player.get("chapter", 1))
     return True
 
@@ -1212,6 +1248,42 @@ def advance_ending_segment() -> bool:
     return True
 
 
+def advance_intro_segment() -> bool:
+    """Append the next intro segment to the log if available."""
+    segments = player.get("intro_segments") or []
+    index = player.get("intro_segment_index", 0)
+    if index >= len(segments):
+        return False
+    if "intro_log_history" not in player:
+        player["intro_log_history"] = text_log.snapshot_history()
+    player["intro_log_history"].append(
+        {
+            "text": segments[index],
+            "category": "narration",
+            "event_id": text_log.get_current_event_id(),
+        }
+    )
+    text_log.clear_history()
+    text_log.add(segments[index])
+    player["intro_segment_index"] = index + 1
+    text_log.scroll_to_bottom()
+    return True
+
+
+def start_intro_cinematic(event: dict) -> None:
+    segments = event.get("intro_segments") or []
+    if not isinstance(segments, list):
+        segments = [str(segments)]
+    player["intro_segments"] = segments
+    player["intro_segment_index"] = 0
+    player["intro_cinematic_active"] = True
+    player["intro_cinematic_ready"] = False
+    player["intro_log_history"] = text_log.snapshot_history()
+    player["intro_pending_start"] = True
+    text_log.set_typewriter_override(True)
+    text_log.clear_history()
+
+
 def try_apply_pending_result(force: bool = False):
     """Apply pending result once ready (after attack animation when required)."""
 
@@ -1263,6 +1335,7 @@ pending_result_is_battle_action = False
 enemy_attack_active = False
 ending_exit_timer = 0
 ending_fade_alpha = 0.0
+intro_fade_alpha = 0.0
 
 # 主要遊戲迴圈
 running = True
@@ -1299,6 +1372,26 @@ while running:
                 cinematic = areas.get("mode") == "cinematic"
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
                 handled_click = False
+
+                if player.get("intro_cinematic_active"):
+                    if player.get("intro_pending_start"):
+                        handled_click = True
+                        continue
+                    if text_log.is_typewriter_animating():
+                        handled_click = True
+                    else:
+                        if advance_intro_segment():
+                            handled_click = True
+                        elif player.get("intro_cinematic_ready"):
+                            if not player.get("intro_cinematic_exiting"):
+                                player["intro_cinematic_exiting"] = True
+                                player["layout_transition"] = {
+                                    "progress": 1.0,
+                                    "direction": "out",
+                                }
+                            handled_click = True
+                    if handled_click:
+                        continue
 
                 if player.get("ending_active"):
                     if text_log.is_typewriter_animating():
@@ -1439,6 +1532,18 @@ while running:
         enemy_attack_active = False
     try_apply_pending_result()
 
+    if intro_fade_alpha > 0:
+        intro_fade_alpha = max(0.0, intro_fade_alpha - INTRO_FADE_SPEED * dt)
+
+    if player.get("intro_pending_start") and intro_fade_alpha == 0.0:
+        player["intro_pending_start"] = False
+        advance_intro_segment()
+
+    if player.get("intro_cinematic_active") and not text_log.is_typewriter_animating():
+        segments = player.get("intro_segments") or []
+        if player.get("intro_segment_index", 0) >= len(segments):
+            player["intro_cinematic_ready"] = True
+
     if player.get("ending_active"):
         if not text_log.is_typewriter_animating():
             segments = player.get("ending_segments") or []
@@ -1457,6 +1562,36 @@ while running:
                 if ending_fade_alpha >= 255.0:
                     player["return_to_menu"] = True
 
+    transition = player.get("layout_transition")
+    if transition:
+        progress = float(transition.get("progress", 0.0))
+        direction = transition.get("direction", "in")
+        step = dt / max(0.01, ENDING_LAYOUT_TRANSITION_SEC)
+        if direction == "out":
+            progress -= step
+            if progress <= 0.0:
+                progress = 0.0
+                player.pop("layout_transition", None)
+                if player.get("intro_cinematic_exiting"):
+                    intro_log = player.get("intro_log_history") or []
+                    if intro_log:
+                        text_log.set_history(intro_log)
+                        text_log.scroll_to_bottom()
+                    player["intro_cinematic_exiting"] = False
+                    player["intro_cinematic_active"] = False
+                    player["intro_cinematic_ready"] = False
+                    player["intro_cinematic_done"] = True
+                    text_log.set_typewriter_override(None)
+            else:
+                transition["progress"] = progress
+        else:
+            progress += step
+            if progress >= 1.0:
+                progress = 1.0
+                player.pop("layout_transition", None)
+            else:
+                transition["progress"] = progress
+
     if sub_state == "walking" and player_animator.walk_finished:
         from event_manager import get_random_event
 
@@ -1468,13 +1603,19 @@ while running:
                     "background", DEFAULT_BACKGROUND
                 )
                 text_log.start_event(current_event.get("id"))
-                text_log.add(current_event["text"])
-                apply_event_on_enter_effects(player, current_event)
-                text_log.scroll_to_bottom()
-                update_enemy_visuals(current_event)
-                enemy_attack_active = False
-                if current_event.get("type") == "battle":
-                    start_battle(player, current_event)
+                if (
+                    current_event.get("id") == "任務簡報"
+                    and not player.get("intro_cinematic_done")
+                ):
+                    start_intro_cinematic(current_event)
+                else:
+                    text_log.add(current_event["text"])
+                    apply_event_on_enter_effects(player, current_event)
+                    text_log.scroll_to_bottom()
+                    update_enemy_visuals(current_event)
+                    enemy_attack_active = False
+                    if current_event.get("type") == "battle":
+                        start_battle(player, current_event)
                 sub_state = "show_event"
             else:
                 text_log.add("命運暫時沉寂，沒有新的事件發生。", category="system")
@@ -1527,6 +1668,10 @@ while running:
         fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, int(ending_fade_alpha)))
         screen.blit(fade_surface, (0, 0))
+    if intro_fade_alpha > 0:
+        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, int(intro_fade_alpha)))
+        screen.blit(fade_surface, (0, 0))
     persist_game_state()
     pygame.display.flip()
 
@@ -1546,18 +1691,24 @@ while running:
 
     if game_state == "main_screen" and player.get("return_to_menu"):
         player["return_to_menu"] = False
-        prev_typewriter = player.pop("typewriter_prev", None)
-        if prev_typewriter is not None:
-            text_log.set_typewriter_enabled(prev_typewriter)
+        text_log.set_typewriter_override(None)
         for key in (
             "ending_active",
             "ending_segments",
             "ending_segment_index",
             "ending_exit_ready",
             "ending_exit_started",
+            "intro_cinematic_active",
+            "intro_cinematic_ready",
+            "intro_cinematic_exiting",
+            "intro_pending_start",
+            "intro_segments",
+            "intro_segment_index",
+            "intro_log_history",
         ):
             player.pop(key, None)
         player.setdefault("flags", {}).pop("ending_cinematic", None)
+        player.pop("layout_transition", None)
         ending_exit_timer = 0
         ending_fade_alpha = 0.0
         save_manager.clear_save()

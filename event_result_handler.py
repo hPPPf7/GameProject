@@ -173,9 +173,8 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     if result.get("end_game"):
         player.setdefault("flags", {})["ending_cinematic"] = True
-        if "typewriter_prev" not in player:
-            player["typewriter_prev"] = text_log.is_typewriter_enabled()
-        text_log.set_typewriter_enabled(True)
+        player["layout_transition"] = {"progress": 0.0}
+        text_log.set_typewriter_override(True)
         player["ending_active"] = True
 
     # 套用數值屬性變化
