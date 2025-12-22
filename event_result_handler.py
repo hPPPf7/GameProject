@@ -77,6 +77,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     - ``emit_log``: additional messages to append to the log.
     - ``refuse``: if truthy, increment the refusal streak and potentially
       trigger a fate trigger event.
+    - ``end_game``: if truthy, return to start menu after the result finishes.
     - ``defeat_text`` / ``defeat_effect`` / ``defeat_log``: applied when a
       battle ends without 勝利 or 撤退（耐久耗盡等情況）。
     - ``forced_event_on_defeat``: optional forced jump when 戰鬥失敗。
@@ -86,7 +87,23 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     # 每個事件執行前重置本次事件的命運變更記號
     player["_fate_changed_in_event"] = False
 
+    ending_segments = result.get("ending_segments")
+    if ending_segments and not isinstance(ending_segments, list):
+        ending_segments = [str(ending_segments)]
+
     primary_text = result.get("text")
+    if result.get("end_game") and not ending_segments and primary_text:
+        ending_segments = [segment for segment in primary_text.split("\n\n") if segment]
+
+    if ending_segments:
+        text_log.clear_history()
+        player["ending_segments"] = ending_segments
+        player["ending_segment_index"] = 1
+        player["ending_active"] = True
+        player["ending_exit_ready"] = False
+        player["ending_exit_started"] = False
+        primary_text = ending_segments[0] if ending_segments else None
+
     if primary_text:
         print("【事件結果】", primary_text)
         text_log.add(primary_text)
@@ -153,6 +170,13 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 text_log.add(entry)
         else:
             text_log.add(log_entry)
+
+    if result.get("end_game"):
+        player.setdefault("flags", {})["ending_cinematic"] = True
+        if "typewriter_prev" not in player:
+            player["typewriter_prev"] = text_log.is_typewriter_enabled()
+        text_log.set_typewriter_enabled(True)
+        player["ending_active"] = True
 
     # 套用數值屬性變化
     effect = result.get("effect") or {}

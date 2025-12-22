@@ -106,6 +106,21 @@ def reset() -> None:
     _typewriter_enabled = _load_typewriter_preference()
 
 
+def clear_history() -> None:
+    """Clear visible log history without touching the typewriter setting."""
+
+    global log_history, log_offset, _current_event_id, _next_event_id
+    global _pending_entries, _active_entry, _active_progress
+
+    log_history = []
+    log_offset = 0
+    _current_event_id = None
+    _next_event_id = 1
+    _pending_entries = []
+    _active_entry = None
+    _active_progress = 0.0
+
+
 def wrap_text(text: str, font, max_width: int) -> list[str]:
     """Wrap ``text`` so that each line fits within ``max_width`` pixels."""
 

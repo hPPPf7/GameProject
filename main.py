@@ -19,6 +19,8 @@ BGM_CHAPTER_TRACKS = {
     2: "Music-2.mp3",
 }
 BGM_LATE_TRACK = "Music-345.mp3"
+ENDING_EXIT_DELAY_MS = 2000
+ENDING_FADE_SPEED = 160.0
 
 
 def get_bgm_for_chapter(chapter: int) -> str:
@@ -996,6 +998,13 @@ def apply_event_on_enter_effects(player: dict, event: Optional[dict]) -> None:
         return
 
     inventory = player.setdefault("inventory", [])
+    flags = player.setdefault("flags", {})
+
+    for flag in enter_effects.get("flags_set", []) or []:
+        flags[flag] = True
+    for flag in enter_effects.get("flags_clear", []) or []:
+        if flags.get(flag):
+            flags[flag] = False
 
     inventory_add = enter_effects.get("inventory_add")
     if inventory_add:
@@ -1064,6 +1073,7 @@ def start_new_adventure():
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
+    global ending_exit_timer, ending_fade_alpha
 
     text_log.reset()
     player = init_player_state()
@@ -1088,6 +1098,8 @@ def start_new_adventure():
     pending_result = None
     pending_result_requires_attack = False
     pending_result_is_battle_action = False
+    ending_exit_timer = 0
+    ending_fade_alpha = 0.0
     play_bgm_for_chapter(player.get("chapter", 1))
 
 
@@ -1096,6 +1108,7 @@ def load_saved_adventure() -> bool:
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
+    global ending_exit_timer, ending_fade_alpha
 
     data = save_manager.load_game()
     if not data:
@@ -1124,6 +1137,8 @@ def load_saved_adventure() -> bool:
     pending_result_requires_attack = False
     pending_result_is_battle_action = False
     enemy_attack_active = False
+    ending_exit_timer = 0
+    ending_fade_alpha = 0.0
     play_bgm_for_chapter(player.get("chapter", 1))
     return True
 
@@ -1133,6 +1148,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
 
     global pending_clear_event, clear_event_timer, sub_state, current_event
     global current_background_name
+    global ending_exit_timer
     if not result:
         return False
     previous_chapter = player.get("chapter", 1)
@@ -1159,9 +1175,10 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         battle_continues = is_battle_active(player)
 
     if not battle_continues:
-        forced_event = post_event_update(player)
-        if forced_event:
-            player["forced_event"] = forced_event
+        if not player.get("ending_active"):
+            forced_event = post_event_update(player)
+            if forced_event:
+                player["forced_event"] = forced_event
     current_chapter = player.get("chapter", 1)
     if current_chapter != previous_chapter:
         play_bgm_for_chapter(current_chapter)
@@ -1170,10 +1187,29 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         clear_event_timer = 0
         sub_state = "show_event"
     else:
-        pending_clear_event = True
-        clear_event_timer = 1
-        sub_state = "after_result"
+        if player.get("ending_active"):
+            pending_clear_event = False
+            clear_event_timer = 0
+            ending_exit_timer = 0
+            sub_state = "ending"
+        else:
+            pending_clear_event = True
+            clear_event_timer = 1
+            sub_state = "after_result"
     return battle_continues
+
+
+def advance_ending_segment() -> bool:
+    """Append the next ending segment to the log if available."""
+    segments = player.get("ending_segments") or []
+    index = player.get("ending_segment_index", 0)
+    if index >= len(segments):
+        return False
+    text_log.clear_history()
+    text_log.add(segments[index])
+    player["ending_segment_index"] = index + 1
+    text_log.scroll_to_bottom()
+    return True
 
 
 def try_apply_pending_result(force: bool = False):
@@ -1225,6 +1261,8 @@ pending_result = None
 pending_result_requires_attack = False
 pending_result_is_battle_action = False
 enemy_attack_active = False
+ending_exit_timer = 0
+ending_fade_alpha = 0.0
 
 # 主要遊戲迴圈
 running = True
@@ -1261,6 +1299,21 @@ while running:
                 cinematic = areas.get("mode") == "cinematic"
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
                 handled_click = False
+
+                if player.get("ending_active"):
+                    if text_log.is_typewriter_animating():
+                        handled_click = True
+                    else:
+                        if advance_ending_segment():
+                            handled_click = True
+                        elif player.get("ending_exit_ready"):
+                            if not player.get("ending_exit_started"):
+                                player["ending_exit_started"] = True
+                                ending_exit_timer = ENDING_EXIT_DELAY_MS
+                                ending_fade_alpha = 0.0
+                            handled_click = True
+                    if handled_click:
+                        continue
 
                 # 點擊「前進」區域
                 if (
@@ -1386,6 +1439,24 @@ while running:
         enemy_attack_active = False
     try_apply_pending_result()
 
+    if player.get("ending_active"):
+        if not text_log.is_typewriter_animating():
+            segments = player.get("ending_segments") or []
+            if (
+                player.get("ending_segment_index", 0) >= len(segments)
+                and not player.get("ending_exit_ready")
+            ):
+                player["ending_exit_ready"] = True
+        if player.get("ending_exit_started"):
+            if ending_exit_timer > 0:
+                ending_exit_timer = max(0, ending_exit_timer - dt_ms)
+            else:
+                ending_fade_alpha = min(
+                    255.0, ending_fade_alpha + ENDING_FADE_SPEED * dt
+                )
+                if ending_fade_alpha >= 255.0:
+                    player["return_to_menu"] = True
+
     if sub_state == "walking" and player_animator.walk_finished:
         from event_manager import get_random_event
 
@@ -1452,6 +1523,10 @@ while running:
         fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, player_animator.fade_alpha))
         screen.blit(fade_surface, (0, 0))
+    if ending_fade_alpha > 0:
+        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, int(ending_fade_alpha)))
+        screen.blit(fade_surface, (0, 0))
     persist_game_state()
     pygame.display.flip()
 
@@ -1468,6 +1543,28 @@ while running:
             enemy_attack_active = False
             sub_state = "wait"
             pending_clear_event = False
+
+    if game_state == "main_screen" and player.get("return_to_menu"):
+        player["return_to_menu"] = False
+        prev_typewriter = player.pop("typewriter_prev", None)
+        if prev_typewriter is not None:
+            text_log.set_typewriter_enabled(prev_typewriter)
+        for key in (
+            "ending_active",
+            "ending_segments",
+            "ending_segment_index",
+            "ending_exit_ready",
+            "ending_exit_started",
+        ):
+            player.pop(key, None)
+        player.setdefault("flags", {}).pop("ending_cinematic", None)
+        ending_exit_timer = 0
+        ending_fade_alpha = 0.0
+        save_manager.clear_save()
+        has_save_file = False
+        show_settings_popup = False
+        game_state = "start_menu"
+        sound_manager.play_bgm(BGM_START_MENU)
 
 pygame.quit()
 sys.exit()

@@ -10,7 +10,7 @@ from battle_system import DEFAULT_DURABILITY
 def is_cinematic_mode(player: dict) -> bool:
     """Return True when the UI should collapse into the cinematic layout."""
     flags = player.get("flags", {}) if player else {}
-    return not flags.get("mission_briefed", False)
+    return flags.get("ending_cinematic", False)
 
 
 # 定義介面區域的尺寸與位置：縮窄狀態區塊的寬度，並相應放寬選項區域，
@@ -169,6 +169,24 @@ def get_areas_for_mode(player: dict) -> dict:
     log_rect = UI_AREAS["log"].copy()
 
     if is_cinematic_mode(player):
+        base_height = UI_AREAS["inventory_preview"].bottom + 16
+        image_height = int(image_rect.width * 2 / 3)
+        log_height = 160
+        gap = 16
+        total_height = image_height + gap + log_height
+        top_y = max(16, (base_height - total_height) // 2)
+        image_rect = pygame.Rect(
+            image_rect.x,
+            top_y,
+            image_rect.width,
+            image_height,
+        )
+        log_rect = pygame.Rect(
+            log_rect.x,
+            image_rect.bottom + gap,
+            log_rect.width,
+            log_height,
+        )
         left_x = STATUS_X
         right_x = STATUS_X + STATUS_WIDTH + GAP + OPTIONS_WIDTH
         options_rect = pygame.Rect(
@@ -249,9 +267,32 @@ def get_option_rects(
     # 一般模式
     option_rects = [rect.copy() for rect in areas["options_rects"]]
     if sub_state == "show_event" and current_event:
+        if current_event.get("type") != "battle":
+            status_rect = areas["status_rect"]
+            full_left = status_rect.x
+            full_right = option_rects[-1].right if option_rects else status_rect.right
+            expanded = []
+            for rect in option_rects:
+                expanded.append(
+                    pygame.Rect(
+                        full_left,
+                        rect.y,
+                        full_right - full_left,
+                        rect.height,
+                    )
+                )
+            return expanded
         return option_rects
 
     full_rect = option_rects[0].unionall(option_rects)
+    if not (current_event and current_event.get("type") == "battle"):
+        status_rect = areas["status_rect"]
+        full_rect = pygame.Rect(
+            status_rect.x,
+            full_rect.y,
+            full_rect.right - status_rect.x,
+            full_rect.height,
+        )
     return [full_rect]
 
 
@@ -353,6 +394,7 @@ def render_ui(
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
     typewriter_active = text_log.is_typewriter_animating()
+    ending_cinematic = is_cinematic_mode(player)
 
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
     old_clip = screen.get_clip()
@@ -360,9 +402,9 @@ def render_ui(
     background = get_background_surface(background_name)
     screen.blit(background, areas["image"].topleft)
 
-    # 若有傳入立繪則繪製玩家與敵人
+    # 若有傳入立繪則繪製玩家與敵人（結局動畫不繪製）
     player_bottom = areas["image"].bottom - 16
-    if player_image:
+    if player_image and not ending_cinematic:
         if player_position:
             player_pos = (int(player_position[0]), int(player_position[1]))
         else:
@@ -374,7 +416,7 @@ def render_ui(
         player_bottom = player_pos[1] + player_image.get_height()
         screen.blit(player_image, player_pos)
     enemy_rect: Optional[pygame.Rect] = None
-    if enemy_image:
+    if enemy_image and not ending_cinematic:
         enemy_rect = enemy_image.get_rect()
         if enemy_position:
             enemy_rect.topleft = (int(enemy_position[0]), int(enemy_position[1]))
@@ -406,37 +448,39 @@ def render_ui(
             screen, line, areas["log"], font, center=False, line_offset=i, color=color
         )
 
-    # 繪製狀態面板（電影模式略過）
+    # 繪製狀態面板（電影模式略過；非戰鬥事件隱藏）
     if mode == "normal":
-        status_rect = areas["status_rect"]
-        pygame.draw.rect(screen, COLORS["status"], status_rect)
+        hide_status = not (current_event and current_event.get("type") == "battle")
+        if not hide_status:
+            status_rect = areas["status_rect"]
+            pygame.draw.rect(screen, COLORS["status"], status_rect)
 
-        current_durability, max_durability = _get_durability_display(player)
-        rows = [f"耐久 {current_durability}/{max_durability}"]
+            current_durability, max_durability = _get_durability_display(player)
+            rows = [f"耐久 {current_durability}/{max_durability}"]
 
-        row_height = 32
-        padding_x = 12
-        padding_y = 12
-        row_spacing = 8
-        text_left = status_rect.x + padding_x
-        text_width = status_rect.width - (text_left - status_rect.x) - padding_x
+            row_height = 32
+            padding_x = 12
+            padding_y = 12
+            row_spacing = 8
+            text_left = status_rect.x + padding_x
+            text_width = status_rect.width - (text_left - status_rect.x) - padding_x
 
-        for i, label in enumerate(rows):
-            row_top = status_rect.y + padding_y + i * (row_height + row_spacing)
-            text_rect = pygame.Rect(
-                text_left,
-                row_top,
-                text_width,
-                row_height,
-            )
-            draw_text(
-                screen,
-                label,
-                text_rect,
-                font,
-                center=False,
-                line_offset=0,
-            )
+            for i, label in enumerate(rows):
+                row_top = status_rect.y + padding_y + i * (row_height + row_spacing)
+                text_rect = pygame.Rect(
+                    text_left,
+                    row_top,
+                    text_width,
+                    row_height,
+                )
+                draw_text(
+                    screen,
+                    label,
+                    text_rect,
+                    font,
+                    center=False,
+                    line_offset=0,
+                )
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
