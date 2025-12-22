@@ -1,4 +1,4 @@
-"""event_result_handler
+﻿"""event_result_handler
 This module contains logic for processing the outcome of an event option.
 
 When the player selects an option in an event, the corresponding "result"
@@ -22,8 +22,6 @@ from fate_system import (
     apply_fate_change,
     apply_major_choice,
     apply_normal_choice,
-    handle_refusal,
-    reset_refusal,
 )
 
 
@@ -67,7 +65,7 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     ``result`` should have the following optional keys:
 
     - ``text``: a message describing the immediate outcome.
-    - ``effect``: a dict mapping stat names to deltas (e.g. {"steps": 1}).
+    - ``effect``: a dict mapping stat names to deltas (e.g. {"fate": 1}).
     - ``inventory_add`` / ``inventory_remove``: items to gain/lose.
     - ``flags_set`` / ``flags_clear``: booleans to toggle in the player's
       ``flags`` dict.
@@ -75,8 +73,6 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
       ``fate_system`` to influence the story.
     - ``goto_chapter``: forces the player's chapter to the given number.
     - ``emit_log``: additional messages to append to the log.
-    - ``refuse``: if truthy, increment the refusal streak and potentially
-      trigger a fate trigger event.
     - ``end_game``: if truthy, return to start menu after the result finishes.
     - ``defeat_text`` / ``defeat_effect`` / ``defeat_log``: applied when a
       battle ends without 勝利 or 撤退（耐久耗盡等情況）。
@@ -84,9 +80,6 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     The return value is a forced event ID if one should be queued.
     """
-    # 每個事件執行前重置本次事件的命運變更記號
-    player["_fate_changed_in_event"] = False
-
     ending_segments = result.get("ending_segments")
     if ending_segments and not isinstance(ending_segments, list):
         ending_segments = [str(ending_segments)]
@@ -245,16 +238,5 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         player["chapter"] = goto_chapter
         text_log.add(f"章節推進至：第 {goto_chapter} 章", category="system")
 
-    # 拒絕邏輯：若需要則記錄為拒絕
-    tags = result.get("tags", [])
-    if result.get("refuse") or "refuse" in tags:
-        triggered = handle_refusal(player)
-        if triggered and not forced_event:
-            forced_event = triggered
-    else:
-        reset_refusal(player)
-
-    # 若有強制事件則排入佇列
-    if forced_event:
-        player["forced_event"] = forced_event
     return forced_event
+
