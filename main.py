@@ -1379,6 +1379,7 @@ while running:
     dt_ms = clock.tick(60)
     dt = dt_ms / 1000.0
     text_log.update_typewriter(dt)
+    sound_manager.update(dt)
     player_animator.update(dt)
     enemy_animator.update(dt)
     if enemy_attack_active and enemy_animator.attack_finished:
