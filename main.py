@@ -30,6 +30,7 @@ def get_bgm_for_chapter(chapter: int) -> str:
 def play_bgm_for_chapter(chapter: int) -> None:
     sound_manager.play_bgm(get_bgm_for_chapter(chapter))
 
+
 # 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
 pygame.font.init()
@@ -351,6 +352,11 @@ ENEMY_VISUAL_CONFIGS = {
         "target_height": 144,  # Enlarge static villager to match player idle scale
         "vertical_offset": 20,
         "right_margin": 0,
+    },
+    "variant": {
+        "target_height": 160,
+        "vertical_offset": 12,
+        "right_margin": 20,
     },
     "robot": {
         "target_height": 230,
@@ -687,6 +693,7 @@ exit_button = pygame.Rect(
 
 VOLUME_STEP = 0.1
 settings_button = pygame.Rect(452, 24, 36, 36)
+
 
 def use_inventory_item(player: dict, index: int) -> bool:
     """Use the item at ``index`` in the player's inventory if possible."""
