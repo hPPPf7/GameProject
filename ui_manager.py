@@ -1,4 +1,4 @@
-from typing import Optional, NamedTuple, List
+﻿from typing import Optional, NamedTuple, List
 
 import pygame
 import text_log
@@ -94,7 +94,6 @@ def get_background_surface(name: Optional[str]) -> pygame.Surface:
 
 ITEM_ICON_DIR = ("assets", "items")
 ITEM_ICON_FILES = {
-    "治療藥水": "health_potion.png",
     "奇怪的石頭": "weird_rock.png",
     "草織護符": "grasswove_talisman.png",
     "塗黑報告": "redacted_report.png",

@@ -15,7 +15,6 @@ from battle_system import perform_battle_action
 import sound_manager
 
 MISSION_BRIEF_FLAG = "mission_briefed"
-MISSION_POTION_NAME = "治療藥水"
 
 from fate_system import (
     FateChange,
@@ -215,18 +214,6 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
         text_log.add(f"旗標觸發：{flag}", category="system")
         if flag == MISSION_BRIEF_FLAG:
             text_log.add("任務已建立：調查淺川村", category="system")
-            inventory = player.setdefault("inventory", [])
-            if MISSION_POTION_NAME not in inventory:
-                def _apply_brief_reward():
-                    if MISSION_POTION_NAME not in inventory:
-                        inventory.append(MISSION_POTION_NAME)
-                        sound_manager.play_sfx("pickup")
-
-                text_log.add(
-                    f"你獲得了道具:{MISSION_POTION_NAME}",
-                    category="system",
-                    on_show=_apply_brief_reward,
-                )
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False
