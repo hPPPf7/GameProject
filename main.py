@@ -18,7 +18,8 @@ BGM_CHAPTER_TRACKS = {
     1: "Music-1.mp3",
     2: "Music-2.mp3",
 }
-BGM_LATE_TRACK = "Music-345.mp3"
+BGM_CHAPTER_3_TRACK = "Music-3.mp3"
+BGM_CHAPTER_45_TRACK = "Music-45.mp3"
 ENDING_EXIT_DELAY_MS = 2000
 ENDING_FADE_SPEED = 160.0
 ENDING_LAYOUT_TRANSITION_SEC = 0.6
@@ -26,8 +27,10 @@ INTRO_FADE_SPEED = 260.0
 
 
 def get_bgm_for_chapter(chapter: int) -> str:
+    if chapter >= 4:
+        return BGM_CHAPTER_45_TRACK
     if chapter >= 3:
-        return BGM_LATE_TRACK
+        return BGM_CHAPTER_3_TRACK
     return BGM_CHAPTER_TRACKS.get(chapter, BGM_CHAPTER_TRACKS[1])
 
 
