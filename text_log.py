@@ -33,6 +33,24 @@ def _save_typewriter_preference(enabled: bool) -> None:
     settings_manager.save_settings({"typewriter_enabled": bool(enabled)})
 
 
+def _load_dev_log_preference() -> bool:
+    """Read the persisted dev log toggle; default to False when missing/invalid."""
+
+    settings = settings_manager.load_settings()
+    stored = settings.get("dev_log_enabled")
+    if isinstance(stored, bool):
+        return stored
+    if stored is None:
+        return False
+    return bool(stored)
+
+
+def _save_dev_log_preference(enabled: bool) -> None:
+    """Write the current dev log toggle to the shared settings file."""
+
+    settings_manager.save_settings({"dev_log_enabled": bool(enabled)})
+
+
 @dataclass
 class LogEntry:
     text: str
@@ -50,8 +68,10 @@ _active_entry: Optional[LogEntry] = None
 _active_progress: float = 0.0
 _typewriter_enabled: bool = _load_typewriter_preference()
 _typewriter_override: bool | None = None
+_dev_log_enabled: bool = _load_dev_log_preference()
 TYPEWRITER_SPEED = 40.0  # characters per second
 _TYPEWRITER_CATEGORIES = {"narration"}
+_DEV_LOG_CATEGORIES = {"dev"}
 _log_version: int = 0
 _wrap_cache: list[tuple[str, str]] = []
 _wrap_cache_version: int = -1
@@ -92,6 +112,8 @@ def add(
     on_show: Optional[Callable[[], None]] = None,
 ) -> None:
     global _current_event_id
+    if category in _DEV_LOG_CATEGORIES and not _dev_log_enabled:
+        return
     if event_id is None:
         event_id = _current_event_id
     _enqueue(LogEntry(message, category=category, event_id=event_id, on_show=on_show))
@@ -107,7 +129,7 @@ def reset() -> None:
 
     global log_history, log_offset, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress, _typewriter_enabled
-    global _typewriter_override
+    global _typewriter_override, _dev_log_enabled
 
     log_history = []
     log_offset = 0
@@ -118,6 +140,7 @@ def reset() -> None:
     _active_progress = 0.0
     _typewriter_enabled = _load_typewriter_preference()
     _typewriter_override = None
+    _dev_log_enabled = _load_dev_log_preference()
     _invalidate_wrap_cache()
 
 
@@ -200,6 +223,8 @@ def _get_wrapped_lines(font, max_width: int) -> list[tuple[str, str]]:
 
     wrapped: list[tuple[str, str]] = []
     for entry in log_history:
+        if entry.category in _DEV_LOG_CATEGORIES and not _dev_log_enabled:
+            continue
         lines = wrap_text(entry.text, font, max_width) if entry.text else [""]
         wrapped.extend((line, entry.category) for line in lines)
     _wrap_cache_key = cache_key
@@ -345,6 +370,7 @@ def load_state(state: dict | None) -> None:
 
     global log_history, log_offset, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress, _typewriter_enabled
+    global _dev_log_enabled
     history = []
     for entry in state.get("log_history", []):
         history.append(
@@ -361,6 +387,7 @@ def load_state(state: dict | None) -> None:
     _next_event_id = state.get("next_event_id", 1)
     _typewriter_enabled = state.get("typewriter_enabled", True)
     _save_typewriter_preference(_typewriter_enabled)
+    _dev_log_enabled = _load_dev_log_preference()
 
     _pending_entries = [
         LogEntry(
@@ -459,6 +486,20 @@ def set_typewriter_enabled(enabled: bool) -> None:
 
 def is_typewriter_enabled() -> bool:
     return _typewriter_enabled
+
+
+def set_dev_log_enabled(enabled: bool) -> None:
+    """Toggle dev log visibility and persist the setting."""
+    global _dev_log_enabled
+    if _dev_log_enabled == enabled:
+        return
+    _dev_log_enabled = enabled
+    _save_dev_log_preference(_dev_log_enabled)
+    _invalidate_wrap_cache()
+
+
+def is_dev_log_enabled() -> bool:
+    return _dev_log_enabled
 
 
 def is_typewriter_animating() -> bool:

@@ -727,7 +727,7 @@ def use_inventory_item(player: dict, index: int) -> bool:
 
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
-    modal_height = 280 + (130 if include_navigation else 0)
+    modal_height = 324 + (130 if include_navigation else 0)
     screen_width, screen_height = screen.get_size()
     modal_rect = pygame.Rect(
         (screen_width - modal_width) // 2,
@@ -775,6 +775,12 @@ def get_settings_layout(include_navigation: bool):
         "typewriter_toggle": pygame.Rect(
             toggle_left,
             row_y_start + 2 * (row_gap + button_size),
+            button_width,
+            button_height,
+        ),
+        "devlog_toggle": pygame.Rect(
+            toggle_left,
+            row_y_start + 3 * (row_gap + button_size),
             button_width,
             button_height,
         ),
@@ -867,6 +873,20 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         color=(90, 70, 40) if typewriter_state else (70, 70, 70),
     )
 
+    devlog_label = "顯示命運/旗標"
+    devlog_rect = controls["devlog_toggle"]
+    devlog_state = text_log.is_dev_log_enabled()
+    devlog_text = "開啟" if devlog_state else "關閉"
+    label_surface = SMALL_FONT.render(devlog_label, True, (230, 230, 230))
+    surface.blit(label_surface, (label_x, devlog_rect.y + 6))
+    draw_button(
+        surface,
+        devlog_rect,
+        devlog_text,
+        font=SMALL_FONT,
+        color=(90, 70, 40) if devlog_state else (70, 70, 70),
+    )
+
     if include_navigation:
         draw_button(surface, controls["to_menu"], "回到主畫面", color=(90, 70, 40))
         draw_button(surface, controls["quit"], "離開遊戲", color=(100, 40, 40))
@@ -898,6 +918,9 @@ def handle_settings_click(pos, include_navigation: bool):
         return True
     if controls["typewriter_toggle"].collidepoint(pos):
         text_log.set_typewriter_enabled(not text_log.is_typewriter_enabled())
+        return True
+    if controls["devlog_toggle"].collidepoint(pos):
+        text_log.set_dev_log_enabled(not text_log.is_dev_log_enabled())
         return True
 
     if include_navigation:

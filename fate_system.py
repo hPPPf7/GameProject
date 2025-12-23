@@ -40,6 +40,14 @@ def _limit_delta(delta: int, kind: str) -> int:
     return max(-limit, min(limit, delta))
 
 
+def _get_fate_label(value: int) -> str:
+    if value >= 67:
+        return "荒謬"
+    if value <= 33:
+        return "理性"
+    return "正常"
+
+
 def apply_fate_change(player: Dict, change: FateChange) -> None:
     """Apply a fate delta while respecting narrative limits."""
     limited_delta = _limit_delta(change.value, change.kind)
@@ -52,7 +60,8 @@ def apply_fate_change(player: Dict, change: FateChange) -> None:
     new_value = clamp(old_value + limited_delta)
     player["fate"] = new_value
 
-    text_log.add(f"命運值 {old_value} → {new_value}", category="system")
+    fate_label = _get_fate_label(new_value)
+    text_log.add(f"命運值 {old_value} → {new_value}（{fate_label}）", category="dev")
 
 
 def post_event_update(player: Dict) -> Optional[str]:

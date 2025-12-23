@@ -75,7 +75,10 @@
           "victory_effect": {
             "fate": -2
           },
-          "victory_log": "隊長的聲音從耳麥傳來：『做得好，別讓野豬靠近村子。』"
+          "victory_log": {
+            "text": "隊長的聲音從耳麥傳來：『做得好，別讓野豬靠近村子。』",
+            "category": "narration"
+          }
         },
         "result_variants": {}
       },

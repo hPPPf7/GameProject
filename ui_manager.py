@@ -469,6 +469,7 @@ def render_ui(
         "narration": (255, 255, 255),
         "choice": (180, 200, 255),
         "system": (255, 180, 80),
+        "dev": (255, 80, 80),
         "event_header": (120, 220, 200),
         "spacer": (255, 255, 255),
     }

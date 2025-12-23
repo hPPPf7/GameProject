@@ -102,6 +102,16 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
 
     forced_event = result.get("forced_event")
 
+    def _emit_log_entry(entry, *, default_category: str = "system") -> None:
+        if isinstance(entry, dict):
+            text = entry.get("text")
+            if not text:
+                return
+            category = entry.get("category", default_category)
+            text_log.add(str(text), category=category)
+            return
+        text_log.add(entry, category=default_category)
+
     # 戰鬥專用處理
     battle_action = result.get("battle_action")
     battle_outcome: Optional[Dict[str, Any]] = None
@@ -131,9 +141,9 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
                 if victory_log:
                     if isinstance(victory_log, list):
                         for entry in victory_log:
-                            text_log.add(entry, category="system")
+                            _emit_log_entry(entry, default_category="system")
                     else:
-                        text_log.add(victory_log, category="system")
+                        _emit_log_entry(victory_log, default_category="system")
             elif battle_outcome.get("escaped"):
                 _apply_effects(
                     player,
@@ -211,13 +221,13 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
     # 旗標管理
     for flag in result.get("flags_set", []) or []:
         player.setdefault("flags", {})[flag] = True
-        text_log.add(f"旗標觸發：{flag}", category="system")
+        text_log.add(f"旗標觸發：{flag}", category="dev")
         if flag == MISSION_BRIEF_FLAG:
             text_log.add("任務已建立：調查淺川村", category="system")
     for flag in result.get("flags_clear", []) or []:
         if player.setdefault("flags", {}).get(flag):
             player["flags"][flag] = False
-            text_log.add(f"旗標解除：{flag}", category="system")
+            text_log.add(f"旗標解除：{flag}", category="dev")
 
     # 跳轉章節
     goto_chapter = result.get("goto_chapter")
