@@ -54,7 +54,7 @@
       }
     ],
     "text_variants": {},
-    "background": "starting_area.png"
+    "background": "1_荒野拾石.png"
   },
   {
     "id": "遭遇野豬",
@@ -106,7 +106,7 @@
       "images/wild_boar/6.png",
       "images/wild_boar/7.png"
     ],
-    "background": "starting_area.png"
+    "background": "1_遭遇野豬.png"
   },
   {
     "id": "峭壁回音",
@@ -170,7 +170,7 @@
       "rational": "風掠過峭壁，回音空洞而尋常。儀器顯示只殘留微弱的能量反應。",
       "absurd": "狂風在峭壁間盤旋，彷彿吟唱出詭譎的調子。你感到手上的儀器微微顫動，周圍殘餘的能量似乎帶著不祥的低語。"
     },
-    "background": "cliff_echo.png"
+    "background": "1_峭壁回音.png"
   },
   {
     "id": "耳麥簡報",
@@ -221,7 +221,7 @@
       "rational": "耳機裡響起隊長低沉的提醒：『菜鳥，別忘了任務重點。村民失聯肯定不只是因為天氣。』",
       "absurd": "耳麥中隊長的聲音忽遠忽近：『菜鳥，記住——村民失聯不是天氣惹的禍。』電流雜訊讓他的語調聽起來格外陰森。"
     },
-    "background": "starting_area.png"
+    "background": "1_耳麥簡報.png"
   },
   {
     "id": "蘑菇合唱團",
@@ -282,7 +282,7 @@
       "rational": "地上出現一圈奇特的蘑菇，你眼花之下誤以為它們在移動唱歌。其實只是風聲穿過林地，帶起的旋律讓你產生錯覺。",
       "absurd": "數十朵蘑菇跳著踏步將你圍住，每一朵都裂開小小的傘帽發出哼唱聲音，奇異的合唱和諧得不自然。"
     },
-    "background": "starting_area.png"
+    "background": "1_蘑菇合唱團.png"
   },
   {
     "id": "村民結晶暴走",
@@ -355,7 +355,7 @@
       "rational": "一名全身長滿晶體的村民揮舞著石斧瘋狂衝向你——看來他已失去理智，只剩下攻擊本能。",
       "absurd": "眼前的村民被扭曲成半人半怪，渾身爬滿發光的結晶。祂發出不像人類的尖叫，拖著沉重石斧狂亂地朝你撲來！"
     },
-    "background": "asakawa_village.png"
+    "background": "2_村民結晶暴走.png"
   },
   {
     "id": "村民盯著石頭",
@@ -408,7 +408,7 @@
       "rational": "一個神情恍惚的村民擋在路中喃喃自語，目光緊緊盯著你手中的怪石不放。",
       "absurd": "一個眼神瘋狂的村民貼近你，不停低語著什麼，雙眼死死盯住你掌心發熱的石頭。"
     },
-    "background": "asakawa_village.png"
+    "background": "2_村民盯著石頭.png"
   },
   {
     "id": "村民尋找失物",
@@ -462,7 +462,7 @@
       "rational": "一個渾身顫抖的村民在你身旁來回張望，像在找遺失的重要物件。他注意到你兩手空空，眼中掠過一絲失望。",
       "absurd": "一名慌亂的村民繞著你轉圈，雙眼瘋狂地掃描你全身。見你手上沒有握著石頭，他的臉上掠過難以言喻的恐懼與絕望。"
     },
-    "background": "asakawa_village.png"
+    "background": "2_村民尋找失物.png"
   },
   {
     "id": "灰燼神龕",
@@ -527,7 +527,7 @@
       "rational": "村莊中央矗立著一座覆滿灰燼的古老神龕。供桌上擺放著幾隻奇特的石化手掌，看起來像某種儀式遺留下的標本。",
       "absurd": "村中央的神龕蒙著厚厚灰燼，供桌上羅列著灰白色的石化手掌，宛如祭品。你盯著那些手掌，竟有種錯覺覺得它們會突然動起來抓住你。"
     },
-    "background": "ash_shrine.png"
+    "background": "2_灰燼神龕.png"
   },
   {
     "id": "靜電草原",
@@ -578,7 +578,7 @@
       "rational": "村莊邊緣的草叢間不正常地竄動著靜電火花，空氣裡隱隱有燒焦的味道。",
       "absurd": "整個村莊的邊界都籠罩在詭異的靜電場中，藍白色的電光沿著草叢蜿蜒游走，如同無形的生物在匍匐爬行。"
     },
-    "background": "static_grassland.png"
+    "background": "2_靜電草原.png"
   },
   {
     "id": "石頭共鳴",
@@ -630,7 +630,7 @@
       "rational": "你察覺附近有一股異樣能量波動，而你掌中的怪石隱隱發熱，似乎在響應那股能量。",
       "absurd": "一陣莫名的悸動掠過心頭——某種無形力量潛伏在附近，正與你手中的怪石同頻共振。那石頭開始微微振顫，彷彿迫不及待地要引領你前往源頭。"
     },
-    "background": "asakawa_village.png"
+    "background": "2_石頭共鳴.png"
   },
   {
     "id": "塗黑報告",
@@ -683,7 +683,7 @@
       "rational": "你在一間塵封的屋子裡翻出一份前任調查員留下的報告。報告紙張泛黃，上面許多段落都被黑色墨汁粗暴地塗掉，讓人無法閱讀被遮蓋的內容。",
       "absurd": "一疊泛黃的舊報告靜靜躺在角落，但許多頁面的文字被大片黑色塗抹覆蓋著。當你注視那些墨跡時，竟錯覺似有低語聲從紙背下傳出，彷彿那些被隱去的字句在呢喃私語。"
     },
-    "background": "asakawa_village.png"
+    "background": "2_塗黑報告.png"
   },
   {
     "id": "研究據點入口",
@@ -751,7 +751,7 @@
       "rational": "在叢林深處，你找到一扇隱蔽的合金門。電子門鎖的螢幕閃爍著「ID驗證中…」，等待合法身份刷證。",
       "absurd": "越過種種障礙後，你來到廢棄研究據點的隱藏入口前。鐵門上的電子鎖不停閃爍「ID驗證中…」，你心底莫名湧起一股熟悉感，彷彿這扇門認識你。"
     },
-    "background": "research_site_entrance.png"
+    "background": "3_研究據點入口.png"
   },
   {
     "id": "守衛傀儡戰",
@@ -821,7 +821,7 @@
       "rational": "剛踏進據點，沉睡的守衛傀儡驀地甦醒。它高大的身影擋住去路，手臂上的刀刃泛著冰冷藍光。",
       "absurd": "你前腳剛踏入據點，一具沉眠多時的守衛傀儡便嘎然啟動。它眼孔閃出幽幽藍光，刀刃雙臂在空氣中嗡嗡作響，如同野獸甦醒般盯住你。"
     },
-    "background": "research_site_entrance.png"
+    "background": "3_守衛傀儡戰.png"
   },
   {
     "id": "現實閃爍",
@@ -869,7 +869,7 @@
       "rational": "你突然注意到天空開始異常地閃爍——太陽忽明忽暗，彷彿有人在每秒替換它的外殼，一秒閃爍了三次。",
       "absurd": "頭頂的天空瘋狂地閃爍，太陽的模樣在瞬間連續改變，像是不斷撕下又換上不同的面具。一秒之內，光球出現了三種截然不同的形態。"
     },
-    "background": "sun_flicker.png"
+    "background": "2_現實閃爍.png"
   },
   {
     "id": "會議殘影",
@@ -917,7 +917,7 @@
       "rational": "你走在昏暗的走廊裡，冷不防四周浮現出模糊的全息投影——那是一場往昔的員工會議。而更令你震驚的是，你竟隱約看見投影畫面中有一個身影和你長得一模一樣。",
       "absurd": "廢棄走廊的空氣中突然出現幽幽的投影幻象：一群穿白袍的研究員圍坐開會，而你赫然看見自己的身影也混雜在其中！你的心臟狂跳——這到底是幻覺，還是時間錯位的殘影？"
     },
-    "background": "research_site_entrance.png"
+    "background": "3_會議殘影.png"
   },
   {
     "id": "樣本日誌",
@@ -978,7 +978,7 @@
       "rational": "在樣本庫房的一角，你發現一塊數據終端板正不停閃爍。打開一看，裡頭有一封尚未傳送的日誌郵件。",
       "absurd": "陰暗的樣本庫房牆上，一塊電子屏幕忽明忽滅。你點開後發現是一篇未發出的日誌。奇怪的是，這日誌沒有署名，但字裡行間散發出一種讓你不安又熟悉的絕望氣息。"
     },
-    "background": "research_site_entrance.png"
+    "background": "3_樣本日誌.png"
   },
   {
     "id": "核心機組啟動",
@@ -1031,7 +1031,7 @@
       "rational": "你走進研究所的核心控制室，腳步聲驚動了沉睡的機組。周圍主機紛紛嗡嗡啟動，螢幕跳出一道鮮紅字樣：「識別碼：樣本#07」。",
       "absurd": "你剛踏入核心艙室，地板下的機組便自行轟鳴起來，震耳欲聾。所有螢幕同時亮起，一串猩紅文字閃現其上：「識別碼：樣本#07」。那字跡宛如血紅傷疤，扎眼地映在你臉上。"
     },
-    "background": "research_site_entrance.png"
+    "background": "4_核心機組啟動.png"
   },
   {
     "id": "變異體暴走",
@@ -1095,7 +1095,7 @@
       "rational": "你聽到核心艙室內傳來刺耳嘶吼，一個半透明的巨大身影隨即扭曲著爬了出來——它的肢體如水晶般透明，不斷分裂又癒合，形態變化莫測。",
       "absurd": "核心艙室裡傳出瘋狂的吼聲，一隻形態詭異的變異體鑽了出來！牠半凝固的身軀蠕動膨脹，無數透明的肢體瘋狂地分裂再生，發出令人毛骨悚然的黏膩聲。"
     },
-    "background": "research_site_entrance.png"
+    "background": "4_變異體暴走.png"
   },
   {
     "id": "記憶閃回",
@@ -1143,7 +1143,7 @@
       "rational": "核心機組的燈光忽明忽滅，你恍惚間看見實驗台上躺著一個人——定睛一看，那人竟是過去的你自己！",
       "absurd": "核心艙室燈光瘋狂閃爍，每一次明滅之間，你都瞥見實驗台上多出一個身影：那赫然是另一個你！幻影中的你靜靜地躺在檯面，雙目緊閉仿佛沉睡多年。"
     },
-    "background": "research_site_entrance.png"
+    "background": "4_記憶閃回.png"
   },
   {
     "id": "理性結局",
@@ -1196,7 +1196,7 @@
       }
     ],
     "text_variants": {},
-    "background": "starting_area.png"
+    "background": "5_理性結局.png"
   },
   {
     "id": "正常結局",
@@ -1250,7 +1250,7 @@
       }
     ],
     "text_variants": {},
-    "background": "starting_area.png"
+    "background": "5_正常結局.png"
   },
   {
     "id": "荒謬結局",
@@ -1303,7 +1303,7 @@
       }
     ],
     "text_variants": {},
-    "background": "starting_area.png"
+    "background": "5_荒謬結局.png"
   },
   {
     "id": "終端觀測室",
@@ -1351,7 +1351,7 @@
       "rational": "你來到終端觀測室，只見四周牆壁緩緩裂開，出現了一扇扇透明觀測窗。每一扇窗戶後都映照著一個平行世界，而這些世界的情景正在同時上演。你不禁倒抽一口涼氣——難以置信的多重現實正同時展現在你眼前。",
       "absurd": "終端室的金屬牆壁無聲滑開，露出裡面密密麻麻的觀測窗口。透過那些窗口，你看見一個個截然不同的世界正在同步上演著各種匪夷所思的景象。你的腦中一陣暈眩，彷彿置身多元宇宙的樞紐，窺探著無盡世界的浮光掠影。"
     },
-    "background": "research_site_entrance.png"
+    "background": "4_終端觀測室.png"
   },
   {
     "id": "終章自問",
@@ -1403,7 +1403,7 @@
       "rational": "突然，廣播喇叭裡傳出你自己的聲音：「任務結束後，我們要去哪？」這突如其來的發問在空蕩的室內迴響，引起你強烈的不安。",
       "absurd": "就在你以為一切塵埃落定時，頭頂的廣播傳出了無比熟悉的聲音——那是你的聲音，但語氣空洞冰冷：「任務結束後，我們要去哪？」你的心猛地一沉，彷彿未來的自己正透過廣播向現在的你發問。"
     },
-    "background": "three_door.png"
+    "background": "4_終章自問.png"
   },
   {
     "id": "前進村莊",
@@ -1427,7 +1427,7 @@
         "result_variants": {}
       }
     ],
-    "background": "starting_area.png"
+    "background": "1_前進村莊.png"
   },
   {
     "id": "第一章結束",
@@ -1444,7 +1444,7 @@
         "result_variants": {}
       }
     ],
-    "background": "starting_area.png"
+    "background": "1_第一章結束.png"
   },
   {
     "id": "前往研究據點",
@@ -1468,7 +1468,7 @@
         "result_variants": {}
       }
     ],
-    "background": "asakawa_village.png",
+    "background": "2_前往研究據點.png",
     "condition": {
       "inventory_has": ["塗黑報告"],
       "chapter_is": 2
@@ -1489,7 +1489,7 @@
         "result_variants": {}
       }
     ],
-    "background": "asakawa_village.png",
+    "background": "2_第二章結束.png",
     "condition": {
       "chapter_is": 2
     }
@@ -1509,7 +1509,7 @@
         "result_variants": {}
       }
     ],
-    "background": "research_site_entrance.png",
+    "background": "3_自我懷疑.png",
     "condition": {
       "chapter_is": 3,
       "fate_min": 67
@@ -1530,7 +1530,7 @@
         "result_variants": {}
       }
     ],
-    "background": "research_site_entrance.png",
+    "background": "3_聯絡.png",
     "condition": {
       "chapter_is": 3,
       "fate_max": 33
@@ -1551,7 +1551,7 @@
         "result_variants": {}
       }
     ],
-    "background": "research_site_entrance.png",
+    "background": "3_前往深處.png",
     "condition": {
       "chapter_is": 3,
       "fate_min": 34,
@@ -1592,7 +1592,7 @@
         "result_variants": {}
       }
     ],
-    "background": "research_site_entrance.png",
+    "background": "4_回報進度.png",
     "condition": {
       "chapter_is": 4
     }
