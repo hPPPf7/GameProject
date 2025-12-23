@@ -1115,6 +1115,9 @@ def start_new_adventure():
     current_event = get_random_event(player=player)
     if current_event:
         current_background_name = current_event.get("background", DEFAULT_BACKGROUND)
+        player["hide_player_sprite_until_next_event"] = (
+            current_event.get("id") == "任務簡報"
+        )
         text_log.start_event(current_event.get("id"))
         if (
             current_event.get("id") == "任務簡報"
@@ -1128,7 +1131,12 @@ def start_new_adventure():
             if current_event.get("type") == "battle":
                 start_battle(player, current_event)
         sub_state = "show_event"
-    play_bgm_for_chapter(player.get("chapter", 1))
+    else:
+        player["hide_player_sprite_until_next_event"] = False
+    if current_event and current_event.get("id") == "任務簡報":
+        sound_manager.play_bgm(BGM_START_MENU)
+    else:
+        play_bgm_for_chapter(player.get("chapter", 1))
 
 
 def load_saved_adventure() -> bool:
@@ -1155,6 +1163,9 @@ def load_saved_adventure() -> bool:
         if current_event
         else DEFAULT_BACKGROUND
     )
+    player["hide_player_sprite_until_next_event"] = bool(
+        current_event and current_event.get("id") == "任務簡報"
+    )
     if (
         current_event
         and current_event.get("id") == "任務簡報"
@@ -1175,7 +1186,10 @@ def load_saved_adventure() -> bool:
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
     intro_fade_alpha = 0.0
-    play_bgm_for_chapter(player.get("chapter", 1))
+    if current_event and current_event.get("id") == "任務簡報":
+        sound_manager.play_bgm(BGM_START_MENU)
+    else:
+        play_bgm_for_chapter(player.get("chapter", 1))
     return True
 
 
@@ -1229,6 +1243,10 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
             ending_exit_timer = 0
             sub_state = "ending"
         else:
+            if current_event and current_event.get("id") == "任務簡報":
+                player["skip_walk_once"] = True
+                player["hide_player_sprite_until_next_event"] = True
+                player["pending_chapter_bgm"] = True
             pending_clear_event = True
             clear_event_timer = 1
             sub_state = "after_result"
@@ -1250,10 +1268,13 @@ def advance_ending_segment() -> bool:
 
 def advance_intro_segment() -> bool:
     """Append the next intro segment to the log if available."""
+    global current_background_name, current_event
     segments = player.get("intro_segments") or []
     index = player.get("intro_segment_index", 0)
     if index >= len(segments):
         return False
+    if current_event and current_event.get("id") == "任務簡報" and index == 1:
+        current_background_name = "1_任務簡報2.png"
     if "intro_log_history" not in player:
         player["intro_log_history"] = text_log.snapshot_history()
     player["intro_log_history"].append(
@@ -1416,9 +1437,43 @@ while running:
                     and option_rects[0].collidepoint(event.pos)
                     and not text_log.is_typewriter_animating()
                 ):
-                    player_animator.start_walk()
-                    pending_walk_event = True
-                    sub_state = "walking"
+                    if player.pop("skip_walk_once", None):
+                        from event_manager import get_random_event
+
+                        current_event = get_random_event(player=player)
+                        if current_event:
+                            current_background_name = current_event.get(
+                                "background", DEFAULT_BACKGROUND
+                            )
+                            player["hide_player_sprite_until_next_event"] = (
+                                current_event.get("id") == "任務簡報"
+                            )
+                            if player.pop("pending_chapter_bgm", None):
+                                play_bgm_for_chapter(player.get("chapter", 1))
+                            text_log.start_event(current_event.get("id"))
+                            if (
+                                current_event.get("id") == "任務簡報"
+                                and not player.get("intro_cinematic_done")
+                            ):
+                                start_intro_cinematic(current_event)
+                            else:
+                                text_log.add(current_event["text"])
+                                apply_event_on_enter_effects(player, current_event)
+                                text_log.scroll_to_bottom()
+                                update_enemy_visuals(current_event)
+                                enemy_attack_active = False
+                                if current_event.get("type") == "battle":
+                                    start_battle(player, current_event)
+                            sub_state = "show_event"
+                        else:
+                            text_log.add("命運暫時沉寂，沒有新的事件發生。", category="system")
+                            text_log.scroll_to_bottom()
+                            sub_state = "wait"
+                            player["hide_player_sprite_until_next_event"] = False
+                    else:
+                        player_animator.start_walk()
+                        pending_walk_event = True
+                        sub_state = "walking"
                     handled_click = True
                 # 點擊事件選項
                 elif (
@@ -1602,6 +1657,11 @@ while running:
                 current_background_name = current_event.get(
                     "background", DEFAULT_BACKGROUND
                 )
+                player["hide_player_sprite_until_next_event"] = (
+                    current_event.get("id") == "任務簡報"
+                )
+                if player.pop("pending_chapter_bgm", None):
+                    play_bgm_for_chapter(player.get("chapter", 1))
                 text_log.start_event(current_event.get("id"))
                 if (
                     current_event.get("id") == "任務簡報"
@@ -1621,6 +1681,7 @@ while running:
                 text_log.add("命運暫時沉寂，沒有新的事件發生。", category="system")
                 text_log.scroll_to_bottom()
                 sub_state = "wait"
+                player["hide_player_sprite_until_next_event"] = False
         else:
             sub_state = "wait"
 

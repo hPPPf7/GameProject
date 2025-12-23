@@ -12,8 +12,8 @@ from paths import res_path
 _sfx_cache: dict[str, pygame.mixer.Sound] = {}
 _initialized = False
 
-_bgm_volume = 0.7
-_sfx_volume = 0.7
+_bgm_volume = 0.5
+_sfx_volume = 0.5
 BGM_FADE_SECONDS = 0.8
 _current_bgm_track: str | None = None
 _bgm_fade_state: str | None = None

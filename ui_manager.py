@@ -422,6 +422,10 @@ def render_ui(
     mode = areas.get("mode")
     typewriter_active = text_log.is_typewriter_animating()
     ending_cinematic = is_cinematic_mode(player)
+    if player.get("hide_player_sprite_until_next_event"):
+        player_image = None
+    elif current_event and current_event.get("id") == "任務簡報":
+        player_image = None
 
     # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
     old_clip = screen.get_clip()
