@@ -43,15 +43,26 @@ def _deserialize_player(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def save_game(payload: Dict[str, Any]) -> None:
     save_file = _save_file()
-    save_file.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = save_file.with_suffix(".tmp")
 
-    serializable = dict(payload)
-    player = payload.get("player")
-    if isinstance(player, dict):
-        serializable["player"] = _serialize_player(player)
+    try:
+        save_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with save_file.open("w", encoding="utf-8") as f:
-        json.dump(serializable, f, ensure_ascii=False, indent=2)
+        serializable = dict(payload)
+        player = payload.get("player")
+        if isinstance(player, dict):
+            serializable["player"] = _serialize_player(player)
+
+        with temp_file.open("w", encoding="utf-8") as f:
+            json.dump(serializable, f, ensure_ascii=False, indent=2)
+
+        temp_file.replace(save_file)
+    except (OSError, TypeError, ValueError):
+        try:
+            if temp_file.exists():
+                temp_file.unlink()
+        except OSError:
+            pass
 
 
 def load_game() -> Dict[str, Any] | None:

@@ -4,12 +4,16 @@ This script sets up pygame, loads assets, and enters the main event loop.
 It coordinates the user interface, the event system, and player state.
 """
 
+import os
 import pygame
 import sys
 import text_log
+import traceback
 from typing import Optional
 
-from paths import res_path
+from pathlib import Path
+
+from paths import res_path, user_data_path
 import sound_manager
 import save_manager
 
@@ -26,6 +30,22 @@ ENDING_LAYOUT_TRANSITION_SEC = 0.6
 INTRO_FADE_SPEED = 260.0
 
 
+def _write_crash_log(exc_type, exc_value, exc_traceback) -> None:
+    try:
+        crash_file = Path(user_data_path("crash.log"))
+        crash_file.parent.mkdir(parents=True, exist_ok=True)
+        with crash_file.open("a", encoding="utf-8") as f:
+            f.write("\n=== Unhandled exception ===\n")
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    except OSError:
+        pass
+
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+
+sys.excepthook = _write_crash_log
+
+
 def get_bgm_for_chapter(chapter: int) -> str:
     if chapter >= 4:
         return BGM_CHAPTER_45_TRACK
@@ -37,6 +57,8 @@ def get_bgm_for_chapter(chapter: int) -> str:
 def play_bgm_for_chapter(chapter: int) -> None:
     sound_manager.play_bgm(get_bgm_for_chapter(chapter))
 
+
+os.environ.setdefault("SDL_VIDEO_CENTERED", "1")
 
 # 在匯入仰賴字型的模組前先初始化 pygame
 pygame.init()
@@ -653,11 +675,69 @@ class EnemyAnimator:
 # 視窗設定
 SCREEN_WIDTH = 512
 SCREEN_HEIGHT = UI_HEIGHT
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+WINDOW_FRAME_WIDTH_PADDING = 24
+WINDOW_FRAME_HEIGHT_PADDING = 72
+
+
+def get_initial_window_size() -> tuple[int, int]:
+    desktop_sizes = pygame.display.get_desktop_sizes()
+    if not desktop_sizes:
+        return (SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    desktop_width, desktop_height = desktop_sizes[0]
+    safe_width = max(320, desktop_width - WINDOW_FRAME_WIDTH_PADDING)
+    safe_height = max(320, desktop_height - WINDOW_FRAME_HEIGHT_PADDING)
+    if SCREEN_WIDTH <= safe_width and SCREEN_HEIGHT <= safe_height:
+        return (SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    scale = min(safe_width / SCREEN_WIDTH, safe_height / SCREEN_HEIGHT)
+    scaled_width = max(320, int(SCREEN_WIDTH * scale))
+    scaled_height = max(320, int(SCREEN_HEIGHT * scale))
+    return (scaled_width, scaled_height)
+
+
+INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT = get_initial_window_size()
+MIN_WINDOW_SCALE = 0.6
+MIN_WINDOW_WIDTH = int(SCREEN_WIDTH * MIN_WINDOW_SCALE)
+MIN_WINDOW_HEIGHT = int(SCREEN_HEIGHT * MIN_WINDOW_SCALE)
+NATIVE_SIZE_SNAP_TOLERANCE = 24
+MIN_WINDOW_RATIO_SCALE = max(
+    MIN_WINDOW_WIDTH / SCREEN_WIDTH, MIN_WINDOW_HEIGHT / SCREEN_HEIGHT
+)
+MIN_RATIO_WINDOW_WIDTH = int(round(SCREEN_WIDTH * MIN_WINDOW_RATIO_SCALE))
+MIN_RATIO_WINDOW_HEIGHT = int(round(SCREEN_HEIGHT * MIN_WINDOW_RATIO_SCALE))
+
+
+def clamp_window_size(width: int, height: int) -> tuple[int, int]:
+    hit_min_width = width < MIN_WINDOW_WIDTH
+    hit_min_height = height < MIN_WINDOW_HEIGHT
+
+    width = max(MIN_WINDOW_WIDTH, width)
+    height = max(MIN_WINDOW_HEIGHT, height)
+
+    # When the user shrinks to the minimum limit, snap to the game's aspect
+    # ratio so the smallest allowed window has no letterboxing.
+    if hit_min_width or hit_min_height:
+        width = MIN_RATIO_WINDOW_WIDTH
+        height = MIN_RATIO_WINDOW_HEIGHT
+
+    if (
+        abs(width - SCREEN_WIDTH) <= NATIVE_SIZE_SNAP_TOLERANCE
+        and abs(height - SCREEN_HEIGHT) <= NATIVE_SIZE_SNAP_TOLERANCE
+    ):
+        return (SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    return (width, height)
+
+
+screen = pygame.display.set_mode(
+    (INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT), pygame.RESIZABLE
+)
 pygame.display.set_caption("菜鳥調查隊日誌")
 icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
-SCREEN_RECT = screen.get_rect()
+game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
+SCREEN_RECT = game_surface.get_rect()
 clock = pygame.time.Clock()
 
 sound_manager.play_bgm(BGM_START_MENU)
@@ -713,6 +793,47 @@ VOLUME_STEP = 0.1
 settings_button = pygame.Rect(452, 24, 36, 36)
 
 
+def get_render_viewport() -> pygame.Rect:
+    window_width, window_height = screen.get_size()
+    if window_width <= 0 or window_height <= 0:
+        return pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    scale = min(window_width / SCREEN_WIDTH, window_height / SCREEN_HEIGHT)
+    scaled_width = max(1, int(SCREEN_WIDTH * scale))
+    scaled_height = max(1, int(SCREEN_HEIGHT * scale))
+    return pygame.Rect(
+        (window_width - scaled_width) // 2,
+        (window_height - scaled_height) // 2,
+        scaled_width,
+        scaled_height,
+    )
+
+
+def window_to_game_pos(pos) -> Optional[tuple[int, int]]:
+    viewport = get_render_viewport()
+    if not viewport.collidepoint(pos):
+        return None
+
+    scale_x = viewport.width / SCREEN_WIDTH
+    scale_y = viewport.height / SCREEN_HEIGHT
+    game_x = int((pos[0] - viewport.x) / scale_x)
+    game_y = int((pos[1] - viewport.y) / scale_y)
+    game_x = max(0, min(SCREEN_WIDTH - 1, game_x))
+    game_y = max(0, min(SCREEN_HEIGHT - 1, game_y))
+    return (game_x, game_y)
+
+
+def present_game_surface() -> None:
+    viewport = get_render_viewport()
+    screen.fill((0, 0, 0))
+    if viewport.size == game_surface.get_size():
+        screen.blit(game_surface, viewport.topleft)
+    else:
+        scaled_surface = pygame.transform.smoothscale(game_surface, viewport.size)
+        screen.blit(scaled_surface, viewport.topleft)
+    pygame.display.flip()
+
+
 def use_inventory_item(player: dict, index: int) -> bool:
     """Use the item at ``index`` in the player's inventory if possible."""
     inventory = player.get("inventory")
@@ -728,7 +849,7 @@ def use_inventory_item(player: dict, index: int) -> bool:
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
     modal_height = 324 + (130 if include_navigation else 0)
-    screen_width, screen_height = screen.get_size()
+    screen_width, screen_height = game_surface.get_size()
     modal_rect = pygame.Rect(
         (screen_width - modal_width) // 2,
         (screen_height - modal_height) // 2,
@@ -1244,7 +1365,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
     text_log.scroll_to_bottom()
 
     render_ui(
-        screen,
+        game_surface,
         player,
         FONT,
         current_event,
@@ -1255,7 +1376,7 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         player_position=tuple(player_animator.position),
         enemy_position=tuple(enemy_animator.position),
     )
-    pygame.display.flip()
+    present_game_surface()
 
     battle_continues = False
     if current_event and current_event.get("type") == "battle":
@@ -1399,30 +1520,40 @@ intro_fade_alpha = 0.0
 running = True
 while running:
     # 清空畫面
-    screen.fill((30, 30, 30))
+    game_surface.fill((30, 30, 30))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.VIDEORESIZE:
+            clamped_width, clamped_height = clamp_window_size(event.w, event.h)
+            if (clamped_width, clamped_height) != screen.get_size():
+                screen = pygame.display.set_mode(
+                    (clamped_width, clamped_height), pygame.RESIZABLE
+                )
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            game_pos = window_to_game_pos(event.pos)
+            if game_pos is None:
+                continue
+
             if show_settings_popup:
-                if handle_settings_click(event.pos, game_state == "main_screen"):
+                if handle_settings_click(game_pos, game_state == "main_screen"):
                     continue
 
-            if settings_button.collidepoint(event.pos):
+            if settings_button.collidepoint(game_pos):
                 show_settings_popup = True
                 continue
 
             if (
                 game_state == "start_menu"
                 and has_save_file
-                and continue_button.collidepoint(event.pos)
+                and continue_button.collidepoint(game_pos)
             ):
                 load_saved_adventure()
-            elif game_state == "start_menu" and start_button.collidepoint(event.pos):
+            elif game_state == "start_menu" and start_button.collidepoint(game_pos):
                 start_new_adventure()
-            elif game_state == "start_menu" and exit_button.collidepoint(event.pos):
+            elif game_state == "start_menu" and exit_button.collidepoint(game_pos):
                 pygame.quit()
                 sys.exit()
             elif game_state == "main_screen":
@@ -1471,7 +1602,7 @@ while running:
                     sub_state == "wait"
                     and current_event is None
                     and option_rects
-                    and option_rects[0].collidepoint(event.pos)
+                    and option_rects[0].collidepoint(game_pos)
                     and not text_log.is_typewriter_animating()
                 ):
                     if player.pop("skip_walk_once", None):
@@ -1493,7 +1624,7 @@ while running:
                         sub_state, current_event, player, areas
                     )
                     if text_log.is_typewriter_animating() and any(
-                        rect.collidepoint(event.pos) for rect in option_rects
+                        rect.collidepoint(game_pos) for rect in option_rects
                     ):
                         handled_click = True
                     elif pending_result_requires_attack or enemy_attack_active:
@@ -1502,7 +1633,7 @@ while running:
                         for i, rect in enumerate(option_rects):
                             if i >= len(current_event["options"]):
                                 continue
-                            if rect.collidepoint(event.pos):
+                            if rect.collidepoint(game_pos):
                                 chosen = current_event["options"][i]
                                 text_log.add(
                                     f"你選擇了：{chosen['text']}", category="choice"
@@ -1538,7 +1669,7 @@ while running:
                                 pending_result_requires_attack = wait_for_attack
                                 # 立即重繪以顯示選擇或攻擊起手
                                 render_ui(
-                                    screen,
+                                    game_surface,
                                     player,
                                     FONT,
                                     current_event,
@@ -1549,8 +1680,9 @@ while running:
                                     or current_enemy_image,
                                     player_position=tuple(player_animator.position),
                                     enemy_position=tuple(enemy_animator.position),
+                                    mouse_pos=game_pos,
                                 )
-                                pygame.display.flip()
+                                present_game_surface()
                                 try_apply_pending_result(force=not wait_for_attack)
                                 handled_click = True
                                 break
@@ -1562,12 +1694,12 @@ while running:
                 ):
                     for slot in get_inventory_slots(player, areas):
                         if (
-                            slot.rect.collidepoint(event.pos)
+                            slot.rect.collidepoint(game_pos)
                             and slot.item_index is not None
                         ):
                             if use_inventory_item(player, slot.item_index):
                                 render_ui(
-                                    screen,
+                                    game_surface,
                                     player,
                                     FONT,
                                     current_event,
@@ -1578,13 +1710,17 @@ while running:
                                     or current_enemy_image,
                                     player_position=tuple(player_animator.position),
                                     enemy_position=tuple(enemy_animator.position),
+                                    mouse_pos=game_pos,
                                 )
-                                pygame.display.flip()
+                                present_game_surface()
                             break
         elif event.type == pygame.MOUSEWHEEL:
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            if UI_AREAS["log"].collidepoint((mouse_x, mouse_y)):
-                log_width = UI_AREAS["log"].width - 16
+            game_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
+            if game_mouse_pos is None:
+                continue
+            log_rect = get_areas_for_mode(player)["log"]
+            if log_rect.collidepoint(game_mouse_pos):
+                log_width = log_rect.width - 16
                 if event.y > 0:
                     text_log.scroll_up(FONT, log_width)
                 else:
@@ -1702,15 +1838,16 @@ while running:
         sub_state = "wait"
 
     # 繪製對應畫面
+    current_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
     if game_state == "start_menu":
-        screen.blit(start_bg, start_bg.get_rect(center=SCREEN_RECT.center))
-        screen.blit(logo_image, (100, 80))
+        game_surface.blit(start_bg, start_bg.get_rect(center=SCREEN_RECT.center))
+        game_surface.blit(logo_image, (100, 80))
 
         if has_save_file:
-            draw_button(screen, continue_button, "繼續冒險", color=continue_color)
+            draw_button(game_surface, continue_button, "繼續冒險", color=continue_color)
 
-        draw_button(screen, start_button, "開始冒險")
-        draw_button(screen, exit_button, "離開遊戲")
+        draw_button(game_surface, start_button, "開始冒險")
+        draw_button(game_surface, exit_button, "離開遊戲")
 
         summary_surface = SMALL_FONT.render(
             f"音樂 {int(sound_manager.get_bgm_volume() * 100)}% / 音效 {int(sound_manager.get_sfx_volume() * 100)}%",
@@ -1720,10 +1857,10 @@ while running:
         summary_rect = summary_surface.get_rect(
             right=settings_button.x - 8, centery=settings_button.centery
         )
-        screen.blit(summary_surface, summary_rect)
+        game_surface.blit(summary_surface, summary_rect)
     elif game_state == "main_screen":
         render_ui(
-            screen,
+            game_surface,
             player,
             FONT,
             current_event,
@@ -1733,24 +1870,25 @@ while running:
             enemy_animator.current_frame() or current_enemy_image,
             player_position=tuple(player_animator.position),
             enemy_position=tuple(enemy_animator.position),
+            mouse_pos=current_mouse_pos,
         )
-    draw_button(screen, settings_button, "設定", font=SMALL_FONT)
+    draw_button(game_surface, settings_button, "設定", font=SMALL_FONT)
     if show_settings_popup:
-        draw_settings_popup(screen, game_state == "main_screen")
+        draw_settings_popup(game_surface, game_state == "main_screen")
     if player_animator.fade_alpha > 0:
-        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, player_animator.fade_alpha))
-        screen.blit(fade_surface, (0, 0))
+        game_surface.blit(fade_surface, (0, 0))
     if ending_fade_alpha > 0:
-        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, int(ending_fade_alpha)))
-        screen.blit(fade_surface, (0, 0))
+        game_surface.blit(fade_surface, (0, 0))
     if intro_fade_alpha > 0:
-        fade_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, int(intro_fade_alpha)))
-        screen.blit(fade_surface, (0, 0))
+        game_surface.blit(fade_surface, (0, 0))
     persist_game_state()
-    pygame.display.flip()
+    present_game_surface()
 
     # 延遲後清除事件
     if pending_clear_event:

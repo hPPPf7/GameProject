@@ -410,13 +410,15 @@ def render_ui(
     enemy_image=None,
     player_position=None,
     enemy_position=None,
+    mouse_pos=None,
 ):
     """
     Draw the main UI components: image area, log area, status panel, options,
     and inventory.  This version wraps log text so it never spills out of
     the log rectangle and uses the new status/options widths.
     """
-    mouse_pos = pygame.mouse.get_pos()
+    if mouse_pos is None:
+        mouse_pos = pygame.mouse.get_pos()
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
     typewriter_active = text_log.is_typewriter_animating()

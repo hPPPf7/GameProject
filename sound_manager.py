@@ -12,8 +12,11 @@ from paths import res_path
 _sfx_cache: dict[str, pygame.mixer.Sound] = {}
 _initialized = False
 
-_bgm_volume = 0.5
-_sfx_volume = 0.5
+_bgm_volume = 1.0
+_sfx_volume = 1.0
+_VOLUME_CURVE_EXPONENT = 2.2
+_MAX_OUTPUT_VOLUME = 0.35
+_VOLUME_STEP = 0.1
 BGM_FADE_SECONDS = 0.8
 _current_bgm_track: str | None = None
 _bgm_fade_state: str | None = None
@@ -102,7 +105,7 @@ def set_bgm_volume(value: float) -> float:
     """Clamp and apply background music volume, returning the new value."""
 
     global _bgm_volume
-    _bgm_volume = max(0.0, min(1.0, value))
+    _bgm_volume = _normalize_volume_step(value)
     _apply_bgm_volume()
     _save_volumes()
     return _bgm_volume
@@ -112,7 +115,7 @@ def set_sfx_volume(value: float) -> float:
     """Clamp and apply sound-effect volume, returning the new value."""
 
     global _sfx_volume
-    _sfx_volume = max(0.0, min(1.0, value))
+    _sfx_volume = _normalize_volume_step(value)
     _apply_sfx_volume()
     _save_volumes()
     return _sfx_volume
@@ -133,14 +136,14 @@ def change_sfx_volume(delta: float) -> float:
 def _apply_bgm_volume() -> None:
     if not pygame.mixer.get_init():
         return
-    pygame.mixer.music.set_volume(_bgm_volume * _bgm_fade_multiplier)
+    pygame.mixer.music.set_volume(_to_output_volume(_bgm_volume) * _bgm_fade_multiplier)
 
 
 def _apply_sfx_volume() -> None:
     if not pygame.mixer.get_init():
         return
     for sound in _sfx_cache.values():
-        sound.set_volume(_sfx_volume)
+        sound.set_volume(_to_output_volume(_sfx_volume))
 
 
 def _load_volumes() -> None:
@@ -162,9 +165,21 @@ def _save_volumes() -> None:
 
 def _clamp_volume(value: Any) -> float:
     try:
-        return max(0.0, min(1.0, float(value)))
+        return _normalize_volume_step(float(value))
     except (TypeError, ValueError):
-        return 0.7
+        return 1.0
+
+
+def _normalize_volume_step(value: float) -> float:
+    clamped = max(0.0, min(1.0, value))
+    return round(clamped / _VOLUME_STEP) * _VOLUME_STEP
+
+
+def _to_output_volume(value: float) -> float:
+    """Map UI volume to a gentler output curve for perceived loudness."""
+
+    normalized = max(0.0, min(1.0, value)) ** _VOLUME_CURVE_EXPONENT
+    return normalized * _MAX_OUTPUT_VOLUME
 
 
 def _start_bgm_playback(track: str) -> None:
