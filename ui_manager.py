@@ -419,7 +419,7 @@ def render_ui(
     the log rectangle and uses the new status/options widths.
     """
     if mouse_pos is None:
-        mouse_pos = pygame.mouse.get_pos()
+        mouse_pos = (-1, -1)
     areas = get_areas_for_mode(player)
     mode = areas.get("mode")
     typewriter_active = text_log.is_typewriter_animating()
