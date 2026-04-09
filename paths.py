@@ -16,6 +16,12 @@ def base_path() -> Path:
     return Path(__file__).resolve().parent
 
 
+def is_frozen_app() -> bool:
+    """Return True when running from a packaged executable."""
+
+    return bool(getattr(sys, "frozen", False))
+
+
 def res_path(*parts: str) -> str:
     """Build an absolute path to a resource under the project root."""
     return str(base_path().joinpath(*parts))
@@ -25,8 +31,12 @@ def user_data_dir() -> Path:
     """
     Return a writable directory for user save/settings data.
 
-    On Windows prefers LOCALAPPDATA; otherwise falls back to the home directory.
+    Packaged builds use a portable `userdata` folder next to the executable.
+    Development runs prefer LOCALAPPDATA; otherwise fall back to the home directory.
     """
+    if is_frozen_app():
+        return Path(sys.executable).resolve().parent / "userdata"
+
     root = Path(os.getenv("LOCALAPPDATA") or Path.home())
     return root / APP_NAME
 
