@@ -861,14 +861,21 @@ def get_settings_layout(include_navigation: bool):
     row_gap = 16
     button_width = 140
     button_height = 32
+    action_gap = 12
     center_x = modal_rect.centerx
-    label_x = modal_rect.x + 24
-    toggle_left = modal_rect.centerx + 40 - button_width // 2
+    label_width = 104
+    controls_gap = 16
+    content_width = label_width + controls_gap + button_width
+    content_left = modal_rect.centerx - content_width // 2
+    label_x = content_left
+    toggle_left = content_left + label_width + controls_gap
     toggle_right = toggle_left + button_width
     down_x = toggle_left
     up_x = toggle_right - button_size
     controls = {
         "modal": modal_rect,
+        "label_x": label_x,
+        "label_width": label_width,
         "bgm_down": pygame.Rect(
             down_x,
             row_y_start,
@@ -905,25 +912,31 @@ def get_settings_layout(include_navigation: bool):
             button_width,
             button_height,
         ),
-        "close": pygame.Rect(
-            center_x - button_width // 2,
-            modal_rect.bottom - 48,
-            button_width,
-            button_height,
-        ),
     }
 
     if include_navigation:
-        nav_gap = 12
-        nav_margin = 16
-        nav_block_height = button_height * 2 + nav_gap
-        nav_y = controls["close"].y - nav_block_height - nav_margin
+        close_y = modal_rect.bottom - 48
+        quit_y = close_y - action_gap - button_height
+        to_menu_y = quit_y - action_gap - button_height
         controls["to_menu"] = pygame.Rect(
-            center_x - button_width // 2, nav_y, button_width, button_height
+            center_x - button_width // 2, to_menu_y, button_width, button_height
         )
         controls["quit"] = pygame.Rect(
             center_x - button_width // 2,
-            nav_y + button_height + nav_gap,
+            quit_y,
+            button_width,
+            button_height,
+        )
+        controls["close"] = pygame.Rect(
+            center_x - button_width // 2,
+            close_y,
+            button_width,
+            button_height,
+        )
+    else:
+        controls["close"] = pygame.Rect(
+            center_x - button_width // 2,
+            modal_rect.bottom - 48,
             button_width,
             button_height,
         )
@@ -946,7 +959,8 @@ def draw_button(
 
 def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     controls = get_settings_layout(include_navigation)
-    label_x = controls["modal"].x + 24
+    label_x = controls["label_x"]
+    label_width = controls["label_width"]
     toggle_center_x = controls["typewriter_toggle"].centerx
     modal = controls["modal"]
     pygame.draw.rect(surface, (40, 40, 60), modal, border_radius=8)
@@ -959,7 +973,11 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         label: str, down_rect: pygame.Rect, up_rect: pygame.Rect, value: float
     ):
         label_surface = SMALL_FONT.render(label, True, (230, 230, 230))
-        surface.blit(label_surface, (label_x, down_rect.y + 4))
+        label_rect = label_surface.get_rect(
+            midleft=(label_x, down_rect.y + 14)
+        )
+        label_rect.width = label_width
+        surface.blit(label_surface, label_rect)
         draw_button(surface, down_rect, "-", font=SMALL_FONT)
         draw_button(surface, up_rect, "+", font=SMALL_FONT)
         value_surface = SMALL_FONT.render(f"{int(value * 100)}%", True, (255, 255, 255))
@@ -985,7 +1003,9 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     typewriter_state = text_log.is_typewriter_enabled()
     state_text = "開啟" if typewriter_state else "關閉"
     label_surface = SMALL_FONT.render(typewriter_label, True, (230, 230, 230))
-    surface.blit(label_surface, (label_x, typewriter_rect.y + 6))
+    label_rect = label_surface.get_rect(midleft=(label_x, typewriter_rect.y + 16))
+    label_rect.width = label_width
+    surface.blit(label_surface, label_rect)
     draw_button(
         surface,
         typewriter_rect,
@@ -999,7 +1019,9 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     devlog_state = text_log.is_dev_log_enabled()
     devlog_text = "開啟" if devlog_state else "關閉"
     label_surface = SMALL_FONT.render(devlog_label, True, (230, 230, 230))
-    surface.blit(label_surface, (label_x, devlog_rect.y + 6))
+    label_rect = label_surface.get_rect(midleft=(label_x, devlog_rect.y + 16))
+    label_rect.width = label_width
+    surface.blit(label_surface, label_rect)
     draw_button(
         surface,
         devlog_rect,
@@ -1218,6 +1240,7 @@ def persist_game_state():
             "game_state": game_state,
             "sub_state": sub_state,
             "current_event": current_event,
+            "current_background_name": current_background_name,
             "pending_walk_event": pending_walk_event,
             "pending_clear_event": pending_clear_event,
             "clear_event_timer": clear_event_timer,
@@ -1316,7 +1339,7 @@ def load_saved_adventure() -> bool:
         sub_state = "wait"
         data["pending_walk_event"] = False
     current_event = data.get("current_event")
-    current_background_name = (
+    current_background_name = data.get("current_background_name") or (
         current_event.get("background", DEFAULT_BACKGROUND)
         if current_event
         else DEFAULT_BACKGROUND
@@ -1681,6 +1704,7 @@ while running:
                                     player_position=tuple(player_animator.position),
                                     enemy_position=tuple(enemy_animator.position),
                                     mouse_pos=game_pos,
+                                    allow_hover=not show_settings_popup,
                                 )
                                 present_game_surface()
                                 try_apply_pending_result(force=not wait_for_attack)
@@ -1711,6 +1735,7 @@ while running:
                                     player_position=tuple(player_animator.position),
                                     enemy_position=tuple(enemy_animator.position),
                                     mouse_pos=game_pos,
+                                    allow_hover=not show_settings_popup,
                                 )
                                 present_game_surface()
                             break
@@ -1871,6 +1896,7 @@ while running:
             player_position=tuple(player_animator.position),
             enemy_position=tuple(enemy_animator.position),
             mouse_pos=current_mouse_pos,
+            allow_hover=not show_settings_popup,
         )
     draw_button(game_surface, settings_button, "設定", font=SMALL_FONT)
     if show_settings_popup:

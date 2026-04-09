@@ -411,6 +411,7 @@ def render_ui(
     player_position=None,
     enemy_position=None,
     mouse_pos=None,
+    allow_hover=True,
 ):
     """
     Draw the main UI components: image area, log area, status panel, options,
@@ -529,7 +530,7 @@ def render_ui(
             pass
         else:
             can_interact = not typewriter_active
-            is_hover = wait_rect.collidepoint(mouse_pos) and can_interact
+            is_hover = allow_hover and wait_rect.collidepoint(mouse_pos) and can_interact
             color = (
                 COLORS["option_disabled"]
                 if not can_interact
@@ -544,7 +545,7 @@ def render_ui(
         options = current_event.get("options", [])
         show_option_text = not typewriter_active
         for i, rect in enumerate(option_rects):
-            is_hover = rect.collidepoint(mouse_pos) and show_option_text
+            is_hover = allow_hover and rect.collidepoint(mouse_pos) and show_option_text
             if i < len(options):
                 color = (
                     COLORS["option_disabled"]
