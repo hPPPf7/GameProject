@@ -377,7 +377,8 @@
           "text": "他提到一個被遺忘的地名：『灰燼凹地』……還問你是否聽過『樣本#07』。",
           "effect": {
             "fate": 4
-          }
+          },
+          "flags_set": ["got_gray_pit_hint"]
         },
         "result_variants": {
           "rational": {
@@ -430,7 +431,8 @@
           "text": "村民聲音嘶啞：『如果你沒帶石頭，就別靠近灰燼凹地。會被唱進去的。』",
           "effect": {
             "fate": -4
-          }
+          },
+          "flags_set": ["got_gray_pit_hint"]
         },
         "result_variants": {
           "rational": {
@@ -651,6 +653,7 @@
           "effect": {
             "fate": 8
           },
+          "flags_set": ["saw_redactions"],
           "forced_event": "前往研究據點"
         },
         "result_variants": {
