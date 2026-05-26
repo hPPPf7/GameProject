@@ -1110,7 +1110,7 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
     typewriter_label = "文字逐字播放"
     typewriter_rect = controls["typewriter_toggle"]
     typewriter_state = text_log.is_typewriter_enabled()
-    state_text = "開啟" if typewriter_state else "關閉"
+    state_text = "手機版停用" if TOUCH_PLATFORM else "開啟" if typewriter_state else "關閉"
     label_surface = SMALL_FONT.render(typewriter_label, True, (230, 230, 230))
     label_rect = label_surface.get_rect(midleft=(label_x, typewriter_rect.y + 16))
     label_rect.width = label_width
@@ -1120,7 +1120,7 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         typewriter_rect,
         state_text,
         font=SMALL_FONT,
-        color=(90, 70, 40) if typewriter_state else (70, 70, 70),
+        color=(55, 55, 55) if TOUCH_PLATFORM else (90, 70, 40) if typewriter_state else (70, 70, 70),
     )
 
     devlog_label = "顯示命運/旗標"
@@ -1170,7 +1170,7 @@ def handle_settings_click(pos, include_navigation: bool):
     if control_contains(controls["sfx_up"], pos):
         sound_manager.change_sfx_volume(VOLUME_STEP)
         return True
-    if control_contains(controls["typewriter_toggle"], pos):
+    if control_contains(controls["typewriter_toggle"], pos) and not TOUCH_PLATFORM:
         text_log.set_typewriter_enabled(not text_log.is_typewriter_enabled())
         return True
     if control_contains(controls["devlog_toggle"], pos):
