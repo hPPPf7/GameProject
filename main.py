@@ -28,6 +28,7 @@ ENDING_EXIT_DELAY_MS = 2000
 ENDING_FADE_SPEED = 160.0
 ENDING_LAYOUT_TRANSITION_SEC = 0.6
 INTRO_FADE_SPEED = 260.0
+INTRO_TOUCH_AUTO_EXIT_DELAY_MS = 650
 TARGET_FPS = 20 if (
     sys.platform.lower() in {"android", "ios", "emscripten"}
     or "ANDROID_ARGUMENT" in os.environ
@@ -686,6 +687,8 @@ WINDOW_FRAME_WIDTH_PADDING = 24
 WINDOW_FRAME_HEIGHT_PADDING = 72
 TOUCH_SCROLL_THRESHOLD = 22
 TOUCH_HIT_PADDING = 6
+MOUSE_AFTER_TOUCH_SUPPRESS_MS = 700
+MOUSE_AFTER_TOUCH_SUPPRESS_DISTANCE = 28
 
 
 def is_touch_platform() -> bool:
@@ -893,6 +896,25 @@ def finish_typewriter_on_tap() -> bool:
         text_log.finish_typewriter()
         return True
     return False
+
+
+def enforce_touch_text_mode() -> None:
+    if TOUCH_PLATFORM:
+        text_log.set_typewriter_enabled(False)
+        text_log.set_typewriter_override(False)
+
+
+def should_suppress_mouse_after_touch(game_pos: tuple[int, int]) -> bool:
+    if not TOUCH_PLATFORM or last_finger_down_pos is None:
+        return False
+    if pygame.time.get_ticks() - last_finger_down_ticks > MOUSE_AFTER_TOUCH_SUPPRESS_MS:
+        return False
+    return (
+        abs(game_pos[0] - last_finger_down_pos[0])
+        <= MOUSE_AFTER_TOUCH_SUPPRESS_DISTANCE
+        and abs(game_pos[1] - last_finger_down_pos[1])
+        <= MOUSE_AFTER_TOUCH_SUPPRESS_DISTANCE
+    )
 
 
 def present_game_surface() -> None:
@@ -1131,6 +1153,8 @@ def handle_settings_click(pos, include_navigation: bool):
     modal = controls["modal"]
 
     if not modal.collidepoint(pos):
+        if pygame.time.get_ticks() - settings_popup_opened_ticks < 250:
+            return True
         show_settings_popup = False
         return True
 
@@ -1349,9 +1373,10 @@ def start_new_adventure():
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha, intro_ready_ticks
 
     text_log.reset()
+    enforce_touch_text_mode()
     player = init_player_state()
     game_state = "main_screen"
     sub_state = "wait"
@@ -1377,6 +1402,7 @@ def start_new_adventure():
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
     intro_fade_alpha = 255.0
+    intro_ready_ticks = None
     player.pop("intro_cinematic_done", None)
     player.pop("intro_cinematic_active", None)
     player.pop("intro_cinematic_ready", None)
@@ -1418,7 +1444,7 @@ def load_saved_adventure() -> bool:
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha, intro_ready_ticks
 
     data = save_manager.load_game()
     if not data:
@@ -1426,6 +1452,7 @@ def load_saved_adventure() -> bool:
 
     player = data.get("player", init_player_state())
     text_log.load_state(data.get("text_log"))
+    enforce_touch_text_mode()
     game_state = "main_screen"
     sub_state = data.get("sub_state", "wait")
     if sub_state == "walking":
@@ -1460,6 +1487,7 @@ def load_saved_adventure() -> bool:
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
     intro_fade_alpha = 0.0
+    intro_ready_ticks = None
     if current_event and current_event.get("id") == "任務簡報":
         sound_manager.play_bgm(BGM_START_MENU)
     else:
@@ -1542,7 +1570,7 @@ def advance_ending_segment() -> bool:
 
 def advance_intro_segment() -> bool:
     """Append the next intro segment to the log if available."""
-    global current_background_name, current_event
+    global current_background_name, current_event, intro_ready_ticks
     segments = player.get("intro_segments") or []
     index = player.get("intro_segment_index", 0)
     if index >= len(segments):
@@ -1561,11 +1589,13 @@ def advance_intro_segment() -> bool:
     text_log.clear_history()
     text_log.add(segments[index])
     player["intro_segment_index"] = index + 1
+    intro_ready_ticks = None
     text_log.scroll_to_bottom()
     return True
 
 
 def start_intro_cinematic(event: dict) -> None:
+    global intro_ready_ticks
     segments = event.get("intro_segments") or []
     if not isinstance(segments, list):
         segments = [str(segments)]
@@ -1575,6 +1605,7 @@ def start_intro_cinematic(event: dict) -> None:
     player["intro_cinematic_ready"] = False
     player["intro_log_history"] = text_log.snapshot_history()
     player["intro_pending_start"] = True
+    intro_ready_ticks = None
     text_log.set_typewriter_override(False if TOUCH_PLATFORM else True)
     text_log.clear_history()
 
@@ -1611,8 +1642,7 @@ def try_apply_pending_result(force: bool = False):
 
 # 初始化玩家狀態
 text_log.reset()
-if TOUCH_PLATFORM:
-    text_log.set_typewriter_override(False)
+enforce_touch_text_mode()
 player = init_player_state()
 current_background_name = DEFAULT_BACKGROUND
 
@@ -1625,6 +1655,7 @@ pending_walk_event = False
 pending_clear_event = False
 clear_event_timer = 0
 show_settings_popup = False
+settings_popup_opened_ticks = 0
 has_save_file = save_manager.has_save()
 pending_result = None
 pending_result_requires_attack = False
@@ -1633,6 +1664,7 @@ enemy_attack_active = False
 ending_exit_timer = 0
 ending_fade_alpha = 0.0
 intro_fade_alpha = 0.0
+intro_ready_ticks: Optional[int] = None
 touch_scroll_start_pos: Optional[tuple[int, int]] = None
 touch_scroll_last_y: Optional[int] = None
 last_finger_down_pos: Optional[tuple[int, int]] = None
@@ -1675,6 +1707,8 @@ while running:
                 game_pos = window_to_game_pos(event.pos)
                 if game_pos is None:
                     continue
+                if should_suppress_mouse_after_touch(game_pos):
+                    continue
                 if (
                     getattr(event, "touch", False)
                     and last_finger_down_pos is not None
@@ -1699,6 +1733,7 @@ while running:
 
             if control_contains(settings_button, game_pos):
                 show_settings_popup = True
+                settings_popup_opened_ticks = pygame.time.get_ticks()
                 draw_settings_popup(game_surface, game_state == "main_screen")
                 present_game_surface()
                 continue
@@ -1918,6 +1953,25 @@ while running:
         segments = player.get("intro_segments") or []
         if player.get("intro_segment_index", 0) >= len(segments):
             player["intro_cinematic_ready"] = True
+            if intro_ready_ticks is None:
+                intro_ready_ticks = pygame.time.get_ticks()
+        else:
+            intro_ready_ticks = None
+    else:
+        intro_ready_ticks = None
+
+    if (
+        TOUCH_PLATFORM
+        and player.get("intro_cinematic_ready")
+        and not player.get("intro_cinematic_exiting")
+        and intro_ready_ticks is not None
+        and pygame.time.get_ticks() - intro_ready_ticks >= INTRO_TOUCH_AUTO_EXIT_DELAY_MS
+    ):
+        player["intro_cinematic_exiting"] = True
+        player["layout_transition"] = {
+            "progress": 1.0,
+            "direction": "out",
+        }
 
     if player.get("ending_active"):
         if not text_log.is_typewriter_animating():
@@ -1956,7 +2010,7 @@ while running:
                     player["intro_cinematic_active"] = False
                     player["intro_cinematic_ready"] = False
                     player["intro_cinematic_done"] = True
-                    text_log.set_typewriter_override(None)
+                    text_log.set_typewriter_override(False if TOUCH_PLATFORM else None)
             else:
                 transition["progress"] = progress
         else:
@@ -2079,6 +2133,7 @@ while running:
     if game_state == "main_screen" and player.get("return_to_menu"):
         player["return_to_menu"] = False
         text_log.set_typewriter_override(None)
+        enforce_touch_text_mode()
         for key in (
             "ending_active",
             "ending_segments",
