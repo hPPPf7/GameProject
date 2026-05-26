@@ -1499,8 +1499,8 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
     """Apply the chosen result, advance battle state, and refresh UI."""
 
     global pending_clear_event, clear_event_timer, sub_state, current_event
-    global current_background_name
-    global ending_exit_timer
+    global current_background_name, current_enemy_image
+    global ending_exit_timer, enemy_attack_active
     if not result:
         return False
     previous_chapter = player.get("chapter", 1)
@@ -1549,9 +1549,13 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
                 player["skip_walk_once"] = True
                 player["hide_player_sprite_until_next_event"] = True
                 player["pending_chapter_bgm"] = True
-            pending_clear_event = True
-            clear_event_timer = 1
-            sub_state = "after_result"
+            current_event = None
+            current_enemy_image = None
+            enemy_animator.clear()
+            enemy_attack_active = False
+            pending_clear_event = False
+            clear_event_timer = 0
+            sub_state = "wait"
     return battle_continues
 
 
