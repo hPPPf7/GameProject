@@ -1556,9 +1556,26 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
                 player["skip_walk_once"] = True
                 player["hide_player_sprite_until_next_event"] = True
                 player["pending_chapter_bgm"] = True
-            pending_clear_event = True
-            clear_event_timer = 1
-            sub_state = "after_result"
+            current_event = None
+            current_enemy_image = None
+            enemy_animator.clear()
+            enemy_attack_active = False
+            pending_clear_event = False
+            clear_event_timer = 0
+            sub_state = "wait"
+            render_ui(
+                game_surface,
+                player,
+                FONT,
+                current_event,
+                current_background_name,
+                sub_state,
+                player_animator.current_frame() or player_image,
+                enemy_animator.current_frame() or current_enemy_image,
+                player_position=tuple(player_animator.position),
+                enemy_position=tuple(enemy_animator.position),
+            )
+            present_game_surface()
     return battle_continues
 
 

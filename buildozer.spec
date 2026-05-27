@@ -8,7 +8,8 @@ source.include_exts = py,json,png,jpg,jpeg,ttf,wav,mp3
 source.include_patterns = assets/*,assets/**,data/*,data/**
 source.exclude_dirs = .git,.venv,build,dist,release,__pycache__,assets/background
 
-version = 0.1.1
+version = 0.1.2
+android.numeric_version = 102
 orientation = portrait
 fullscreen = 1
 
