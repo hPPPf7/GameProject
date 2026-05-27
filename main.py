@@ -1196,6 +1196,40 @@ def handle_settings_click(pos, include_navigation: bool):
     return False
 
 
+def complete_pending_event_clear() -> None:
+    global current_event, current_enemy_image, enemy_attack_active
+    global pending_clear_event, clear_event_timer, sub_state
+
+    if current_event and current_event.get("type") == "battle":
+        clear_battle_state(player)
+    current_event = None
+    current_enemy_image = None
+    enemy_animator.clear()
+    enemy_attack_active = False
+    pending_clear_event = False
+    clear_event_timer = 0
+    sub_state = "wait"
+
+
+def normalize_progress_state() -> None:
+    global current_event, pending_clear_event, clear_event_timer, sub_state
+
+    if sub_state == "after_result":
+        complete_pending_event_clear()
+        return
+
+    if sub_state == "show_event" and current_event is None:
+        pending_clear_event = False
+        clear_event_timer = 0
+        sub_state = "wait"
+        return
+
+    if current_event is None and sub_state not in {"wait", "walking"}:
+        pending_clear_event = False
+        clear_event_timer = 0
+        sub_state = "wait"
+
+
 def _derive_enemy_key_from_path(path: str) -> Optional[str]:
     normalized = str(path).replace("\\", "/")
     parts = [p for p in normalized.split("/") if p]
@@ -1492,6 +1526,7 @@ def load_saved_adventure() -> bool:
         sound_manager.play_bgm(BGM_START_MENU)
     else:
         play_bgm_for_chapter(player.get("chapter", 1))
+    normalize_progress_state()
     return True
 
 
@@ -1707,6 +1742,8 @@ while running:
         elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.FINGERDOWN):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button != 1:
+                    continue
+                if TOUCH_PLATFORM and getattr(event, "touch", False):
                     continue
                 game_pos = window_to_game_pos(event.pos)
                 if game_pos is None:
@@ -2066,6 +2103,14 @@ while running:
     elif sub_state == "walking" and player_animator.walk_finished:
         sub_state = "wait"
 
+    if pending_clear_event:
+        if clear_event_timer > 0:
+            clear_event_timer -= 1
+        if clear_event_timer <= 0:
+            complete_pending_event_clear()
+    else:
+        normalize_progress_state()
+
     # 繪製對應畫面
     current_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
     if game_state == "start_menu":
@@ -2119,20 +2164,6 @@ while running:
         game_surface.blit(fade_surface, (0, 0))
     persist_game_state()
     present_game_surface()
-
-    # 延遲後清除事件
-    if pending_clear_event:
-        if clear_event_timer > 0:
-            clear_event_timer -= 1
-        else:
-            if current_event and current_event.get("type") == "battle":
-                clear_battle_state(player)
-            current_event = None
-            current_enemy_image = None
-            enemy_animator.clear()
-            enemy_attack_active = False
-            sub_state = "wait"
-            pending_clear_event = False
 
     if game_state == "main_screen" and player.get("return_to_menu"):
         player["return_to_menu"] = False

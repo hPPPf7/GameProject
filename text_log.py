@@ -10,9 +10,20 @@ current scroll offset.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+import sys
 from typing import Callable, List, Optional
 
 import settings_manager
+
+
+def _is_touch_platform() -> bool:
+    return (
+        sys.platform.lower() in {"android", "ios", "emscripten"}
+        or "ANDROID_ARGUMENT" in os.environ
+        or "ANDROID_STORAGE" in os.environ
+        or "PYGBAG" in os.environ
+    )
 
 
 def _load_typewriter_preference() -> bool:
@@ -48,6 +59,8 @@ def _load_dev_log_preference() -> bool:
 def _save_dev_log_preference(enabled: bool) -> None:
     """Write the current dev log toggle to the shared settings file."""
 
+    if _is_touch_platform():
+        return
     settings_manager.save_settings({"dev_log_enabled": bool(enabled)})
 
 
