@@ -4,6 +4,30 @@
 
 遊戲以文字事件、選項決策、簡易戰鬥、背包道具與命運值變化推進。玩家的選擇會影響角色狀態、事件分支、紀錄內容與後續章節走向。
 
+## 下載與安裝
+
+### Android 版
+
+可從 Google Play 安裝：
+
+- [菜鳥調查隊日誌 - Google Play](https://play.google.com/store/apps/details?id=tw.yuhan.InvestigationDiary)
+
+### Windows 桌面版
+
+可從 GitHub Releases 下載桌面版：
+
+- [GitHub Releases](https://github.com/hPPPf7/GameProject/releases)
+
+下載步驟：
+
+1. 開啟 GitHub Releases 頁面。
+2. 找到最新版本的 release。
+3. 在 `Assets` 區塊下載 Windows 執行檔或壓縮檔。
+4. 若下載的是壓縮檔，先解壓縮後再執行遊戲。
+5. 第一次啟動時若 Windows 顯示安全性提醒，請確認來源是本專案的 GitHub Releases 後再允許執行。
+
+桌面版的存檔與設定會放在執行檔旁的 `userdata/` 目錄，方便備份或攜帶。
+
 ## 遊戲介紹
 
 前哨站東北方的淺川村突然失聯，偵查用的傀儡也只回傳錯碼。你被隊長派往現場，原本看似普通的調查任務，很快變成一連串無法用常識解釋的異常事件。
