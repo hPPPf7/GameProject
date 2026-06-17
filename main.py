@@ -918,6 +918,8 @@ def should_suppress_mouse_after_touch(game_pos: tuple[int, int]) -> bool:
 
 
 def present_game_surface() -> None:
+    # 【畫面輸出到視窗/手機螢幕】
+    # 遊戲先畫在固定大小的 game_surface，再依照目前視窗或手機螢幕比例縮放貼到 screen。
     viewport = get_render_viewport()
     screen.fill((0, 0, 0))
     if viewport.size == game_surface.get_size():
@@ -2088,9 +2090,15 @@ while running:
     elif sub_state == "walking" and player_animator.walk_finished:
         sub_state = "wait"
 
-    # 繪製對應畫面
+    # 【畫面繪製入口】
+    # 每一幀都會從這裡開始組出完整畫面：
+    # 1. 主選單: 畫背景、Logo、開始/繼續/離開按鈕
+    # 2. 遊戲中: 呼叫 ui_manager.render_ui() 畫背景、事件文字、選項、背包
+    # 3. 共用: 畫設定按鈕、設定彈窗、淡入淡出遮罩
+    # 4. 最後: present_game_surface() 把 game_surface 顯示到實際螢幕
     current_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
     if game_state == "start_menu":
+        # 【主選單畫面】背景圖、Logo、開始/繼續/離開按鈕都在這裡畫。
         game_surface.blit(start_bg, start_bg.get_rect(center=SCREEN_RECT.center))
         game_surface.blit(logo_image, (100, 80))
 
@@ -2110,6 +2118,7 @@ while running:
         )
         game_surface.blit(summary_surface, summary_rect)
     elif game_state == "main_screen":
+        # 【遊戲內畫面】真正的遊戲 UI 繪製交給 ui_manager.render_ui()。
         render_ui(
             game_surface,
             player,
@@ -2126,6 +2135,7 @@ while running:
         )
     draw_button(game_surface, settings_button, "設定", font=SMALL_FONT)
     if show_settings_popup:
+        # 【設定彈窗】蓋在主選單或遊戲畫面上方。
         draw_settings_popup(game_surface, game_state == "main_screen")
     if player_animator.fade_alpha > 0:
         fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)

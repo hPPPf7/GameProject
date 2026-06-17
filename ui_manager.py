@@ -430,6 +430,9 @@ def render_ui(
     and inventory.  This version wraps log text so it never spills out of
     the log rectangle and uses the new status/options widths.
     """
+    # 【遊戲內 UI 繪製主函式】
+    # main.py 的主迴圈會呼叫這裡，負責畫「遊戲中」的主要畫面：
+    # 背景圖、玩家/敵人、事件文字紀錄、戰鬥狀態、選項按鈕、背包欄。
     if mouse_pos is None:
         mouse_pos = (-1, -1)
     areas = get_areas_for_mode(player)
@@ -441,7 +444,8 @@ def render_ui(
     elif current_event and current_event.get("id") == "任務簡報":
         player_image = None
 
-    # 圖像區域（裁切到背景範圍，避免角色或敵人超出）
+    # 【背景圖與角色區】
+    # 這裡先裁切到 image 區域，再畫場景背景、玩家角色、敵人。
     old_clip = screen.get_clip()
     screen.set_clip(areas["image"])
     background = get_background_surface(background_name)
@@ -472,7 +476,8 @@ def render_ui(
     # 恢復全局裁切，後續 UI 不受限
     screen.set_clip(old_clip)
 
-    # 繪製日誌區域
+    # 【事件文字/日誌區】
+    # 畫下方文字框，並把 text_log 裡的紀錄依照可見行數畫出來。
     pygame.draw.rect(screen, COLORS["log"], areas["log"])
     # 組出換行後的日誌內容
     max_width = areas["log"].width - 16  # 扣除邊距
@@ -494,7 +499,8 @@ def render_ui(
             screen, line, areas["log"], font, center=False, line_offset=i, color=color
         )
 
-    # 繪製狀態面板（電影模式略過；非戰鬥事件隱藏）
+    # 【戰鬥狀態區】
+    # 目前只在戰鬥事件顯示耐久等狀態；一般事件會隱藏這塊。
     if mode == "normal":
         hide_status = not (current_event and current_event.get("type") == "battle")
         if not hide_status:
@@ -530,7 +536,8 @@ def render_ui(
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
-    # 繪製選項
+    # 【選項/前進按鈕區】
+    # wait 狀態畫「前進」；show_event 狀態畫目前事件的選項。
     if player.get("intro_cinematic_active"):
         option_rects = []
     if sub_state == "wait":
@@ -579,7 +586,8 @@ def render_ui(
                 pygame.draw.rect(screen, COLORS["option_disabled"], rect)
 
     if mode == "normal":
-        # 繪製固定六格的背包欄
+        # 【背包欄】
+        # 畫底部固定六格背包，若道具有圖示則貼上圖示。
         inventory_preview_rect = areas["inventory_preview"]
         pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
         for slot in get_inventory_slots(player, areas):
@@ -600,6 +608,8 @@ def draw_text(
     is True the text is centred; otherwise it is drawn with a small
     margin and ``line_offset`` controls vertical offset for multiple lines.
     """
+    # 【文字繪製輔助函式】
+    # 所有 UI 文字多半會經過這裡，並使用快取避免每幀重複建立文字 Surface。
     key = (id(font), str(text), tuple(color))
     rendered = _TEXT_SURFACE_CACHE.get(key)
     if rendered is None:
