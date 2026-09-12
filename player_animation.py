@@ -393,5 +393,3 @@ class PlayerAnimator:
             steps = int(self.frame_timer / frame_time)
             self.frame_timer %= frame_time
             self.frame_index = (self.frame_index + direction * steps) % len(frames)
-
-

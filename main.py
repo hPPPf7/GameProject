@@ -9,6 +9,7 @@ import pygame
 import sys
 import text_log
 import traceback
+from copy import deepcopy
 from typing import Optional
 
 from pathlib import Path
@@ -16,6 +17,7 @@ from pathlib import Path
 from paths import res_path, user_data_path
 import sound_manager
 import save_manager
+import settings_manager
 
 BGM_START_MENU = "Music-0.mp3"
 BGM_CHAPTER_TRACKS = {
@@ -28,7 +30,6 @@ ENDING_EXIT_DELAY_MS = 2000
 ENDING_FADE_SPEED = 160.0
 ENDING_LAYOUT_TRANSITION_SEC = 0.6
 INTRO_FADE_SPEED = 260.0
-INTRO_TOUCH_AUTO_EXIT_DELAY_MS = 650
 TARGET_FPS = 20 if (
     sys.platform.lower() in {"android", "ios", "emscripten"}
     or "ANDROID_ARGUMENT" in os.environ
@@ -79,300 +80,19 @@ from ui_manager import (
     get_option_rects,
     get_areas_for_mode,
     get_inventory_slots,
-    is_cinematic_mode,
-    render_ui,
+    render_ui as render_base_ui,
     DEFAULT_BACKGROUND,
 )
+from player_animation import PlayerAnimator
+from combat_feedback import CombatFeedback, SHAKE_LABELS
+from ui_effects import UIFeedback, CampfireAtmosphere
+from ui_dialogs import GameDialog
+from ui_theme import draw_panel, draw_button_face, BACKGROUND, TEXT, MUTED
+from log_scrollbar import LogScrollbar, get_log_viewport
 from player_state import init_player_state
 from event_result_handler import handle_event_result
 from fate_system import post_event_update
 from battle_system import start_battle, is_battle_active, clear_battle_state
-
-
-# 簡易的玩家動畫控制器
-class PlayerAnimator:
-    def __init__(self, target_height: int = 96):
-        self.target_height = target_height
-        self.idle_frames = self._load_idle_frames()
-        self.walk_frames = self._load_walk_frames()
-        self.attack_frames = self._load_attack_frames()
-        self.idle_frame_time = 0.35
-        self.walk_frame_time = 0.1
-        self.attack_frame_time = 0.07
-        self.walk_duration = 1.2
-        self.attack_approach_duration = 0.35
-        self.attack_return_duration = 0.3
-        self.attack_target_x = 0.0
-        self.attack_start_x = 0.0
-        self.attack_return_start_x = 0.0
-        self.attack_gap = 0
-        self.attack_sfx_played = False
-        self.frame_index = 0
-        self.frame_timer = 0.0
-        self.state = "idle"
-        self.walk_progress = 0.0
-        self.walk_finished = False
-        self.attack_finished = True
-        self.fade_state: Optional[str] = None
-        self.fade_timer = 0.0
-        self.fade_duration = 0.45
-        self.fade_alpha = 0
-        self.walk_start_x = UI_AREAS["image"].x + 16
-        self.idle_x = UI_AREAS["image"].x + 32
-        self.base_y = UI_AREAS["image"].bottom - self.target_height - 16
-        first_walk_frame = self.walk_frames[0] if self.walk_frames else None
-        walk_width = (
-            first_walk_frame.get_width() if first_walk_frame else self.target_height
-        )
-        self.walk_end_x = max(
-            self.walk_start_x,
-            UI_AREAS["image"].right - walk_width - 16,
-        )
-        self.position = [self.idle_x, self.base_y]
-
-    def _scale_to_height(self, surface: pygame.Surface) -> pygame.Surface:
-        width = surface.get_width()
-        height = surface.get_height()
-        if height == 0:
-            return surface
-        ratio = self.target_height / height
-        scaled = pygame.transform.smoothscale(
-            surface, (int(width * ratio), self.target_height)
-        )
-        return scaled
-
-    def _slice_sheet(self, sheet: pygame.Surface, columns: int, rows: int):
-        frame_w = sheet.get_width() // columns
-        frame_h = sheet.get_height() // rows
-        frames: list[pygame.Surface] = []
-        for row in range(rows):
-            for col in range(columns):
-                frame_rect = pygame.Rect(col * frame_w, row * frame_h, frame_w, frame_h)
-                frame_surface = pygame.Surface((frame_w, frame_h), pygame.SRCALPHA)
-                frame_surface.blit(sheet, (0, 0), frame_rect)
-                frames.append(self._scale_to_height(frame_surface))
-        return frames
-
-    def _load_idle_frames(self) -> list[pygame.Surface]:
-        idle_sheet = pygame.image.load(
-            res_path("assets", "images", "player", "idle", "idle.png")
-        ).convert_alpha()
-        # idle 圖只有兩格，直接左右切成 2 張
-        return self._slice_sheet(idle_sheet, columns=2, rows=1)
-
-    def _load_walk_frames(self) -> list[pygame.Surface]:
-        frames: list[pygame.Surface] = []
-        for i in range(1, 7):
-            frame = pygame.image.load(
-                res_path("assets", "images", "player", "walk", f"walk{i}.png")
-            ).convert_alpha()
-            frames.append(self._scale_to_height(frame))
-        return frames
-
-    def _load_attack_frames(self) -> list[pygame.Surface]:
-        frames: list[pygame.Surface] = []
-        for i in range(1, 10):
-            frame = pygame.image.load(
-                res_path("assets", "images", "player", "attack", f"{i}.png")
-            ).convert_alpha()
-            frames.append(self._scale_to_height(frame))
-        return frames
-
-    def start_walk(self):
-        if not self.walk_frames:
-            self.walk_finished = True
-            self.state = "idle"
-            return
-        self.state = "walking"
-        self.walk_progress = 0.0
-        self.frame_index = 0
-        self.frame_timer = 0.0
-        self.walk_finished = False
-        self.fade_state = None
-        self.fade_alpha = 0
-        self.position[0] = self.walk_start_x
-
-    def start_transition_fade(self):
-        self.state = "idle"
-        self.walk_progress = 0.0
-        self.frame_index = 0
-        self.frame_timer = 0.0
-        self.walk_finished = False
-        self.fade_state = "out"
-        self.fade_timer = 0.0
-        self.fade_alpha = 0
-        self.position[0] = self.idle_x
-
-    def start_attack(
-        self,
-        enemy_width: Optional[int] = None,
-        enemy_position: Optional[tuple[float, float]] = None,
-    ):
-        frames_width = (
-            self.attack_frames[0].get_width()
-            if self.attack_frames
-            else self.target_height
-        )
-        enemy_w = enemy_width or self.target_height
-        if enemy_position:
-            enemy_x = float(enemy_position[0])
-        else:
-            enemy_x = UI_AREAS["image"].right - enemy_w - 32
-        target_x = enemy_x - frames_width + self.attack_gap
-        min_x = UI_AREAS["image"].x + 8
-        self.attack_target_x = max(min_x, target_x)
-        self.state = "attack_approach"
-        self.walk_progress = 0.0
-        self.frame_index = 0
-        self.frame_timer = 0.0
-        self.walk_finished = False
-        self.attack_finished = False
-        self.fade_state = None
-        self.fade_alpha = 0
-        self.attack_start_x = self.idle_x
-        self.position[0] = self.idle_x
-        self.attack_sfx_played = False
-
-    def update(self, dt: float):
-        self.walk_finished = False
-        self.attack_finished = False
-
-        if self.state in ("attack_approach", "attacking", "attack_return"):
-            self._update_attack(dt)
-            return
-
-        self._update_fade(dt)
-        if self.fade_state:
-            return
-
-        frames = self.walk_frames if self.state == "walking" else self.idle_frames
-        frame_time = (
-            self.walk_frame_time if self.state == "walking" else self.idle_frame_time
-        )
-
-        self.frame_timer += dt
-        if self.frame_timer >= frame_time and frames:
-            self.frame_timer %= frame_time
-            self.frame_index = (self.frame_index + 1) % len(frames)
-
-        if self.state == "walking":
-            if self.walk_duration <= 0:
-                self.position[0] = self.walk_end_x
-                self._start_fade_out()
-            else:
-                self.walk_progress += dt / self.walk_duration
-                self.walk_progress = min(self.walk_progress, 1.0)
-                delta_x = self.walk_end_x - self.walk_start_x
-                self.position[0] = self.walk_start_x + delta_x * self.walk_progress
-                if self.walk_progress >= 1.0:
-                    self._start_fade_out()
-        else:
-            self.position[0] = self.idle_x
-
-    def current_frame(self) -> Optional[pygame.Surface]:
-        if self.state == "attacking":
-            frames = self.attack_frames
-        elif self.state in ("attack_approach", "attack_return", "walking"):
-            frames = self.walk_frames
-        else:
-            frames = self.idle_frames
-        if not frames:
-            return None
-        if self.fade_state == "out":
-            return None
-        return frames[self.frame_index % len(frames)]
-
-    def _start_fade_out(self):
-        if self.fade_state:
-            return
-        self.fade_state = "out"
-        self.fade_timer = 0.0
-        self.fade_alpha = 0
-
-    def _update_fade(self, dt: float):
-        if not self.fade_state:
-            return
-
-        self.fade_timer += dt
-        progress = min(self.fade_timer / self.fade_duration, 1.0)
-
-        if self.fade_state == "out":
-            self.fade_alpha = int(255 * progress)
-            if progress >= 1.0:
-                self.fade_state = "in"
-                self.fade_timer = 0.0
-                self.fade_alpha = 255
-                self.state = "idle"
-                self.walk_progress = 0.0
-                self.frame_index = 0
-                self.frame_timer = 0.0
-                self.position[0] = self.idle_x
-        elif self.fade_state == "in":
-            self.fade_alpha = int(255 * (1 - progress))
-            if progress >= 1.0:
-                self.fade_state = None
-                self.fade_alpha = 0
-                self.walk_finished = True
-
-    def _update_attack(self, dt: float):
-        if self.state == "attack_approach":
-            self._advance_frames(self.walk_frames, self.walk_frame_time, dt)
-            duration = max(0.01, self.attack_approach_duration)
-            self.walk_progress += dt / duration
-            self.walk_progress = min(self.walk_progress, 1.0)
-            start_x = self.attack_start_x
-            delta_x = self.attack_target_x - start_x
-            self.position[0] = start_x + delta_x * self.walk_progress
-            if self.walk_progress >= 1.0:
-                self.state = "attacking"
-                self.frame_index = 0
-                self.frame_timer = 0.0
-                self.walk_progress = 0.0
-                if not self.attack_sfx_played:
-                    sound_manager.play_sfx("attack")
-                    self.attack_sfx_played = True
-        elif self.state == "attacking":
-            frames = self.attack_frames
-            if not frames:
-                self.state = "attack_return"
-                self.frame_index = 0
-                self.frame_timer = 0.0
-                self.walk_progress = 0.0
-                self.attack_return_start_x = self.position[0]
-            else:
-                self.frame_timer += dt
-                if self.frame_timer >= self.attack_frame_time:
-                    self.frame_timer = 0.0
-                    self.frame_index += 1
-                    if self.frame_index >= len(frames):
-                        self.state = "attack_return"
-                        self.frame_index = 0
-                        self.frame_timer = 0.0
-                        self.walk_progress = 0.0
-                        self.attack_return_start_x = self.position[0]
-        elif self.state == "attack_return":
-            self._advance_frames(self.walk_frames, self.walk_frame_time, dt)
-            duration = max(0.01, self.attack_return_duration)
-            self.walk_progress += dt / duration
-            self.walk_progress = min(self.walk_progress, 1.0)
-            start_x = self.attack_return_start_x
-            delta_x = self.idle_x - start_x
-            self.position[0] = start_x + delta_x * self.walk_progress
-            if self.walk_progress >= 1.0:
-                self.state = "idle"
-                self.frame_index = 0
-                self.frame_timer = 0.0
-                self.attack_finished = True
-
-    def _advance_frames(
-        self, frames: list[pygame.Surface], frame_time: float, dt: float
-    ):
-        if not frames:
-            return
-        self.frame_timer += dt
-        if self.frame_timer >= frame_time:
-            self.frame_timer %= frame_time
-            self.frame_index = (self.frame_index + 1) % len(frames)
 
 
 # 敵人動畫目標高度與垂直偏移（讓野豬更大且略微靠下）
@@ -412,9 +132,8 @@ ENEMY_VISUAL_CONFIGS = {
         "right_margin": -20,
         "approach_frame_count": 2,
         "attack_frame_count": 2,
-        # Heavier transparent padding: push both sides closer during attacks.
+        # Compensate the enemy's approach; player reach uses the visible enemy bounds.
         "enemy_attack_gap": -30,
-        "player_attack_gap": 60,
     },
 }
 
@@ -442,6 +161,7 @@ class EnemyAnimator:
         self.frame_timer = 0.0
         self.idle_frame_time = 0.25
         self.attack_frame_time = 0.08
+        self.attack_hit = False
         self.approach_duration = 0.32
         self.return_duration = 0.32
         self.attack_progress = 0.0
@@ -532,6 +252,7 @@ class EnemyAnimator:
         self,
         player_surface: Optional[pygame.Surface],
         player_position: Optional[tuple[float, float]],
+        player_bounds: Optional[pygame.Rect] = None,
     ) -> bool:
         frame = self.current_frame()
         if frame is None:
@@ -550,6 +271,8 @@ class EnemyAnimator:
         self.position[1] = self.base_y
         self.attack_start_x = self.idle_x
         target_x = player_x + player_w - 12 + self.attack_gap
+        if player_bounds is not None:
+            target_x = player_x + player_bounds.right - 12 + self.attack_gap
         min_x = UI_AREAS["image"].x + 24
         max_x = self.idle_x - 12
         self.attack_target_x = max(min_x, min(target_x, max_x))
@@ -562,6 +285,7 @@ class EnemyAnimator:
         return True
 
     def update(self, dt: float):
+        self.attack_hit = False
         if self.state == "attack_approach":
             segment_end = (
                 self.approach_frame_count
@@ -615,6 +339,7 @@ class EnemyAnimator:
                     if not self.attack_sfx_played:
                         sound_manager.play_sfx("attack")
                         self.attack_sfx_played = True
+                        self.attack_hit = True
                     self.state = "attack_return"
                     self.frame_index = max(attack_start_index, attack_end_index - 1)
                     self.frame_timer = 0.0
@@ -789,7 +514,8 @@ logo_image = pygame.transform.scale(logo_image, (300, 300))
 # 玩家立繪
 player_image = pygame.image.load(res_path("assets", "player_idle.png")).convert_alpha()
 player_image = pygame.transform.scale(player_image, (96, 96))
-player_animator = PlayerAnimator(target_height=96)
+# 3D 試作保留於專案，目前遊戲固定使用 2D；忽略舊的 character_style 設定。
+player_animator = PlayerAnimator(target_height=96, style="2d")
 
 enemy_animator = EnemyAnimator(
     target_height=ENEMY_DEFAULT_CONFIG["target_height"],
@@ -797,7 +523,30 @@ enemy_animator = EnemyAnimator(
     right_margin=ENEMY_DEFAULT_CONFIG["right_margin"],
 )
 current_enemy_image = None  # 事件中目前使用的敵人立繪
+combat_feedback = CombatFeedback(settings_manager.load_settings().get("screen_shake", "weak"))
+ui_feedback = UIFeedback()
+campfire_atmosphere = CampfireAtmosphere()
+log_scroller = LogScrollbar()
+dialog = GameDialog()
 enemy_attack_active = False
+window_focused = True
+resume_skip_frame = False
+
+
+def popup_is_open():
+    return show_settings_popup or dialog.is_open
+
+
+def action_status():
+    if enemy_attack_active:
+        return "敵方行動"
+    if pending_result_requires_attack:
+        return "返回中" if player_animator.state == "attack_return" else "攻擊中"
+    return None
+
+
+def render_ui(*args, **kwargs):
+    render_base_ui(*args, action_status=action_status(), combat_feedback=combat_feedback, ui_feedback=ui_feedback, log_scroller=log_scroller, **kwargs)
 
 # 字型
 FONT = pygame.font.Font(res_path("assets", "Cubic_11.ttf"), 20)
@@ -819,7 +568,6 @@ continue_button = pygame.Rect(
     button_width,
     button_height,
 )
-button_color = (70, 70, 70)
 continue_color = (90, 70, 40)
 
 exit_button = pygame.Rect(
@@ -871,16 +619,22 @@ def finger_to_window_pos(event) -> tuple[int, int]:
 
 
 def scroll_log_at(game_pos: tuple[int, int], direction: int) -> bool:
+    if game_state != "main_screen" or not window_focused or popup_is_open() or ui_feedback.modal_progress > 0:
+        return False
     log_rect = get_areas_for_mode(player)["log"]
     if not log_rect.collidepoint(game_pos):
         return False
 
-    log_width = log_rect.width - 16
-    if direction > 0:
-        text_log.scroll_up(FONT, log_width)
-    elif direction < 0:
-        text_log.scroll_down()
+    view = get_log_viewport(log_rect, FONT)
+    text_log.set_scroll_offset(view.offset + direction, FONT, view.text_width, view.visible_lines)
     return True
+
+
+def scroll_pointer_position(window_pos):
+    """Clamp an active drag to the viewport, including outside its letterbox."""
+    viewport = get_render_viewport()
+    return (max(0, min(SCREEN_WIDTH - 1, round((window_pos[0] - viewport.x) * SCREEN_WIDTH / viewport.w))),
+            max(0, min(SCREEN_HEIGHT - 1, round((window_pos[1] - viewport.y) * SCREEN_HEIGHT / viewport.h))))
 
 
 def control_contains(
@@ -932,20 +686,13 @@ def present_game_surface() -> None:
 
 
 def use_inventory_item(player: dict, index: int) -> bool:
-    """Use the item at ``index`` in the player's inventory if possible."""
-    inventory = player.get("inventory")
-    if not inventory or index < 0 or index >= len(inventory):
-        return False
-
-    item_name = inventory[index]
-    text_log.add(f"{item_name} 暫時無法使用。", category="system")
-    text_log.scroll_to_bottom()
-    return False
+    """Inspect story items without consuming them or changing the log."""
+    return dialog.inspect_item(player, index)
 
 
 def get_settings_layout(include_navigation: bool):
     modal_width = 340
-    modal_height = 324 + (130 if include_navigation else 0)
+    modal_height = 412 + (130 if include_navigation else 0)
     screen_width, screen_height = game_surface.get_size()
     modal_rect = pygame.Rect(
         (screen_width - modal_width) // 2,
@@ -997,15 +744,33 @@ def get_settings_layout(include_navigation: bool):
             button_size,
             button_size,
         ),
+        "typewriter_down": pygame.Rect(
+            down_x,
+            row_y_start + 2 * (row_gap + button_size),
+            button_size,
+            button_size,
+        ),
+        "typewriter_up": pygame.Rect(
+            up_x,
+            row_y_start + 2 * (row_gap + button_size),
+            button_size,
+            button_size,
+        ),
         "typewriter_toggle": pygame.Rect(
             toggle_left,
-            row_y_start + 2 * (row_gap + button_size),
+            row_y_start + 3 * (row_gap + button_size),
             button_width,
             button_height,
         ),
         "devlog_toggle": pygame.Rect(
             toggle_left,
-            row_y_start + 3 * (row_gap + button_size),
+            row_y_start + 4 * (row_gap + button_size),
+            button_width,
+            button_height,
+        ),
+        "shake_toggle": pygame.Rect(
+            toggle_left,
+            row_y_start + 5 * (row_gap + button_size),
             button_width,
             button_height,
         ),
@@ -1048,10 +813,16 @@ def draw_button(
     *,
     color=(70, 70, 70),
     font=FONT,
+    enabled=True,
+    allow_hover=True,
 ):
-    pygame.draw.rect(surface, color, rect, border_radius=6)
-    text_surface = render_cached_text(font, label, (255, 255, 255))
-    surface.blit(text_surface, text_surface.get_rect(center=rect.center))
+    mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
+    hovered = bool(window_focused and allow_hover and not TOUCH_PLATFORM and mouse_pos and rect.collidepoint(mouse_pos))
+    hover, pressed = ui_feedback.button_state(rect, enabled=enabled, hovered=hovered)
+    selected = color != (70, 70, 70) and enabled
+    face = draw_button_face(surface, rect, hover=hover, pressed=pressed, enabled=enabled, selected=selected)
+    text_surface = render_cached_text(font, label, TEXT if enabled else MUTED)
+    surface.blit(text_surface, text_surface.get_rect(center=face.center))
 
 
 def render_cached_text(
@@ -1069,13 +840,18 @@ def render_cached_text(
 
 
 def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
+    destination = surface
+    progress = ui_feedback.modal_progress
+    backdrop = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+    backdrop.fill((5, 10, 16, round(150 * progress)))
+    destination.blit(backdrop, (0, 0))
+    surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
     controls = get_settings_layout(include_navigation)
     label_x = controls["label_x"]
     label_width = controls["label_width"]
     toggle_center_x = controls["typewriter_toggle"].centerx
     modal = controls["modal"]
-    pygame.draw.rect(surface, (40, 40, 60), modal, border_radius=8)
-    pygame.draw.rect(surface, (120, 120, 140), modal, 2, border_radius=8)
+    draw_panel(surface, modal)
 
     title = FONT.render("設定", True, (255, 255, 255))
     surface.blit(title, title.get_rect(center=(modal.centerx, modal.y + 24)))
@@ -1110,6 +886,12 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         sound_manager.get_sfx_volume(),
     )
     typewriter_label = "文字逐字播放"
+    draw_volume_row(
+        "打字音量",
+        controls["typewriter_down"],
+        controls["typewriter_up"],
+        sound_manager.get_typewriter_volume(),
+    )
     typewriter_rect = controls["typewriter_toggle"]
     typewriter_state = text_log.is_typewriter_enabled()
     state_text = "手機版停用" if TOUCH_PLATFORM else "開啟" if typewriter_state else "關閉"
@@ -1123,6 +905,7 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         state_text,
         font=SMALL_FONT,
         color=(55, 55, 55) if TOUCH_PLATFORM else (90, 70, 40) if typewriter_state else (70, 70, 70),
+        enabled=not TOUCH_PLATFORM,
     )
 
     devlog_label = "顯示命運/旗標"
@@ -1141,11 +924,19 @@ def draw_settings_popup(surface: pygame.Surface, include_navigation: bool):
         color=(90, 70, 40) if devlog_state else (70, 70, 70),
     )
 
+    shake_rect = controls["shake_toggle"]
+    label_surface = SMALL_FONT.render("畫面震動", True, TEXT)
+    surface.blit(label_surface, label_surface.get_rect(midleft=(label_x, shake_rect.centery)))
+    draw_button(surface, shake_rect, SHAKE_LABELS[combat_feedback.shake_level], font=SMALL_FONT,
+                color=(90, 70, 40) if combat_feedback.shake_level != "off" else (70, 70, 70))
+
     if include_navigation:
         draw_button(surface, controls["to_menu"], "回到主畫面", color=(90, 70, 40))
         draw_button(surface, controls["quit"], "離開遊戲", color=(100, 40, 40))
 
     draw_button(surface, controls["close"], "關閉")
+    surface.set_alpha(round(255 * progress))
+    destination.blit(surface, (0, 0))
 
 
 def handle_settings_click(pos, include_navigation: bool):
@@ -1172,11 +963,24 @@ def handle_settings_click(pos, include_navigation: bool):
     if control_contains(controls["sfx_up"], pos):
         sound_manager.change_sfx_volume(VOLUME_STEP)
         return True
+    if control_contains(controls["typewriter_down"], pos):
+        sound_manager.change_typewriter_volume(-VOLUME_STEP)
+        sound_manager.preview_typewriter()
+        return True
+    if control_contains(controls["typewriter_up"], pos):
+        sound_manager.change_typewriter_volume(VOLUME_STEP)
+        sound_manager.preview_typewriter()
+        return True
     if control_contains(controls["typewriter_toggle"], pos) and not TOUCH_PLATFORM:
         text_log.set_typewriter_enabled(not text_log.is_typewriter_enabled())
         return True
     if control_contains(controls["devlog_toggle"], pos):
         text_log.set_dev_log_enabled(not text_log.is_dev_log_enabled())
+        return True
+    if control_contains(controls["shake_toggle"], pos):
+        levels = list(SHAKE_LABELS)
+        combat_feedback.set_shake_level(levels[(levels.index(combat_feedback.shake_level) + 1) % len(levels)])
+        settings_manager.save_settings({"screen_shake": combat_feedback.shake_level})
         return True
 
     if include_navigation:
@@ -1184,6 +988,7 @@ def handle_settings_click(pos, include_navigation: bool):
             persist_game_state(force=True)
             show_settings_popup = False
             game_state = "start_menu"
+            ui_feedback.modal_progress = 0.0
             sound_manager.play_bgm(BGM_START_MENU)
             return True
         if control_contains(controls["quit"], pos):
@@ -1195,7 +1000,40 @@ def handle_settings_click(pos, include_navigation: bool):
         show_settings_popup = False
         return True
 
-    return False
+    # Clicking empty space in the modal must not advance the story underneath.
+    return True
+
+
+def record_button_press(pos):
+    """Record only enabled controls, using the same hit areas as their actions."""
+    if show_settings_popup:
+        controls = get_settings_layout(game_state == "main_screen")
+        buttons = [rect for key, rect in controls.items() if isinstance(rect, pygame.Rect)
+                   and key != "modal" and not (TOUCH_PLATFORM and key == "typewriter_toggle")]
+    elif game_state == "start_menu":
+        buttons = [settings_button, start_button, exit_button]
+        if has_save_file:
+            buttons.append(continue_button)
+    else:
+        buttons = [settings_button]
+        if not action_status() and not text_log.is_typewriter_animating() and not (
+            player.get("intro_cinematic_active") or player.get("ending_active")
+        ):
+            options = get_option_rects(sub_state, current_event, player)
+            if sub_state == "show_event":
+                options = options[:len((current_event or {}).get("options", []))]
+            elif sub_state != "wait":
+                options = []
+            for rect in options:
+                if control_contains(rect, pos, padding=2):
+                    ui_feedback.press(rect)
+                    sound_manager.play_sfx("ui_click")
+                    return
+    for rect in buttons:
+        if control_contains(rect, pos):
+            ui_feedback.press(rect)
+            sound_manager.play_sfx("ui_click")
+            return
 
 
 def _derive_enemy_key_from_path(path: str) -> Optional[str]:
@@ -1255,6 +1093,7 @@ def load_enemy_assets_from_event(event_data, *, config: dict):
 def update_enemy_visuals(event_data):
     """Load enemy sprites for the current event and refresh the animator."""
     global current_enemy_image
+    combat_feedback.reset()
 
     config = get_enemy_visual_config(event_data)
     enemy_animator.apply_config(
@@ -1343,6 +1182,36 @@ def apply_event_on_enter_effects(player: dict, event: Optional[dict]) -> None:
     event["_on_enter_applied"] = True
 
 
+def game_state_payload():
+    return {
+        "player": player,
+        "game_state": game_state,
+        "sub_state": sub_state,
+        "current_event": current_event,
+        "current_background_name": current_background_name,
+        "pending_walk_event": pending_walk_event,
+        "pending_clear_event": pending_clear_event,
+        "clear_event_timer": clear_event_timer,
+        "text_log": text_log.export_state(),
+    }
+
+
+def reset_action_playback():
+    global battle_checkpoint, pending_attack_chapter
+    global pending_story_touch, touch_scroll_moved
+    player_animator.reset()
+    combat_feedback.reset()
+    ui_feedback.reset_player()
+    ui_feedback.modal_progress = 0.0
+    dialog.reset()
+    sound_manager.cancel_typewriter_preview()
+    log_scroller.cancel()
+    pending_story_touch = None
+    touch_scroll_moved = False
+    battle_checkpoint = None
+    pending_attack_chapter = None
+
+
 def persist_game_state(force: bool = False):
     global has_save_file, last_persist_ticks
 
@@ -1353,19 +1222,7 @@ def persist_game_state(force: bool = False):
     if not force and now - last_persist_ticks < AUTO_SAVE_INTERVAL_MS:
         return
 
-    save_manager.save_game(
-        {
-            "player": player,
-            "game_state": game_state,
-            "sub_state": sub_state,
-            "current_event": current_event,
-            "current_background_name": current_background_name,
-            "pending_walk_event": pending_walk_event,
-            "pending_clear_event": pending_clear_event,
-            "clear_event_timer": clear_event_timer,
-            "text_log": text_log.export_state(),
-        }
-    )
+    save_manager.save_game(battle_checkpoint or game_state_payload())
     last_persist_ticks = now
     has_save_file = True
 
@@ -1375,8 +1232,9 @@ def start_new_adventure():
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha, intro_ready_ticks
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
 
+    reset_action_playback()
     text_log.reset()
     enforce_touch_text_mode()
     player = init_player_state()
@@ -1404,7 +1262,6 @@ def start_new_adventure():
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
     intro_fade_alpha = 255.0
-    intro_ready_ticks = None
     player.pop("intro_cinematic_done", None)
     player.pop("intro_cinematic_active", None)
     player.pop("intro_cinematic_ready", None)
@@ -1446,12 +1303,13 @@ def load_saved_adventure() -> bool:
     global pending_clear_event, clear_event_timer, current_enemy_image, show_settings_popup
     global has_save_file, pending_result, pending_result_requires_attack
     global enemy_attack_active, pending_result_is_battle_action, current_background_name
-    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha, intro_ready_ticks
+    global ending_exit_timer, ending_fade_alpha, intro_fade_alpha
 
     data = save_manager.load_game()
     if not data:
         return False
 
+    reset_action_playback()
     player = data.get("player", init_player_state())
     text_log.load_state(data.get("text_log"))
     enforce_touch_text_mode()
@@ -1496,7 +1354,6 @@ def load_saved_adventure() -> bool:
     ending_exit_timer = 0
     ending_fade_alpha = 0.0
     intro_fade_alpha = 0.0
-    intro_ready_ticks = None
     if current_event and current_event.get("id") == "任務簡報":
         sound_manager.play_bgm(BGM_START_MENU)
     else:
@@ -1515,7 +1372,6 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
     previous_chapter = player.get("chapter", 1)
 
     handle_event_result(player, result)
-    text_log.scroll_to_bottom()
 
     render_ui(
         game_surface,
@@ -1530,6 +1386,15 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         enemy_position=tuple(enemy_animator.position),
     )
     present_game_surface()
+
+    return finish_result_transition(previous_chapter)
+
+
+def finish_result_transition(previous_chapter):
+    """Advance the story only after the visual action has recovered."""
+    global pending_clear_event, clear_event_timer, sub_state, current_event
+    global current_background_name, current_enemy_image
+    global ending_exit_timer, enemy_attack_active
 
     battle_continues = False
     if current_event and current_event.get("type") == "battle":
@@ -1596,7 +1461,7 @@ def advance_ending_segment() -> bool:
 
 def advance_intro_segment() -> bool:
     """Append the next intro segment to the log if available."""
-    global current_background_name, current_event, intro_ready_ticks
+    global current_background_name, current_event
     segments = player.get("intro_segments") or []
     index = player.get("intro_segment_index", 0)
     if index >= len(segments):
@@ -1615,13 +1480,39 @@ def advance_intro_segment() -> bool:
     text_log.clear_history()
     text_log.add(segments[index])
     player["intro_segment_index"] = index + 1
-    intro_ready_ticks = None
     text_log.scroll_to_bottom()
     return True
 
 
+def cinematic_marker():
+    return (id(player), player.get("intro_cinematic_active"), player.get("intro_segment_index"),
+            player.get("ending_active"), player.get("ending_segment_index"))
+
+
+def advance_cinematic_on_tap():
+    global ending_exit_timer, ending_fade_alpha
+    if (player.get("intro_cinematic_active") or player.get("ending_active")) and text_log.log_offset > 0:
+        text_log.scroll_to_bottom()
+        return True
+    if player.get("intro_cinematic_active"):
+        if player.get("intro_pending_start"):
+            return True
+        if not finish_typewriter_on_tap() and not advance_intro_segment():
+            if player.get("intro_cinematic_ready") and not player.get("intro_cinematic_exiting"):
+                player["intro_cinematic_exiting"] = True
+                player["layout_transition"] = {"progress": 1.0, "direction": "out"}
+        return True
+    if player.get("ending_active"):
+        if not finish_typewriter_on_tap() and not advance_ending_segment():
+            if player.get("ending_exit_ready") and not player.get("ending_exit_started"):
+                player["ending_exit_started"] = True
+                ending_exit_timer = ENDING_EXIT_DELAY_MS
+                ending_fade_alpha = 0.0
+        return True
+    return False
+
+
 def start_intro_cinematic(event: dict) -> None:
-    global intro_ready_ticks
     segments = event.get("intro_segments") or []
     if not isinstance(segments, list):
         segments = [str(segments)]
@@ -1631,39 +1522,48 @@ def start_intro_cinematic(event: dict) -> None:
     player["intro_cinematic_ready"] = False
     player["intro_log_history"] = text_log.snapshot_history()
     player["intro_pending_start"] = True
-    intro_ready_ticks = None
-    text_log.set_typewriter_override(False if TOUCH_PLATFORM else True)
+    text_log.set_typewriter_override(False if TOUCH_PLATFORM else None)
     text_log.clear_history()
 
 
 def try_apply_pending_result(force: bool = False):
-    """Apply pending result once ready (after attack animation when required)."""
-
+    """Resolve once at impact, then advance the story when the actor returns."""
     global pending_result, pending_result_requires_attack
     global pending_result_is_battle_action, enemy_attack_active
+    global pending_attack_chapter, battle_checkpoint
 
-    if not pending_result:
+    if pending_result is None and pending_attack_chapter is None:
         return
-
-    if pending_result_requires_attack and not force:
+    if pending_result_requires_attack:
+        if pending_attack_chapter is None:
+            if not (player_animator.attack_hit or force):
+                return
+            pending_attack_chapter = player.get("chapter", 1)
+            handle_event_result(player, pending_result)
+            pending_result = None
+            state = player.get("battle_state") or {}
+            combat_feedback.start("victory" if state.get("victory") else "blocked")
         if not player_animator.attack_finished:
             return
+        chapter = pending_attack_chapter
+        pending_attack_chapter = None
+        pending_result_requires_attack = False
+        battle_continues = finish_result_transition(chapter)
+    else:
+        result = pending_result
+        pending_result = None
+        battle_continues = apply_result_and_advance(result, from_battle_action=pending_result_is_battle_action)
 
-    result = pending_result
-    pending_result = None
-    pending_result_requires_attack = False
     is_battle_action = pending_result_is_battle_action
     pending_result_is_battle_action = False
-
-    battle_continues = apply_result_and_advance(
-        result, from_battle_action=is_battle_action
-    )
-
     if is_battle_action and battle_continues:
         player_surface = player_animator.current_frame() or player_image
         player_pos = tuple(player_animator.position)
-        if enemy_animator.start_attack(player_surface, player_pos):
+        if enemy_animator.start_attack(player_surface, player_pos, player_surface.get_bounding_rect(min_alpha=128)):
             enemy_attack_active = True
+    if not enemy_attack_active:
+        battle_checkpoint = None
+        persist_game_state(force=True)
 
 
 # 初始化玩家狀態
@@ -1673,6 +1573,8 @@ player = init_player_state()
 current_background_name = DEFAULT_BACKGROUND
 
 # 遊戲狀態變數
+battle_checkpoint = None
+pending_attack_chapter = None
 game_state = "start_menu"
 sub_state = "wait"
 current_event = None
@@ -1690,9 +1592,11 @@ enemy_attack_active = False
 ending_exit_timer = 0
 ending_fade_alpha = 0.0
 intro_fade_alpha = 0.0
-intro_ready_ticks: Optional[int] = None
 touch_scroll_start_pos: Optional[tuple[int, int]] = None
 touch_scroll_last_y: Optional[int] = None
+touch_scroll_pointer = None
+touch_scroll_moved = False
+pending_story_touch = None
 last_finger_down_pos: Optional[tuple[int, int]] = None
 last_finger_down_ticks = 0
 
@@ -1700,11 +1604,28 @@ last_finger_down_ticks = 0
 running = True
 while running:
     # 清空畫面
-    game_surface.fill((30, 30, 30))
+    game_surface.fill(BACKGROUND)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            persist_game_state(force=True)
             running = False
+        elif event.type in (pygame.WINDOWFOCUSLOST, pygame.WINDOWMINIMIZED, pygame.APP_WILLENTERBACKGROUND):
+            window_focused = False
+            sound_manager.set_paused(True)
+            persist_game_state(force=True)
+            log_scroller.cancel()
+            pending_story_touch = None
+            touch_scroll_start_pos = None
+            touch_scroll_last_y = None
+            touch_scroll_pointer = None
+            ui_feedback.press_remaining = 0
+        elif event.type in (pygame.WINDOWFOCUSGAINED, pygame.APP_DIDENTERFOREGROUND):
+            window_focused = True
+            resume_skip_frame = True
+            sound_manager.set_paused(False)
+        elif not window_focused:
+            continue
         elif event.type == pygame.VIDEORESIZE:
             if TOUCH_PLATFORM:
                 continue
@@ -1717,8 +1638,12 @@ while running:
             pygame.K_ESCAPE,
             getattr(pygame, "K_AC_BACK", None),
         ):
-            if show_settings_popup:
+            if dialog.is_open:
+                dialog.close()
+            elif show_settings_popup:
                 show_settings_popup = False
+            elif ui_feedback.modal_progress > 0:
+                pass
             elif game_state == "main_screen":
                 persist_game_state(force=True)
                 game_state = "start_menu"
@@ -1750,11 +1675,41 @@ while running:
             if game_pos is None:
                 continue
             if event.type == pygame.FINGERDOWN:
+                if pending_story_touch is not None or log_scroller.pointer is not None:
+                    continue
                 touch_scroll_start_pos = game_pos
                 touch_scroll_last_y = game_pos[1]
+                touch_scroll_pointer = ("touch", event.finger_id)
+                touch_scroll_moved = False
                 last_finger_down_pos = game_pos
                 last_finger_down_ticks = pygame.time.get_ticks()
 
+            if dialog.is_open:
+                controls = dialog.layout(SCREEN_RECT)
+                selected = dialog.handle_click(game_pos, SCREEN_RECT)
+                if selected:
+                    ui_feedback.press(controls[selected])
+                    sound_manager.play_sfx("ui_click")
+                if selected == "confirm":
+                    start_new_adventure()
+                continue
+            if not popup_is_open() and ui_feedback.modal_progress > 0:
+                continue
+            if game_state == "main_screen" and not show_settings_popup:
+                pointer = ("touch", event.finger_id) if event.type == pygame.FINGERDOWN else ("mouse", 0)
+                view = get_log_viewport(get_areas_for_mode(player)["log"], FONT)
+                if view.offset > 0 and view.latest_button.collidepoint(game_pos):
+                    text_log.scroll_to_bottom()
+                    ui_feedback.press(view.latest_button)
+                    sound_manager.play_sfx("ui_click")
+                    # Consume the touch so release cannot also advance this segment.
+                    touch_scroll_start_pos = None
+                    touch_scroll_last_y = None
+                    touch_scroll_pointer = None
+                    continue
+                if log_scroller.begin(game_pos, view, FONT, pointer):
+                    continue
+            record_button_press(game_pos)
             if show_settings_popup:
                 if handle_settings_click(game_pos, game_state == "main_screen"):
                     continue
@@ -1762,8 +1717,6 @@ while running:
             if control_contains(settings_button, game_pos):
                 show_settings_popup = True
                 settings_popup_opened_ticks = pygame.time.get_ticks()
-                draw_settings_popup(game_surface, game_state == "main_screen")
-                present_game_surface()
                 continue
 
             if (
@@ -1773,7 +1726,10 @@ while running:
             ):
                 load_saved_adventure()
             elif game_state == "start_menu" and start_button.collidepoint(game_pos):
-                start_new_adventure()
+                if save_manager.has_save():
+                    dialog.confirm_new_game()
+                else:
+                    start_new_adventure()
             elif game_state == "start_menu" and exit_button.collidepoint(game_pos):
                 pygame.quit()
                 sys.exit()
@@ -1783,40 +1739,13 @@ while running:
                 option_rects = get_option_rects(sub_state, current_event, player, areas)
                 handled_click = False
 
-                if player.get("intro_cinematic_active"):
-                    if player.get("intro_pending_start"):
-                        handled_click = True
-                        continue
-                    if finish_typewriter_on_tap():
-                        handled_click = True
-                    else:
-                        if advance_intro_segment():
-                            handled_click = True
-                        elif player.get("intro_cinematic_ready"):
-                            if not player.get("intro_cinematic_exiting"):
-                                player["intro_cinematic_exiting"] = True
-                                player["layout_transition"] = {
-                                    "progress": 1.0,
-                                    "direction": "out",
-                                }
-                            handled_click = True
-                    if handled_click:
-                        continue
-
-                if player.get("ending_active"):
-                    if finish_typewriter_on_tap():
-                        handled_click = True
-                    else:
-                        if advance_ending_segment():
-                            handled_click = True
-                        elif player.get("ending_exit_ready"):
-                            if not player.get("ending_exit_started"):
-                                player["ending_exit_started"] = True
-                                ending_exit_timer = ENDING_EXIT_DELAY_MS
-                                ending_fade_alpha = 0.0
-                            handled_click = True
-                    if handled_click:
-                        continue
+                if event.type == pygame.FINGERDOWN and areas["log"].collidepoint(game_pos) and (
+                    player.get("intro_cinematic_active") or player.get("ending_active")
+                ):
+                    pending_story_touch = (touch_scroll_pointer, cinematic_marker())
+                    continue
+                if advance_cinematic_on_tap():
+                    continue
 
                 # 點擊「前進」區域
                 if (
@@ -1858,6 +1787,8 @@ while running:
                                 continue
                             if control_contains(rect, game_pos, padding=2):
                                 chosen = current_event["options"][i]
+                                if (chosen.get("result") or {}).get("battle_action"):
+                                    battle_checkpoint = deepcopy(game_state_payload())
                                 text_log.add(
                                     f"你選擇了：{chosen['text']}", category="choice"
                                 )
@@ -1886,7 +1817,8 @@ while running:
                                     )
                                     enemy_pos = tuple(enemy_animator.position)
                                     player_animator.start_attack(
-                                        enemy_width=enemy_w, enemy_position=enemy_pos
+                                        enemy_width=enemy_w, enemy_position=enemy_pos,
+                                        enemy_bounds=enemy_surface.get_bounding_rect(min_alpha=128) if enemy_surface else None,
                                     )
                                 pending_result = result
                                 pending_result_requires_attack = wait_for_attack
@@ -1919,9 +1851,12 @@ while running:
                     for slot in get_inventory_slots(player, areas):
                         if (
                             slot.rect.collidepoint(game_pos)
-                            and slot.item_index is not None
+                            and (slot.item_index is not None or slot.label)
                         ):
-                            if use_inventory_item(player, slot.item_index):
+                            item_index = slot.item_index if slot.item_index is not None else 5
+                            if use_inventory_item(player, item_index):
+                                ui_feedback.press(slot.rect)
+                                sound_manager.play_sfx("ui_click")
                                 render_ui(
                                     game_surface,
                                     player,
@@ -1939,69 +1874,100 @@ while running:
                                 )
                                 present_game_surface()
                             break
+        elif event.type == pygame.MOUSEMOTION:
+            if log_scroller.pointer == ("mouse", 0) and game_state == "main_screen" and not popup_is_open() and ui_feedback.modal_progress == 0:
+                view = get_log_viewport(get_areas_for_mode(player)["log"], FONT)
+                log_scroller.move(scroll_pointer_position(event.pos), view, FONT, ("mouse", 0))
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            log_scroller.release(("mouse", 0))
         elif event.type == pygame.FINGERMOTION:
-            game_pos = window_to_game_pos(finger_to_window_pos(event))
-            if game_pos is None or touch_scroll_last_y is None:
+            if game_state != "main_screen" or popup_is_open() or ui_feedback.modal_progress > 0:
+                continue
+            pointer = ("touch", event.finger_id)
+            game_pos = scroll_pointer_position(finger_to_window_pos(event))
+            view = get_log_viewport(get_areas_for_mode(player)["log"], FONT)
+            if log_scroller.move(game_pos, view, FONT, pointer):
+                continue
+            if pointer != touch_scroll_pointer or touch_scroll_last_y is None:
                 continue
             start_pos = touch_scroll_start_pos or game_pos
+            if max(abs(game_pos[0] - start_pos[0]), abs(game_pos[1] - start_pos[1])) >= TOUCH_SCROLL_THRESHOLD:
+                touch_scroll_moved = True
             dy = game_pos[1] - touch_scroll_last_y
             if abs(dy) >= TOUCH_SCROLL_THRESHOLD:
-                direction = 1 if dy < 0 else -1
+                direction = 1 if dy > 0 else -1
                 if scroll_log_at(start_pos, direction):
                     touch_scroll_last_y = game_pos[1]
         elif event.type == pygame.FINGERUP:
+            pointer = ("touch", event.finger_id)
+            captured = log_scroller.release(pointer)
+            if pending_story_touch and pending_story_touch[0] == pointer:
+                released_pos = scroll_pointer_position(finger_to_window_pos(event))
+                if touch_scroll_start_pos and max(abs(released_pos[0] - touch_scroll_start_pos[0]), abs(released_pos[1] - touch_scroll_start_pos[1])) >= TOUCH_SCROLL_THRESHOLD:
+                    touch_scroll_moved = True
+                if not captured and not touch_scroll_moved and pending_story_touch[1] == cinematic_marker() and game_state == "main_screen" and not popup_is_open() and ui_feedback.modal_progress == 0:
+                    advance_cinematic_on_tap()
+                pending_story_touch = None
+            if pointer != touch_scroll_pointer:
+                continue
             touch_scroll_start_pos = None
             touch_scroll_last_y = None
+            touch_scroll_pointer = None
         elif event.type == pygame.MOUSEWHEEL:
             game_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
             if game_mouse_pos is None:
                 continue
             scroll_log_at(game_mouse_pos, event.y)
 
-    dt_ms = clock.tick(TARGET_FPS)
+    elapsed_ms = clock.tick(TARGET_FPS)
+    if not window_focused or resume_skip_frame:
+        elapsed_ms = 0
+        resume_skip_frame = False
+    if not show_settings_popup:
+        sound_manager.cancel_typewriter_preview()
+    sound_manager.update(elapsed_ms / 1000.0)
+    ui_feedback.update_ui(elapsed_ms / 1000.0, popup_is_open())
+    if not dialog.is_open and ui_feedback.modal_progress == 0:
+        dialog.reset()
+    modal_visible = popup_is_open() or ui_feedback.modal_progress > 0
+    if modal_visible or game_state != "main_screen":
+        log_scroller.cancel()
+        pending_story_touch = None
+    gameplay_active = window_focused and game_state == "main_screen" and not modal_visible
+    dt_ms = elapsed_ms if gameplay_active else 0
     dt = dt_ms / 1000.0
-    text_log.update_typewriter(dt)
-    sound_manager.update(dt)
-    if not (TOUCH_PLATFORM and player_animator.state == "idle"):
-        player_animator.update(dt)
-    if not (TOUCH_PLATFORM and not enemy_animator.is_attacking()):
-        enemy_animator.update(dt)
-    if enemy_attack_active and enemy_animator.attack_finished:
-        enemy_attack_active = False
-    try_apply_pending_result()
+    if gameplay_active:
+        ui_feedback.update_player(dt)
+        if text_log.update_typewriter(dt):
+            sound_manager.play_sfx("typewriter")
+        animation_dt = combat_feedback.update(dt)
+        if not (TOUCH_PLATFORM and player_animator.state == "idle" and not player_animator.fade_state):
+            player_animator.update(animation_dt)
+        if not (TOUCH_PLATFORM and not enemy_animator.is_attacking()):
+            enemy_animator.update(animation_dt)
+        if enemy_attack_active and enemy_animator.attack_hit:
+            combat_feedback.start("hurt")
+        if enemy_attack_active and enemy_animator.attack_finished:
+            enemy_attack_active = False
+            battle_checkpoint = None
+            persist_game_state(force=True)
+        try_apply_pending_result()
+    elif game_state == "start_menu" and not modal_visible:
+        campfire_atmosphere.update(elapsed_ms / 1000.0)
 
     if intro_fade_alpha > 0:
         intro_fade_alpha = max(0.0, intro_fade_alpha - INTRO_FADE_SPEED * dt)
 
-    if player.get("intro_pending_start") and intro_fade_alpha == 0.0:
+    if gameplay_active and player.get("intro_pending_start") and intro_fade_alpha == 0.0:
         player["intro_pending_start"] = False
         advance_intro_segment()
 
-    if player.get("intro_cinematic_active") and not text_log.is_typewriter_animating():
+    if gameplay_active and player.get("intro_cinematic_active") and not text_log.is_typewriter_animating():
         segments = player.get("intro_segments") or []
         if player.get("intro_segment_index", 0) >= len(segments):
             player["intro_cinematic_ready"] = True
-            if intro_ready_ticks is None:
-                intro_ready_ticks = pygame.time.get_ticks()
-        else:
-            intro_ready_ticks = None
-    else:
-        intro_ready_ticks = None
 
-    if (
-        TOUCH_PLATFORM
-        and player.get("intro_cinematic_ready")
-        and not player.get("intro_cinematic_exiting")
-        and intro_ready_ticks is not None
-        and pygame.time.get_ticks() - intro_ready_ticks >= INTRO_TOUCH_AUTO_EXIT_DELAY_MS
-    ):
-        player["intro_cinematic_exiting"] = True
-        player["layout_transition"] = {
-            "progress": 1.0,
-            "direction": "out",
-        }
-
-    if player.get("ending_active"):
+    if gameplay_active and player.get("ending_active"):
         if not text_log.is_typewriter_animating():
             segments = player.get("ending_segments") or []
             if (
@@ -2020,7 +1986,7 @@ while running:
                     player["return_to_menu"] = True
 
     transition = player.get("layout_transition")
-    if transition:
+    if transition and gameplay_active:
         progress = float(transition.get("progress", 0.0))
         direction = transition.get("direction", "in")
         step = dt / max(0.01, ENDING_LAYOUT_TRANSITION_SEC)
@@ -2050,7 +2016,8 @@ while running:
                 transition["progress"] = progress
 
     if (
-        sub_state == "walking"
+        gameplay_active
+        and sub_state == "walking"
         and pending_walk_event
         and player_animator.fade_state == "in"
     ):
@@ -2087,7 +2054,7 @@ while running:
             text_log.scroll_to_bottom()
             sub_state = "wait"
             player["hide_player_sprite_until_next_event"] = False
-    elif sub_state == "walking" and player_animator.walk_finished:
+    elif gameplay_active and sub_state == "walking" and player_animator.walk_finished:
         sub_state = "wait"
 
     # 【畫面繪製入口】
@@ -2097,16 +2064,20 @@ while running:
     # 3. 共用: 畫設定按鈕、設定彈窗、淡入淡出遮罩
     # 4. 最後: present_game_surface() 把 game_surface 顯示到實際螢幕
     current_mouse_pos = window_to_game_pos(pygame.mouse.get_pos())
+    if game_state == "main_screen":
+        ui_feedback.observe(player)
     if game_state == "start_menu":
         # 【主選單畫面】背景圖、Logo、開始/繼續/離開按鈕都在這裡畫。
-        game_surface.blit(start_bg, start_bg.get_rect(center=SCREEN_RECT.center))
+        background_rect = start_bg.get_rect(center=SCREEN_RECT.center)
+        game_surface.blit(start_bg, background_rect)
+        campfire_atmosphere.draw(game_surface, background_rect)
         game_surface.blit(logo_image, (100, 80))
 
         if has_save_file:
-            draw_button(game_surface, continue_button, "繼續冒險", color=continue_color)
+            draw_button(game_surface, continue_button, "繼續冒險", color=continue_color, allow_hover=not modal_visible)
 
-        draw_button(game_surface, start_button, "開始冒險")
-        draw_button(game_surface, exit_button, "離開遊戲")
+        draw_button(game_surface, start_button, "開始冒險", allow_hover=not modal_visible)
+        draw_button(game_surface, exit_button, "離開遊戲", allow_hover=not modal_visible)
 
         summary_surface = SMALL_FONT.render(
             f"音樂 {int(sound_manager.get_bgm_volume() * 100)}% / 音效 {int(sound_manager.get_sfx_volume() * 100)}%",
@@ -2131,29 +2102,38 @@ while running:
             player_position=tuple(player_animator.position),
             enemy_position=tuple(enemy_animator.position),
             mouse_pos=current_mouse_pos,
-            allow_hover=not show_settings_popup,
+            allow_hover=window_focused and not modal_visible and not TOUCH_PLATFORM,
         )
-    draw_button(game_surface, settings_button, "設定", font=SMALL_FONT)
-    if show_settings_popup:
-        # 【設定彈窗】蓋在主選單或遊戲畫面上方。
-        draw_settings_popup(game_surface, game_state == "main_screen")
-    if player_animator.fade_alpha > 0:
+    draw_button(game_surface, settings_button, "設定", font=SMALL_FONT, allow_hover=not modal_visible)
+    if modal_visible:
+        if dialog.kind:
+            dialog.draw(game_surface, player, FONT, SMALL_FONT, ui_feedback.modal_progress, draw_button)
+        else:
+            draw_settings_popup(game_surface, game_state == "main_screen")
+    if game_state == "main_screen" and player_animator.fade_alpha > 0:
         fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, player_animator.fade_alpha))
         game_surface.blit(fade_surface, (0, 0))
-    if ending_fade_alpha > 0:
+    if game_state == "main_screen" and ending_fade_alpha > 0:
         fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, int(ending_fade_alpha)))
         game_surface.blit(fade_surface, (0, 0))
-    if intro_fade_alpha > 0:
+    if game_state == "main_screen" and intro_fade_alpha > 0:
         fade_surface = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, int(intro_fade_alpha)))
         game_surface.blit(fade_surface, (0, 0))
+    if not window_focused:
+        shade = pygame.Surface(game_surface.get_size(), pygame.SRCALPHA)
+        shade.fill((5, 10, 16, 190))
+        game_surface.blit(shade, (0, 0))
+        for label, y in (("已暫停", SCREEN_RECT.centery - 18), ("回到遊戲視窗後繼續", SCREEN_RECT.centery + 18)):
+            rendered = FONT.render(label, True, TEXT)
+            game_surface.blit(rendered, rendered.get_rect(center=(SCREEN_RECT.centerx, y)))
     persist_game_state()
     present_game_surface()
 
     # 延遲後清除事件
-    if pending_clear_event:
+    if pending_clear_event and gameplay_active:
         if clear_event_timer > 0:
             clear_event_timer -= 1
         else:

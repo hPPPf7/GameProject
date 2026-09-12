@@ -74,6 +74,7 @@ class LogEntry:
 
 log_history: list[LogEntry] = []
 log_offset: int = 0  # 以行數計算的捲動位移；0 = 底部（最新）
+_scroll_anchor: int | None = None  # First visible wrapped line while reading history.
 _current_event_id: int | None = None
 _next_event_id: int = 1
 _pending_entries: List[LogEntry] = []
@@ -83,6 +84,8 @@ _typewriter_enabled: bool = _load_typewriter_preference()
 _typewriter_override: bool | None = None
 _dev_log_enabled: bool = _load_dev_log_preference()
 TYPEWRITER_SPEED = 40.0  # characters per second
+TYPEWRITER_SOUND_INTERVAL = 0.08
+_typewriter_sound_cooldown = 0.0
 _TYPEWRITER_CATEGORIES = {"narration"}
 _DEV_LOG_CATEGORIES = {"dev"}
 _log_version: int = 0
@@ -101,7 +104,7 @@ def _invalidate_wrap_cache() -> None:
 def start_event(title: str | None = None) -> None:
     """Begin a new logical event block in the log."""
 
-    global log_offset, _current_event_id, _next_event_id
+    global _current_event_id, _next_event_id
     _current_event_id = _next_event_id
     _next_event_id += 1
 
@@ -113,8 +116,6 @@ def start_event(title: str | None = None) -> None:
     else:
         header = f"── 事件 {_current_event_id:02d} ──"
     _enqueue(LogEntry(header, category="event_header", event_id=_current_event_id))
-
-    log_offset = 0
 
 
 def add(
@@ -133,8 +134,9 @@ def add(
 
 
 def scroll_to_bottom() -> None:
-    global log_offset
+    global log_offset, _scroll_anchor
     log_offset = 0
+    _scroll_anchor = None
 
 
 def reset() -> None:
@@ -143,14 +145,16 @@ def reset() -> None:
     global log_history, log_offset, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress, _typewriter_enabled
     global _typewriter_override, _dev_log_enabled
+    global _typewriter_sound_cooldown
 
     log_history = []
-    log_offset = 0
+    scroll_to_bottom()
     _current_event_id = None
     _next_event_id = 1
     _pending_entries = []
     _active_entry = None
     _active_progress = 0.0
+    _typewriter_sound_cooldown = 0.0
     _typewriter_enabled = _load_typewriter_preference()
     _typewriter_override = None
     _dev_log_enabled = _load_dev_log_preference()
@@ -162,14 +166,16 @@ def clear_history() -> None:
 
     global log_history, log_offset, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress
+    global _typewriter_sound_cooldown
 
     log_history = []
-    log_offset = 0
+    scroll_to_bottom()
     _current_event_id = None
     _next_event_id = 1
     _pending_entries = []
     _active_entry = None
     _active_progress = 0.0
+    _typewriter_sound_cooldown = 0.0
     _invalidate_wrap_cache()
 
 
@@ -269,10 +275,8 @@ def _trigger_on_show(entry: LogEntry) -> None:
 
 def _append_entry(entry: LogEntry) -> None:
     """Append entry to history and fire its on_show callback once."""
-    global log_offset
     log_history.append(entry)
     _trigger_on_show(entry)
-    log_offset = 0
     _invalidate_wrap_cache()
 
 
@@ -304,7 +308,6 @@ def _flush_pending_entries() -> None:
         _active_progress = 0.0
     while _pending_entries:
         _append_entry(_pending_entries.pop(0))
-    log_offset = 0
 
 
 def _promote_pending() -> None:
@@ -321,22 +324,18 @@ def _promote_pending() -> None:
 
 
 def scroll_up(font, max_width: int, visible_lines: int = 9) -> None:
-    global log_offset
-    wrapped = list(_get_wrapped_lines(font, max_width))
-    if _active_entry:
-        visible_chars = int(_active_progress)
-        visible_text = _active_entry.text[:visible_chars]
-        lines = wrap_text(visible_text, font, max_width) if visible_text else [""]
-        wrapped.extend((line, _active_entry.category) for line in lines)
-    max_offset = max(0, len(wrapped) - visible_lines)
-    if log_offset < max_offset:
-        log_offset += 1
+    get_scroll_metrics(font, max_width, visible_lines)
+    set_scroll_offset(log_offset + 1, font, max_width, visible_lines)
 
 
 def scroll_down() -> None:
-    global log_offset
+    global log_offset, _scroll_anchor
     if log_offset > 0:
         log_offset -= 1
+        if _scroll_anchor is not None:
+            _scroll_anchor += 1
+    if log_offset == 0:
+        _scroll_anchor = None
 
 
 def export_state() -> dict:
@@ -352,6 +351,7 @@ def export_state() -> dict:
             for entry in log_history
         ],
         "log_offset": log_offset,
+        "scroll_anchor": _scroll_anchor,
         "current_event_id": _current_event_id,
         "next_event_id": _next_event_id,
         "typewriter_enabled": _typewriter_enabled,
@@ -381,7 +381,7 @@ def load_state(state: dict | None) -> None:
     if not state:
         return
 
-    global log_history, log_offset, _current_event_id, _next_event_id
+    global log_history, log_offset, _scroll_anchor, _current_event_id, _next_event_id
     global _pending_entries, _active_entry, _active_progress, _typewriter_enabled
     global _dev_log_enabled
     history = []
@@ -396,10 +396,11 @@ def load_state(state: dict | None) -> None:
 
     log_history = history
     log_offset = state.get("log_offset", 0)
+    anchor = state.get("scroll_anchor")
+    _scroll_anchor = anchor if isinstance(anchor, int) and anchor >= 0 and log_offset > 0 else None
     _current_event_id = state.get("current_event_id")
     _next_event_id = state.get("next_event_id", 1)
-    _typewriter_enabled = state.get("typewriter_enabled", True)
-    _save_typewriter_preference(_typewriter_enabled)
+    # reset() already loaded the current preference. Saves only restore the story.
     _dev_log_enabled = _load_dev_log_preference()
 
     _pending_entries = [
@@ -432,49 +433,81 @@ def load_state(state: dict | None) -> None:
                     event_id=active_data.get("event_id"),
                 )
             )
-            log_offset = 0
         if not _typewriter_enabled and _pending_entries:
             log_history.extend(_pending_entries)
             _pending_entries = []
-            log_offset = 0
     _invalidate_wrap_cache()
 
 
-def get_visible_lines(font, max_width: int, visible_lines: int = 9) -> list[tuple[str, str]]:
-    """Return the wrapped lines that should be rendered for the log panel."""
-
+def _get_display_lines(font, max_width: int) -> list[tuple[str, str]]:
+    """Include currently revealed typewriter text in both drawing and scrolling."""
     wrapped = list(_get_wrapped_lines(font, max_width))
     if _active_entry:
         visible_chars = int(_active_progress)
         visible_text = _active_entry.text[:visible_chars]
         lines = wrap_text(visible_text, font, max_width) if visible_text else [""]
         wrapped.extend((line, _active_entry.category) for line in lines)
+    return wrapped
+
+
+def get_scroll_metrics(font, max_width: int, visible_lines: int = 9) -> tuple[int, int, int]:
+    """Return total lines, maximum offset and clamped offset (zero = newest)."""
+    global log_offset, _scroll_anchor
+    total = len(_get_display_lines(font, max_width))
+    maximum = max(0, total - max(1, visible_lines))
+    if log_offset > 0:
+        if _scroll_anchor is None:
+            _scroll_anchor = max(0, maximum - log_offset)
+        log_offset = max(0, min(maximum, maximum - _scroll_anchor))
+    if log_offset == 0:
+        _scroll_anchor = None
+    return total, maximum, log_offset
+
+
+def set_scroll_offset(offset: int, font, max_width: int, visible_lines: int = 9) -> None:
+    global log_offset, _scroll_anchor
+    _, maximum, _ = get_scroll_metrics(font, max_width, visible_lines)
+    log_offset = max(0, min(int(offset), maximum))
+    _scroll_anchor = maximum - log_offset if log_offset > 0 else None
+
+
+def get_visible_lines(font, max_width: int, visible_lines: int = 9) -> list[tuple[str, str]]:
+    """Return the wrapped lines that should be rendered for the log panel."""
+    _, _, offset = get_scroll_metrics(font, max_width, visible_lines)
+    wrapped = _get_display_lines(font, max_width)
     if not wrapped:
         return []
 
-    max_offset = max(0, len(wrapped) - visible_lines)
-    offset = min(log_offset, max_offset)
     start = max(0, len(wrapped) - visible_lines - offset)
     end = len(wrapped) - offset
     return wrapped[start:end]
 
 
-def update_typewriter(dt: float) -> None:
-    """Advance the typewriter animation by ``dt`` seconds."""
+def update_typewriter(dt: float) -> bool:
+    """Reveal text; request at most one quiet tick for newly visible letters."""
     global _active_progress, log_offset, _active_entry
+    global _typewriter_sound_cooldown
+    dt = max(0.0, dt)
+    _typewriter_sound_cooldown = max(0.0, _typewriter_sound_cooldown - dt)
 
     if not _effective_typewriter_enabled():
         # Keep scroll position intact when the typewriter is disabled; only flush
         # queued text once if there is anything pending.
         if _active_entry or _pending_entries:
             _flush_pending_entries()
-        return
+        return False
 
     if not _active_entry:
         _promote_pending()
-        return
+        return False
 
+    previous_count = int(_active_progress)
     _active_progress += TYPEWRITER_SPEED * dt
+    revealed = _active_entry.text[previous_count:int(_active_progress)]
+    should_tick = _typewriter_sound_cooldown == 0 and any(char.isalnum() for char in revealed)
+    if should_tick:
+        # Skip missed ticks on slow frames instead of queuing a burst of sounds.
+        _typewriter_sound_cooldown = TYPEWRITER_SOUND_INTERVAL
 
     if _active_progress >= len(_active_entry.text):
         # Finish the entry and move on.
@@ -482,6 +515,7 @@ def update_typewriter(dt: float) -> None:
         _active_progress = 0.0
         _active_entry = None
         _promote_pending()
+    return should_tick
 
 
 def set_typewriter_enabled(enabled: bool) -> None:

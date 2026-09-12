@@ -2,9 +2,12 @@
 
 import pygame
 import text_log
+import math
 
 from paths import res_path
 from battle_system import DEFAULT_DURABILITY
+from ui_theme import draw_panel, draw_button_face, shake_scene, BACKGROUND, TEXT, MUTED, AMBER, RED
+from log_scrollbar import get_log_viewport, draw_log_scrollbar
 
 
 def is_cinematic_mode(player: dict) -> bool:
@@ -13,6 +16,18 @@ def is_cinematic_mode(player: dict) -> bool:
         return False
     flags = player.get("flags", {})
     return bool(flags.get("ending_cinematic") or player.get("intro_cinematic_active"))
+
+
+def cinematic_continue_label(player):
+    if text_log.is_typewriter_animating() or any(player.get(key) for key in (
+        "intro_pending_start", "intro_cinematic_exiting", "ending_exit_started", "layout_transition"
+    )):
+        return None
+    if player.get("intro_cinematic_active"):
+        return "點擊繼續"
+    if player.get("ending_active"):
+        return "點擊返回選單" if player.get("ending_exit_ready") else "點擊繼續"
+    return None
 
 
 # 定義介面區域的尺寸與位置：縮窄狀態區塊的寬度，並相應放寬選項區域，
@@ -160,19 +175,6 @@ def get_scaled_item_icon(name: str, size: int) -> Optional[pygame.Surface]:
     _SCALED_ICON_CACHE[key] = scaled
     return scaled
 
-
-
-COLORS = {
-    "image": (40, 80, 40),
-    "log": (30, 30, 30),
-    "status": (40, 40, 80),
-    "option": (60, 60, 60),
-    "option_disabled": (40, 40, 40),
-    "option_hover": (100, 100, 100),
-    "inventory": (90, 90, 40),
-    "inventory_slot": (120, 120, 70),
-    "inventory_slot_border": (180, 180, 120),
-}
 
 
 def get_areas_for_mode(player: dict) -> dict:
@@ -424,6 +426,10 @@ def render_ui(
     enemy_position=None,
     mouse_pos=None,
     allow_hover=True,
+    action_status=None,
+    combat_feedback=None,
+    ui_feedback=None,
+    log_scroller=None,
 ):
     """
     Draw the main UI components: image area, log area, status panel, options,
@@ -463,7 +469,8 @@ def render_ui(
                 areas["image"].bottom - player_height - 16,
             )
         player_bottom = player_pos[1] + player_image.get_height()
-        screen.blit(player_image, player_pos)
+        frame, offset = combat_feedback.sprite(player_image, "player") if combat_feedback else (player_image, (0, 0))
+        screen.blit(frame, (player_pos[0] + offset[0], player_pos[1] + offset[1]))
     enemy_rect: Optional[pygame.Rect] = None
     if enemy_image and not ending_cinematic:
         enemy_rect = enemy_image.get_rect()
@@ -472,18 +479,24 @@ def render_ui(
         else:
             enemy_rect.x = areas["image"].right - enemy_rect.width - 32
             enemy_rect.bottom = player_bottom
-        screen.blit(enemy_image, enemy_rect.topleft)
+        frame, offset = combat_feedback.sprite(enemy_image, "enemy") if combat_feedback else (enemy_image, (0, 0))
+        screen.blit(frame, enemy_rect.move(offset).topleft)
+    if combat_feedback and not ending_cinematic:
+        combat_feedback.draw(screen, areas["image"], font, player_position, enemy_position, player_image, enemy_image)
+        shake_scene(screen, areas["image"], combat_feedback.camera_offset())
     # 恢復全局裁切，後續 UI 不受限
     screen.set_clip(old_clip)
 
     # 【事件文字/日誌區】
     # 畫下方文字框，並把 text_log 裡的紀錄依照可見行數畫出來。
-    pygame.draw.rect(screen, COLORS["log"], areas["log"])
+    if ending_cinematic:
+        screen.fill(BACKGROUND, areas["log"])
+    else:
+        draw_panel(screen, areas["log"], kind="log")
     # 組出換行後的日誌內容
-    max_width = areas["log"].width - 16  # 扣除邊距
-    visible_line_count = max(1, (areas["log"].height - 16) // 24)
+    log_view = get_log_viewport(areas["log"], font)
     visible_lines = text_log.get_visible_lines(
-        font, max_width, visible_lines=visible_line_count
+        font, log_view.text_width, visible_lines=log_view.visible_lines
     )
     color_map = {
         "narration": (255, 255, 255),
@@ -496,8 +509,25 @@ def render_ui(
     for i, (line, category) in enumerate(visible_lines):
         color = color_map.get(category, (255, 255, 255))
         draw_text(
-            screen, line, areas["log"], font, center=False, line_offset=i, color=color
+            screen, line, log_view.text_rect, font, center=False, line_offset=i, color=color
         )
+    draw_log_scrollbar(screen, log_view, active=bool(log_scroller and log_scroller.pointer),
+                       mouse_pos=mouse_pos if allow_hover else None)
+    if log_view.offset > 0:
+        rect = log_view.latest_button
+        hovered = allow_hover and rect.collidepoint(mouse_pos)
+        hover, pressed = ui_feedback.button_state(rect, hovered=hovered) if ui_feedback else (float(hovered), False)
+        face = draw_button_face(screen, rect, hover=hover, pressed=pressed)
+        draw_text(screen, "回到最新", face, font, center=True, color=AMBER)
+    else:
+        label = cinematic_continue_label(player)
+        if label:
+            rendered = font.render(label, True, MUTED)
+            elapsed = ui_feedback.reading_time if ui_feedback else 0
+            rendered.set_alpha(round(200 + 40 * math.sin(elapsed * 3)))
+            screen.blit(rendered, rendered.get_rect(midright=(log_view.footer.right - 14, log_view.footer.centery)))
+            x, y = log_view.footer.right - 5, log_view.footer.centery
+            pygame.draw.polygon(screen, MUTED, [(x - 4, y - 2), (x + 4, y - 2), (x, y + 3)])
 
     # 【戰鬥狀態區】
     # 目前只在戰鬥事件顯示耐久等狀態；一般事件會隱藏這塊。
@@ -505,7 +535,7 @@ def render_ui(
         hide_status = not (current_event and current_event.get("type") == "battle")
         if not hide_status:
             status_rect = areas["status_rect"]
-            pygame.draw.rect(screen, COLORS["status"], status_rect)
+            draw_panel(screen, status_rect)
 
             current_durability, max_durability = _get_durability_display(player)
             rows = [f"耐久 {current_durability}/{max_durability}"]
@@ -532,13 +562,24 @@ def render_ui(
                     font,
                     center=False,
                     line_offset=0,
+                    color=RED if ui_feedback and ui_feedback.durability_time > 0 else TEXT,
                 )
+            # A small segmented meter makes the existing durability count legible at a glance.
+            segments = max(1, min(12, max_durability))
+            meter_width = status_rect.w - 24
+            for index in range(segments):
+                left = status_rect.x + 12 + round(index * meter_width / segments)
+                right = status_rect.x + 12 + round((index + 1) * meter_width / segments) - 4
+                filled = index / segments < current_durability / max(1, max_durability)
+                pygame.draw.rect(screen, AMBER if filled else (49, 60, 67), (left, status_rect.bottom - 25, right - left, 6))
+            if ui_feedback:
+                ui_feedback.draw_durability(screen, status_rect, font)
 
     option_rects = get_option_rects(sub_state, current_event, player, areas)
 
     # 【選項/前進按鈕區】
     # wait 狀態畫「前進」；show_event 狀態畫目前事件的選項。
-    if player.get("intro_cinematic_active"):
+    if player.get("intro_cinematic_active") or player.get("ending_active"):
         option_rects = []
     if sub_state == "wait":
         if not option_rects:
@@ -550,54 +591,47 @@ def render_ui(
         else:
             can_interact = not typewriter_active
             is_hover = allow_hover and wait_rect.collidepoint(mouse_pos) and can_interact
-            color = (
-                COLORS["option_disabled"]
-                if not can_interact
-                else COLORS["option_hover"]
-                if is_hover
-                else COLORS["option"]
-            )
-            pygame.draw.rect(screen, color, wait_rect)
+            hover, pressed = ui_feedback.button_state(wait_rect, enabled=can_interact, hovered=is_hover) if ui_feedback else (float(is_hover), False)
+            face = draw_button_face(screen, wait_rect, hover=hover, pressed=pressed, enabled=can_interact)
             if can_interact:
-                draw_text(screen, "前進", wait_rect, font, center=True)
+                draw_text(screen, "前進", face, font, center=True, color=TEXT)
     elif sub_state == "show_event" and current_event:
         options = current_event.get("options", [])
-        show_option_text = not typewriter_active
+        show_option_text = not typewriter_active or bool(action_status)
         for i, rect in enumerate(option_rects):
-            is_hover = allow_hover and rect.collidepoint(mouse_pos) and show_option_text
+            is_hover = allow_hover and not action_status and rect.collidepoint(mouse_pos) and show_option_text
             if i < len(options):
-                color = (
-                    COLORS["option_disabled"]
-                    if typewriter_active
-                    else COLORS["option_hover"]
-                    if is_hover
-                    else COLORS["option"]
-                )
-                pygame.draw.rect(screen, color, rect)
+                enabled = not (typewriter_active or action_status)
+                hover, pressed = ui_feedback.button_state(rect, enabled=enabled, hovered=is_hover) if ui_feedback else (float(is_hover), False)
+                face = draw_button_face(screen, rect, hover=hover, pressed=pressed, enabled=enabled)
                 if show_option_text:
-                    option_text = options[i]["text"]
-                    draw_text(screen, option_text, rect, font, center=True)
+                    option_text = action_status if action_status and i == 0 else options[i]["text"]
+                    color = AMBER if action_status and i == 0 else TEXT if enabled else MUTED
+                    draw_text(screen, option_text, face, font, center=True, color=color)
             else:
-                pygame.draw.rect(screen, COLORS["option_disabled"], rect)
+                face = draw_button_face(screen, rect, enabled=False)
                 if show_option_text:
-                    draw_text(screen, "……", rect, font, center=True)
-        if typewriter_active:
+                    draw_text(screen, "……", face, font, center=True, color=MUTED)
+        if typewriter_active and not action_status:
             for rect in option_rects:
-                pygame.draw.rect(screen, COLORS["option_disabled"], rect)
+                draw_button_face(screen, rect, enabled=False)
 
     if mode == "normal":
         # 【背包欄】
         # 畫底部固定六格背包，若道具有圖示則貼上圖示。
         inventory_preview_rect = areas["inventory_preview"]
-        pygame.draw.rect(screen, COLORS["inventory"], inventory_preview_rect)
-        for slot in get_inventory_slots(player, areas):
-            pygame.draw.rect(screen, COLORS["inventory_slot"], slot.rect)
-            pygame.draw.rect(screen, COLORS["inventory_slot_border"], slot.rect, 2)
+        draw_panel(screen, inventory_preview_rect)
+        for index, slot in enumerate(get_inventory_slots(player, areas)):
+            pulse, bounce = ui_feedback.item_pulse(index, overflow=bool(slot.label)) if ui_feedback else (0, 0)
+            hovered = allow_hover and (slot.item_name is not None or slot.label) and slot.rect.collidepoint(mouse_pos)
+            draw_panel(screen, slot.rect, kind="slot", emphasis=max(pulse, .5 if hovered else 0))
             if slot.icon:
-                icon_rect = slot.icon.get_rect(center=slot.rect.center)
+                icon_rect = slot.icon.get_rect(center=slot.rect.move(0, bounce).center)
                 screen.blit(slot.icon, icon_rect)
             elif slot.label:
                 draw_text(screen, slot.label, slot.rect, font, center=True)
+            elif slot.item_name:
+                draw_text(screen, slot.item_name[:2], slot.rect, font, center=True, color=MUTED)
 
 
 def draw_text(
