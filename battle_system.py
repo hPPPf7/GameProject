@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import ast
 from dataclasses import dataclass
 from typing import Dict, Optional
 
@@ -27,6 +28,29 @@ class EnemyState:
         return cls(
             name=data.get("name", "未知生物"),
         )
+
+    @classmethod
+    def from_saved(cls, value) -> "EnemyState":
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, dict):
+            return cls.from_dict(value)
+        if isinstance(value, str):
+            # Older saves contain the dataclass repr. Read only its literal name.
+            if value.startswith("EnemyState("):
+                try:
+                    node = ast.parse(value, mode="eval").body
+                    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                            and node.func.id == "EnemyState" and not node.args
+                            and len(node.keywords) == 1 and node.keywords[0].arg == "name"):
+                        name = ast.literal_eval(node.keywords[0].value)
+                        if isinstance(name, str):
+                            return cls(name)
+                except (SyntaxError, ValueError, TypeError):
+                    pass
+                return cls("未知生物")
+            return cls(value or "未知生物")
+        return cls("未知生物")
 
 
 def _ensure_battle_state(player: Dict) -> Dict:
@@ -81,10 +105,7 @@ def get_battle_state(player: Dict) -> Optional[Dict]:
     state = player.get("battle_state")
     if not state:
         return None
-    enemy = state.get("enemy")
-    if enemy and isinstance(enemy, dict):
-        # Convert legacy enemy dicts into EnemyState.
-        state["enemy"] = EnemyState.from_dict(enemy)
+    state["enemy"] = EnemyState.from_saved(state.get("enemy"))
     return state
 
 

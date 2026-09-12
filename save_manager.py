@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict, is_dataclass
 from typing import Any, Dict
 
 from pathlib import Path
@@ -19,6 +20,8 @@ def has_save() -> bool:
 
 
 def _to_json_safe(value: Any) -> Any:
+    if is_dataclass(value) and not isinstance(value, type):
+        return _to_json_safe(asdict(value))
     if isinstance(value, set):
         return sorted(value)
     if isinstance(value, dict):
@@ -38,6 +41,9 @@ def _deserialize_player(data: Dict[str, Any]) -> Dict[str, Any]:
     player = dict(data)
     if "consumed_events" in player and isinstance(player["consumed_events"], list):
         player["consumed_events"] = set(player["consumed_events"])
+    if isinstance(player.get("battle_state"), dict):
+        from battle_system import get_battle_state
+        get_battle_state(player)
     return player
 
 
@@ -73,6 +79,9 @@ def load_game() -> Dict[str, Any] | None:
     try:
         data = json.loads(save_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(data, dict) or not isinstance(data.get("player"), dict):
         return None
 
     if "player" in data and isinstance(data["player"], dict):
