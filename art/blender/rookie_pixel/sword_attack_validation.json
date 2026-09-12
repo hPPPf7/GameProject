@@ -1,0 +1,23 @@
+{
+  "attack": "AN_Rookie_Attack_Sword_01",
+  "blender_frames": 30,
+  "fps": 30,
+  "sheet_frames": 15,
+  "sheet_fps": 15,
+  "sword_meshes": 11,
+  "sword_triangles": 406,
+  "max_foot_ik_error": 1.705779471434645e-05,
+  "minimum_sole_bottom_z": -1.699291169643402e-05,
+  "maximum_sole_bottom_z": 6.891787052154541e-08,
+  "foot_drift": {
+    "L": 7.761559865077742e-06,
+    "R": 1.7026029220671834e-05
+  },
+  "minimum_blade_tip_z": 0.5221328735351562,
+  "maximum_blade_attachment_error": 3.5762786865234375e-07,
+  "loop_matrix_error": 0.0,
+  "max_arm_rotation_per_quarter_frame_deg": 12.643969351899441,
+  "minimum_wrist_quaternion_norm": 0.9999999403953552,
+  "unweighted_sword_vertices": 0,
+  "walk_action_preserved": true
+}

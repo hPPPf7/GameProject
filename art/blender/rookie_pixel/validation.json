@@ -1,0 +1,24 @@
+{
+  "blender": "5.2.1 LTS",
+  "meshes": 62,
+  "triangles": 2272,
+  "bones": 20,
+  "atlas": [
+    128,
+    96
+  ],
+  "walk_frames": 24,
+  "fps": 30,
+  "sheet_frames": 8,
+  "sheet_fps": 10,
+  "max_ik_error": 4.584152854829333e-05,
+  "minimum_sole_z": -5.066394805908203e-06,
+  "maximum_sole_z": 0.1599723994731903,
+  "loop_matrix_error": 0.0,
+  "unweighted_vertices": 0,
+  "original_scene_objects": [
+    "Cube",
+    "Light",
+    "Camera"
+  ]
+}
