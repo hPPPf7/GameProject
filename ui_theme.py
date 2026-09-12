@@ -41,13 +41,57 @@ def draw_panel(surface, rect, *, kind='panel', emphasis=0):
     surface.blit(_panel(rect.size, kind, max(0, min(6, round(emphasis * 6)))), rect)
 
 
+def _button_shape(size):
+    width, height = size[0] - 1, size[1] - 1
+    cut = min(3, width // 4, height // 4)
+    return [(cut, 0), (width - cut, 0), (width, cut),
+            (width, height - cut), (width - cut, height), (cut, height),
+            (0, height - cut), (0, cut)]
+
+
+@lru_cache(maxsize=128)
+def _button_material(size, kind, emphasis, pressed):
+    """Matte material with broad lighting and fixed pixel grain, without an outline."""
+    surface = pygame.Surface(size, pygame.SRCALPHA)
+    width, height = size
+    base = {'button': (49, 62, 72), 'selected': (74, 62, 44), 'disabled': (30, 39, 47)}[kind]
+    base = mix(base, (111, 98, 75), emphasis / 6 * .42)
+    if pressed:
+        base = mix(base, (17, 25, 31), .12)
+    light = 3 if kind == 'disabled' else 11
+    for y in range(height):
+        # Lighting covers the entire face; it is not an edge highlight.
+        shade = round(light * (1 - 1.6 * y / max(1, height - 1)))
+        color = tuple(max(0, min(255, value + shade)) for value in base)
+        surface.fill(color, (0, y, width, 1))
+    for y in range(2, height - 2, 3):
+        for x in range(2, width - 2, 3):
+            code = (x * 37 + y * 61 + x * y * 7) % 31
+            if code > 8:
+                continue
+            delta = (2 if code < 4 else -2) if kind == 'disabled' else (6 if code < 4 else -5)
+            color = tuple(max(0, min(255, value + delta)) for value in surface.get_at((x, y))[:3])
+            surface.fill(color, (x, y, 2, 2))
+    mask = pygame.Surface(size, pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), _button_shape(size))
+    surface.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return surface
+
+
 def draw_button_face(surface, rect, *, hover=0, pressed=False, enabled=True, selected=False):
     """Return the label rectangle while keeping the original hit area fixed."""
+    pressed = pressed and enabled
+    depth = max(2, min(4, rect.h // 10)) if enabled else 2
+    # A filled lower layer provides depth without drawing a stroked border.
+    shadow = [(rect.x + x, rect.y + y) for x, y in _button_shape(rect.size)]
+    pygame.draw.polygon(surface, (12, 20, 27), shadow)
     face = rect.copy()
+    face.height = max(1, face.h - depth)
     if pressed:
         face.y += 1
     kind = 'disabled' if not enabled else 'selected' if selected else 'button'
-    draw_panel(surface, face, kind=kind, emphasis=max(hover, .45 if selected and enabled else 0))
+    emphasis = max(hover, .45 if selected else 0) if enabled else 0
+    surface.blit(_button_material(face.size, kind, max(0, min(6, round(emphasis * 6))), pressed), face)
     return face
 
 
