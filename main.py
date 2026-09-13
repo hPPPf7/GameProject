@@ -1323,6 +1323,32 @@ def load_saved_adventure() -> bool:
         sub_state = "wait"
         data["pending_walk_event"] = False
     current_event = data.get("current_event")
+    if sub_state == "show_event" and not player.get("ending_active"):
+        from event_manager import refresh_saved_event
+        saved_event = current_event
+        current_event = refresh_saved_event(saved_event, player)
+        if current_event is not saved_event:
+            if current_event.get("background") != saved_event.get("background"):
+                data["current_background_name"] = current_event["background"]
+            if current_event["id"] != saved_event["id"]:
+                text_log.start_event(current_event["id"])
+                text_log.add(current_event["text"])
+                data["current_background_name"] = current_event["background"]
+            elif current_event["text"] != saved_event.get("text"):
+                # Only update the current, unchosen scene; earlier history is kept.
+                log_state = text_log.export_state()
+                entries = log_state["log_history"] + log_state["pending_entries"]
+                active_entry = log_state.get("active_entry")
+                if active_entry:
+                    entries.append(active_entry)
+                for entry in entries:
+                    if (entry.get("event_id") == log_state["current_event_id"]
+                            and entry.get("text") == saved_event.get("text")):
+                        entry["text"] = current_event["text"]
+                        if entry is active_entry:
+                            log_state["active_progress"] = 0
+                text_log.load_state(log_state)
+                enforce_touch_text_mode()
     current_background_name = data.get("current_background_name") or (
         current_event.get("background", DEFAULT_BACKGROUND)
         if current_event

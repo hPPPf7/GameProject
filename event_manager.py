@@ -26,6 +26,9 @@ DEFAULT_BACKGROUND = "starting_area.png"
 CHAPTER2_FIRST_EVENT_WITH_ROCK_ID = "村民盯著石頭"
 CHAPTER2_FIRST_EVENT_NO_ROCK_ID = "村民尋找失物"
 CHAPTER3_FIRST_EVENT_ID = "守衛傀儡戰"
+OUTPOST_ENTRY_EVENT_ID = "研究據點入口"
+CORE_EVENT_ID = "核心機組啟動"
+OUTPOST_INTERIOR_EVENTS = {"會議殘影", "樣本日誌", "自我懷疑", "聯絡", "前往深處"}
 
 CHAPTER_END_EVENTS = {
     1: ["第一章結束"],
@@ -87,6 +90,9 @@ def _check_condition(condition: Dict, player) -> bool:
     for flag in condition.get("flag_on", []):
         if not flags.get(flag):
             return False
+    any_flags = condition.get("flag_any", [])
+    if any_flags and not any(flags.get(flag) for flag in any_flags):
+        return False
     for flag in condition.get("flag_off", []):
         if flags.get(flag):
             return False
@@ -170,7 +176,12 @@ def _get_fate_style(player) -> str:
     return "neutral"
 
 
-def _resolve_text_value(payload: Dict, style: str) -> Optional[str]:
+def _resolve_text_value(payload: Dict, style: str, player=None) -> Optional[str]:
+    # Context takes precedence over tone: never narrate an action the player did not choose.
+    if player is not None:
+        for variant in payload.get("text_conditions", []):
+            if _check_condition(variant.get("condition") or {}, player):
+                return variant["text"]
     variants = payload.get("text_variants")
     if isinstance(variants, dict):
         return (
@@ -198,13 +209,13 @@ def _merge_dicts(base: Optional[Dict], override: Optional[Dict]) -> Dict:
     return merged
 
 
-def _resolve_result(option: Dict, style: str) -> Dict:
+def _resolve_result(option: Dict, style: str, player=None) -> Dict:
     base_result = option.get("result") or {}
     variants = option.get("result_variants") or {}
     override = variants.get(style) or variants.get("neutral") or variants.get("normal")
     resolved = _merge_dicts(base_result, override)
 
-    text_value = _resolve_text_value(resolved, style)
+    text_value = _resolve_text_value(resolved, style, player)
     if text_value:
         resolved["text"] = text_value
     return resolved
@@ -218,7 +229,7 @@ def _resolve_event_variants(event: Dict, player) -> Dict:
     style = _get_fate_style(player)
     resolved = copy.deepcopy(event)
     resolved["_variant"] = style
-    text_value = _resolve_text_value(resolved, style)
+    text_value = _resolve_text_value(resolved, style, player)
     if text_value:
         resolved["text"] = text_value
 
@@ -227,10 +238,45 @@ def _resolve_event_variants(event: Dict, player) -> Dict:
         if not _is_option_available(option, player):
             continue
         resolved_option = copy.deepcopy(option)
-        resolved_option["result"] = _resolve_result(option, style)
+        resolved_option["result"] = _resolve_result(option, style, player)
+        segments = resolved_option["result"].get("ending_segments")
+        if segments:
+            for epilogue in event.get("ending_epilogues", []):
+                if _check_condition(epilogue.get("condition") or {}, player):
+                    segments.append(epilogue["text"])
+                    break
         options.append(resolved_option)
     resolved["options"] = options
     return resolved
+
+
+def refresh_saved_event(event: Optional[Dict], player) -> Optional[Dict]:
+    """Refresh revised, unchosen options without replaying entry effects or old logs."""
+    if not event:
+        return event
+    flags = player.get("flags", {})
+    if (event.get("id") == "終章自問" and player.get("chapter") == 4
+            and not (flags.get("accepted_id") or flags.get("refused_id"))):
+        # A legacy save can be waiting at the chapter exit with the core skipped.
+        # Offer the missing decision first, then return to the unanswered question.
+        _restore_research_progress(player)
+        _ensure_consumed_set(player).discard("終章自問")
+        return _prepare_event(player, get_event_by_id(CORE_EVENT_ID))
+    current = get_event_by_id(event.get("id"))
+    if not current or current.get("revision", 0) <= event.get("revision", 0):
+        return event
+    refreshed = _resolve_event_variants(current, player)
+    if event.get("_on_enter_applied"):
+        refreshed["_on_enter_applied"] = True
+    return refreshed
+
+
+def _restore_research_progress(player) -> None:
+    """Infer entry for older saves already inside; do not invent a core decision."""
+    consumed = _ensure_consumed_set(player)
+    if (player.get("chapter", 1) >= 4 or OUTPOST_ENTRY_EVENT_ID in consumed
+            or OUTPOST_INTERIOR_EVENTS.intersection(consumed)):
+        player.setdefault("flags", {})["visited_outpost"] = True
 
 
 def _increment_midband_counter(player) -> int:
@@ -256,9 +302,17 @@ def _get_chapter_start_event(player) -> Optional[Dict]:
             return event
         return None
     if chapter == 3:
-        event = get_event_by_id(CHAPTER3_FIRST_EVENT_ID)
-        if event and not _was_consumed(event, player) and is_event_condition_met(event, player):
-            return event
+        if not player.get("flags", {}).get("visited_outpost"):
+            for event_id in (CHAPTER3_FIRST_EVENT_ID, OUTPOST_ENTRY_EVENT_ID):
+                event = get_event_by_id(event_id)
+                if event and not _was_consumed(event, player) and is_event_condition_met(event, player):
+                    return event
+    if chapter == 4:
+        flags = player.get("flags", {})
+        if not (flags.get("accepted_id") or flags.get("refused_id")):
+            event = get_event_by_id(CORE_EVENT_ID)
+            if event and is_event_condition_met(event, player):
+                return event
     return None
 
 
@@ -297,6 +351,7 @@ def get_random_event(event_types=None, player=None):
         player = {}
 
     _tick_cooldowns(player)
+    _restore_research_progress(player)
 
     # 確保任務簡報在其他遭遇前觸發
     if player is not None:
@@ -330,7 +385,7 @@ def get_random_event(event_types=None, player=None):
                 print(
                     f"[event_manager] 強制事件 {forced_event_id} 已觸發過，改以一般事件取代。"
                 )
-            else:
+            elif is_event_condition_met(forced_event, player):
                 return _prepare_event(player, forced_event)
         else:
             print(

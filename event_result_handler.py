@@ -131,6 +131,13 @@ def handle_event_result(player: Dict, result: Dict) -> str | None:
             forced_event = forced_event or result.get("forced_event_on_defeat")
 
         if battle_outcome.get("battle_over"):
+            outcome_key = (
+                "victory_text" if battle_outcome.get("victory")
+                else "escape_text" if battle_outcome.get("escaped")
+                else "defeat_text"
+            )
+            if result.get(outcome_key):
+                text_log.add(result[outcome_key])
             if battle_outcome.get("victory"):
                 _apply_effects(
                     player,
