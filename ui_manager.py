@@ -85,6 +85,7 @@ def _load_background(name: str) -> pygame.Surface:
     loaded: Optional[pygame.Surface] = None
     search_paths = [
         res_path(*BACKGROUND_DIR, name),
+        res_path("assets", "background", name),  # New scenes use descriptive filenames.
         res_path("assets", name),  # fallback for legacy locations
     ]
     for path in search_paths:

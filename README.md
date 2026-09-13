@@ -175,6 +175,10 @@ buildozer android debug
 - 遊戲圖片、角色圖、背景、字型與音效放在 `assets/`。
 - `buildozer.spec` 會封裝 `py`、`json`、`png`、`jpg`、`jpeg`、`ttf`、`wav`、`mp3` 等檔案。
 
+「核心機組啟動」與「變異體暴走」共用新背景 `assets/background/research_core.png`（1536 × 1024）。背景載入支援此目錄的描述性檔名，既有編號背景仍從 `assets/background_ascii/` 讀取；共用場景只需一份圖片。
+
+後續研究所室內場景以新的核心控制室為美術參考。結局圖片只保留正常結局 `bg034.png` 的方案；理性 `bg036.png` 與荒謬 `bg035.png` 列為待重製，不作為新圖參考，待新圖完成後再替換。
+
 更新劇情或素材後，請至少以開發模式執行一次 `python main.py`，確認資源路徑、文字顯示與音效載入正常。
 
 ### 玩家走路動畫
