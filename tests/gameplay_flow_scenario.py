@@ -72,6 +72,17 @@ def scenario(g, pygame):
 
     g['reset_action_playback']()
     g['intro_fade_alpha'] = 0
+    if not MOBILE:
+        # Keep testing clicks and scrollbar dragging after a non-native-size resize.
+        old_height = g['screen'].get_height()
+        requested_width = max(g['MIN_WINDOW_SIZE'][0] + 20, g['screen'].get_width() - 50)
+        g['desktop_window'].size = (requested_width, old_height)
+        yield [pygame.event.Event(pygame.VIDEORESIZE, w=requested_width, h=old_height, size=(requested_width, old_height))]
+        yield from wait(4)
+        width, height = g['screen'].get_size()
+        assert width == requested_width and abs(width / g['SCREEN_WIDTH'] - height / g['SCREEN_HEIGHT']) < .003, (width, height)
+        mapped = g['window_to_game_pos'](g['get_render_viewport']().center)
+        assert abs(mapped[0] - 256) <= 1 and abs(mapped[1] - 423) <= 1
     g['player'] = g['init_player_state']()
     g['player']['inventory'] = ['奇怪的石頭', '草織護符', '塗黑報告']
     g['game_state'] = 'main_screen'

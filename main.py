@@ -18,6 +18,7 @@ from paths import res_path, user_data_path
 import sound_manager
 import save_manager
 import settings_manager
+from window_resize import WindowsAspectResize, proportional_size
 
 BGM_START_MENU = "Music-0.mp3"
 BGM_CHAPTER_TRACKS = {
@@ -450,16 +451,13 @@ def get_initial_window_size() -> tuple[int, int]:
         return (SCREEN_WIDTH, SCREEN_HEIGHT)
 
     scale = min(safe_width / SCREEN_WIDTH, safe_height / SCREEN_HEIGHT)
-    scaled_width = max(320, int(SCREEN_WIDTH * scale))
-    scaled_height = max(320, int(SCREEN_HEIGHT * scale))
+    scaled_width = max(1, round(SCREEN_WIDTH * scale))
+    scaled_height = max(1, round(SCREEN_HEIGHT * scale))
     return (scaled_width, scaled_height)
 
 
 INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT = get_initial_window_size()
 MIN_WINDOW_SCALE = 0.6
-MIN_WINDOW_WIDTH = min(INITIAL_WINDOW_WIDTH, int(SCREEN_WIDTH * MIN_WINDOW_SCALE))
-MIN_WINDOW_HEIGHT = min(INITIAL_WINDOW_HEIGHT, int(SCREEN_HEIGHT * MIN_WINDOW_SCALE))
-NATIVE_SIZE_SNAP_TOLERANCE = 24
 MIN_WINDOW_RATIO_SCALE = min(
     MIN_WINDOW_SCALE,
     INITIAL_WINDOW_WIDTH / SCREEN_WIDTH,
@@ -467,38 +465,35 @@ MIN_WINDOW_RATIO_SCALE = min(
 )
 MIN_RATIO_WINDOW_WIDTH = int(round(SCREEN_WIDTH * MIN_WINDOW_RATIO_SCALE))
 MIN_RATIO_WINDOW_HEIGHT = int(round(SCREEN_HEIGHT * MIN_WINDOW_RATIO_SCALE))
+MIN_WINDOW_SIZE = (MIN_RATIO_WINDOW_WIDTH, MIN_RATIO_WINDOW_HEIGHT)
+window_resize = WindowsAspectResize((SCREEN_WIDTH, SCREEN_HEIGHT), MIN_WINDOW_SIZE)
+last_window_size = (INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
 
 
 def clamp_window_size(width: int, height: int) -> tuple[int, int]:
-    hit_min_width = width < MIN_WINDOW_WIDTH
-    hit_min_height = height < MIN_WINDOW_HEIGHT
-
-    width = max(MIN_WINDOW_WIDTH, width)
-    height = max(MIN_WINDOW_HEIGHT, height)
-
-    # When the user shrinks to the minimum limit, snap to the game's aspect
-    # ratio so the smallest allowed window has no letterboxing.
-    if hit_min_width or hit_min_height:
-        width = MIN_RATIO_WINDOW_WIDTH
-        height = MIN_RATIO_WINDOW_HEIGHT
-
-    if (
-        abs(width - SCREEN_WIDTH) <= NATIVE_SIZE_SNAP_TOLERANCE
-        and abs(height - SCREEN_HEIGHT) <= NATIVE_SIZE_SNAP_TOLERANCE
-    ):
-        return (SCREEN_WIDTH, SCREEN_HEIGHT)
-
-    return (width, height)
+    # Fallback for desktop backends without native drag constraints.
+    width_change = abs(width - last_window_size[0]) / SCREEN_WIDTH
+    height_change = abs(height - last_window_size[1]) / SCREEN_HEIGHT
+    axis = "width" if width_change > height_change else "height"
+    return proportional_size((width, height), (SCREEN_WIDTH, SCREEN_HEIGHT), MIN_WINDOW_SIZE, axis)
 
 
 display_flags = pygame.FULLSCREEN if TOUCH_PLATFORM else pygame.RESIZABLE
 screen = pygame.display.set_mode(
     (INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT), display_flags
 )
+desktop_window = None
+desktop_maximized = False
+if not TOUCH_PLATFORM:
+    from pygame._sdl2.video import Window
+    desktop_window = Window.from_display_module()
+    window_resize.install(pygame.display.get_wm_info().get("window"))
+    pygame.register_quit(window_resize.close)
 pygame.display.set_caption("菜鳥調查隊日誌")
 icon = pygame.image.load(res_path("assets", "icon.png")).convert_alpha()
 pygame.display.set_icon(icon)
 game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
+resize_preview = game_surface.copy()
 SCREEN_RECT = game_surface.get_rect()
 clock = pygame.time.Clock()
 last_persist_ticks = 0
@@ -587,8 +582,8 @@ def get_render_viewport() -> pygame.Rect:
         return pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
     scale = min(window_width / SCREEN_WIDTH, window_height / SCREEN_HEIGHT)
-    scaled_width = max(1, int(SCREEN_WIDTH * scale))
-    scaled_height = max(1, int(SCREEN_HEIGHT * scale))
+    scaled_width = max(1, round(SCREEN_WIDTH * scale))
+    scaled_height = max(1, round(SCREEN_HEIGHT * scale))
     return pygame.Rect(
         (window_width - scaled_width) // 2,
         (window_height - scaled_height) // 2,
@@ -671,18 +666,27 @@ def should_suppress_mouse_after_touch(game_pos: tuple[int, int]) -> bool:
     )
 
 
-def present_game_surface() -> None:
+def present_game_surface(*, preview=False) -> None:
     # 【畫面輸出到視窗/手機螢幕】
     # 遊戲先畫在固定大小的 game_surface，再依照目前視窗或手機螢幕比例縮放貼到 screen。
+    global screen
+    screen = pygame.display.get_surface() or screen
+    frame = resize_preview if preview else game_surface
+    if not preview:
+        resize_preview.blit(game_surface, (0, 0))
     viewport = get_render_viewport()
     screen.fill((0, 0, 0))
-    if viewport.size == game_surface.get_size():
-        screen.blit(game_surface, viewport.topleft)
+    if viewport.size == frame.get_size():
+        screen.blit(frame, viewport.topleft)
     else:
-        scale_func = pygame.transform.scale if TOUCH_PLATFORM else pygame.transform.smoothscale
-        scaled_surface = scale_func(game_surface, viewport.size)
+        # Preserve pixel edges on desktop and mobile, including live resize previews.
+        # Always scale the logical frame, never the previously resized display.
+        scaled_surface = pygame.transform.scale(frame, viewport.size)
         screen.blit(scaled_surface, viewport.topleft)
     pygame.display.flip()
+
+
+window_resize.on_resize = lambda: present_game_surface(preview=True)
 
 
 def use_inventory_item(player: dict, index: int) -> bool:
@@ -1624,16 +1628,29 @@ while running:
             window_focused = True
             resume_skip_frame = True
             sound_manager.set_paused(False)
-        elif not window_focused:
-            continue
-        elif event.type == pygame.VIDEORESIZE:
+        elif event.type == pygame.WINDOWMAXIMIZED:
+            desktop_maximized = True
+        elif event.type == pygame.WINDOWRESTORED:
+            desktop_maximized = False
+        elif event.type in (pygame.VIDEORESIZE, pygame.WINDOWSIZECHANGED):
             if TOUCH_PLATFORM:
                 continue
-            clamped_width, clamped_height = clamp_window_size(event.w, event.h)
-            if (clamped_width, clamped_height) != screen.get_size():
-                screen = pygame.display.set_mode(
-                    (clamped_width, clamped_height), pygame.RESIZABLE
-                )
+            # pygame 2 updates its display surface automatically. Native Windows
+            # sizing already constrained the rectangle before this event arrived.
+            screen = pygame.display.get_surface() or screen
+            if not window_resize.installed and not desktop_maximized and desktop_window:
+                requested = (event.w, event.h) if event.type == pygame.VIDEORESIZE else (event.x, event.y)
+                target = clamp_window_size(*requested)
+                if target != screen.get_size():
+                    desktop_window.size = target
+                    screen = pygame.display.get_surface() or screen
+            last_window_size = screen.get_size()
+            resume_skip_frame = True
+            log_scroller.cancel()
+            pending_story_touch = None
+            touch_scroll_pointer = None
+        elif not window_focused or window_resize.active:
+            continue
         elif event.type == pygame.KEYDOWN and event.key in (
             pygame.K_ESCAPE,
             getattr(pygame, "K_AC_BACK", None),
@@ -1920,7 +1937,8 @@ while running:
             scroll_log_at(game_mouse_pos, event.y)
 
     elapsed_ms = clock.tick(TARGET_FPS)
-    if not window_focused or resume_skip_frame:
+    resize_paused = window_resize.consume_pause()
+    if not window_focused or resume_skip_frame or resize_paused:
         elapsed_ms = 0
         resume_skip_frame = False
     if not show_settings_popup:
@@ -1933,7 +1951,7 @@ while running:
     if modal_visible or game_state != "main_screen":
         log_scroller.cancel()
         pending_story_touch = None
-    gameplay_active = window_focused and game_state == "main_screen" and not modal_visible
+    gameplay_active = window_focused and game_state == "main_screen" and not modal_visible and not window_resize.active
     dt_ms = elapsed_ms if gameplay_active else 0
     dt = dt_ms / 1000.0
     if gameplay_active:
