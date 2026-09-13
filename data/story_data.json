@@ -27,7 +27,7 @@
     "id": "荒野拾石",
     "type": "normal",
     "chapter": 1,
-    "text": "你在荒野中撿到一個奇怪的石頭，它透著微弱熱度。",
+    "text": "你在荒野的草地上發現一塊奇怪的石頭，表面透著微弱的暖光。",
     "options": [
       {
         "text": "撿起來",
@@ -54,7 +54,8 @@
       }
     ],
     "text_variants": {},
-    "background": "bg007.png"
+    "background": "bg007.png",
+    "revision": 1
   },
   {
     "id": "遭遇野豬",
@@ -953,8 +954,8 @@
       "rational": "你走在昏暗的走廊裡，冷不防四周浮現出模糊的全息投影——那是一場往昔的員工會議。而更令你震驚的是，你竟隱約看見投影畫面中有一個身影和你長得一模一樣。",
       "absurd": "廢棄走廊的空氣中突然出現幽幽的投影幻象：一群穿白袍的研究員圍坐開會，而你赫然看見自己的身影也混雜在其中！你的心臟狂跳——這到底是幻覺，還是時間錯位的殘影？"
     },
-    "background": "bg025.png",
-    "revision": 2,
+    "background": "research_corridor.png",
+    "revision": 3,
     "condition": {
       "flag_on": [
         "visited_outpost"
@@ -1020,8 +1021,8 @@
       "rational": "在樣本庫房的一角，你發現一塊數據終端板正不停閃爍。打開一看，裡頭有一封尚未傳送的日誌郵件。",
       "absurd": "陰暗的樣本庫房牆上，一塊電子屏幕忽明忽滅。你點開後發現是一篇未發出的日誌。奇怪的是，這日誌沒有署名，但字裡行間散發出一種讓你不安又熟悉的絕望氣息。"
     },
-    "background": "bg026.png",
-    "revision": 2,
+    "background": "research_archive.png",
+    "revision": 3,
     "condition": {
       "flag_on": [
         "visited_outpost"
@@ -1213,8 +1214,8 @@
       "rational": "核心機組的燈光忽明忽滅，你恍惚間看見實驗台上躺著一個人——定睛一看，那人竟是過去的你自己！",
       "absurd": "核心艙室燈光瘋狂閃爍，每一次明滅之間，你都瞥見實驗台上多出一個身影：那赫然是另一個你！幻影中的你靜靜地躺在檯面，雙目緊閉仿佛沉睡多年。"
     },
-    "background": "bg030.png",
-    "revision": 2,
+    "background": "research_core.png",
+    "revision": 3,
     "condition": {
       "flag_any": [
         "accepted_id",
@@ -1539,8 +1540,8 @@
       "rational": "你來到終端觀測室，只見四周牆壁緩緩裂開，出現了一扇扇透明觀測窗。每一扇窗戶後都映照著一個平行世界，而這些世界的情景正在同時上演。你不禁倒抽一口涼氣——難以置信的多重現實正同時展現在你眼前。",
       "absurd": "終端室的金屬牆壁無聲滑開，露出裡面密密麻麻的觀測窗口。透過那些窗口，你看見一個個截然不同的世界正在同步上演著各種匪夷所思的景象。你的腦中一陣暈眩，彷彿置身多元宇宙的樞紐，窺探著無盡世界的浮光掠影。"
     },
-    "background": "bg032.png",
-    "revision": 2,
+    "background": "bg031.png",
+    "revision": 3,
     "condition": {
       "flag_any": [
         "accepted_id",
@@ -1721,7 +1722,7 @@
         "result_variants": {}
       }
     ],
-    "background": "bg022.png",
+    "background": "research_corridor.png",
     "condition": {
       "chapter_is": 3,
       "fate_min": 67,
@@ -1729,7 +1730,7 @@
         "visited_outpost"
       ]
     },
-    "revision": 2
+    "revision": 3
   },
   {
     "id": "聯絡",
@@ -1746,7 +1747,7 @@
         "result_variants": {}
       }
     ],
-    "background": "bg027.png",
+    "background": "research_corridor.png",
     "condition": {
       "chapter_is": 3,
       "fate_max": 33,
@@ -1754,7 +1755,7 @@
         "visited_outpost"
       ]
     },
-    "revision": 2
+    "revision": 3
   },
   {
     "id": "前往深處",
@@ -1771,7 +1772,7 @@
         "result_variants": {}
       }
     ],
-    "background": "bg023.png",
+    "background": "research_corridor.png",
     "condition": {
       "chapter_is": 3,
       "fate_min": 34,
@@ -1780,7 +1781,7 @@
         "visited_outpost"
       ]
     },
-    "revision": 2
+    "revision": 3
   },
   {
     "id": "回報進度",
@@ -1816,7 +1817,7 @@
         "result_variants": {}
       }
     ],
-    "background": "bg028.png",
+    "background": "research_core.png",
     "condition": {
       "chapter_is": 4,
       "flag_any": [
@@ -1824,6 +1825,6 @@
         "refused_id"
       ]
     },
-    "revision": 2
+    "revision": 3
   }
 ]

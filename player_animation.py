@@ -1,6 +1,7 @@
 """Player animation; main.py uses 2D, with the Blender prototype retained for reuse."""
 
 from typing import Optional
+import math
 
 import pygame
 
@@ -67,6 +68,10 @@ class PlayerAnimator:
             UI_AREAS["image"].right - walk_width - 16,
         )
         self.position = [self.idle_x, self.base_y]
+        self.entry_start = (0.0, 0.0)
+        self.entry_target = (0.0, 0.0)
+        self.entry_scale = 1.0
+        self._entry_frames = {}
         self.request_style(style if isinstance(style, str) and style in STYLE_LABELS else "2d")
 
     @property
@@ -87,6 +92,8 @@ class PlayerAnimator:
         self.fade_timer = 0.0
         self.fade_alpha = 0
         self.pending_style = None
+        self.entry_scale = 1.0
+        self._entry_frames.clear()
         self.position[:] = [self.idle_x, self.base_y]
 
     @property
@@ -206,6 +213,47 @@ class PlayerAnimator:
         self.fade_alpha = 0
         self.position[0] = self.idle_x
 
+    def start_enter(self, target: tuple[int, int]):
+        """Approach a doorway in depth, keeping the visible feet on its path."""
+        current = self.current_frame()
+        if current is None:
+            self.start_transition_fade()
+            return
+        bounds = current.get_bounding_rect(min_alpha=128)
+        self.entry_start = (self.position[0] + bounds.centerx,
+                            self.position[1] + bounds.bottom)
+        self.entry_target = target
+        distance = math.hypot(target[0] - self.entry_start[0], target[1] - self.entry_start[1])
+        self.walk_duration = max(.65, distance / max(1, self.movement_speed * .6))
+        self.state = "entering"
+        self.walk_progress = 0.0
+        self.frame_index = 0
+        self.frame_timer = 0.0
+        self.walk_finished = False
+        self.fade_state = None
+        self.fade_timer = 0.0
+        self.fade_alpha = 0
+        self.entry_scale = 1.0
+        self._entry_frames.clear()
+        self._place_entry_frame()
+
+    def _entry_frame(self):
+        frames = self.walk_frames or self.idle_frames
+        frame = frames[self.frame_index % len(frames)]
+        size = (max(1, round(frame.get_width() * self.entry_scale)),
+                max(1, round(frame.get_height() * self.entry_scale)))
+        key = (self.frame_index % len(frames), size)
+        if key not in self._entry_frames:
+            self._entry_frames[key] = pygame.transform.scale(frame, size)
+        return self._entry_frames[key]
+
+    def _place_entry_frame(self):
+        self.entry_scale = 1.0 - .28 * self.walk_progress
+        bounds = self._entry_frame().get_bounding_rect(min_alpha=128)
+        feet = tuple(start + (end - start) * self.walk_progress
+                     for start, end in zip(self.entry_start, self.entry_target))
+        self.position[:] = [round(feet[0] - bounds.centerx), round(feet[1] - bounds.bottom)]
+
     def start_attack(
         self,
         enemy_width: Optional[int] = None,
@@ -245,6 +293,16 @@ class PlayerAnimator:
         self.walk_finished = False
         self.attack_finished = False
 
+        if self.state == "entering":
+            self._update_fade(dt)
+            if self.state == "entering" and not self.fade_state:
+                self._advance_frames(self.walk_frames or self.idle_frames, self.walk_frame_time, dt)
+                self.walk_progress = min(1.0, self.walk_progress + dt / self.walk_duration)
+                self._place_entry_frame()
+                if self.walk_progress >= 1.0:
+                    self._start_fade_out()
+            return
+
         if self.state in ("attack_approach", "attacking", "attack_return"):
             self._update_attack(dt)
             self._apply_pending_style()
@@ -281,6 +339,9 @@ class PlayerAnimator:
             self.position[0] = self.idle_x
 
     def current_frame(self) -> Optional[pygame.Surface]:
+        if self.state == "entering":
+            # Hold the small doorway pose until the screen is fully black.
+            return self._entry_frame()
         if self.state == "attacking":
             frames = self.attack_frames
         elif self.state in ("attack_approach", "attack_return", "walking"):
@@ -317,7 +378,9 @@ class PlayerAnimator:
                 self.walk_progress = 0.0
                 self.frame_index = 0
                 self.frame_timer = 0.0
-                self.position[0] = self.idle_x
+                self.position[:] = [self.idle_x, self.base_y]
+                self.entry_scale = 1.0
+                self._entry_frames.clear()
         elif self.fade_state == "in":
             self.fade_alpha = int(255 * (1 - progress))
             if progress >= 1.0:

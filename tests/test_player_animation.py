@@ -163,6 +163,45 @@ class PlayerAnimationTests(unittest.TestCase):
         a.update(.1)
         self.assertEqual(a.style, "3d")
 
+    def test_door_entry_reaches_threshold_before_fading_and_restores_indoor_pose(self):
+        for fps in (20, 60):
+            with self.subTest(fps=fps):
+                a = self.animator_class()
+                target = (228, 238)
+                a.start_enter(target)
+                start = a.entry_start
+                a.update(a.walk_duration / 2)
+                frame = a.current_frame()
+                bounds = frame.get_bounding_rect(128)
+                feet = (a.position[0] + bounds.centerx, a.position[1] + bounds.bottom)
+                self.assertAlmostEqual(feet[0], (start[0] + target[0]) / 2, delta=1)
+                self.assertAlmostEqual(feet[1], (start[1] + target[1]) / 2, delta=1)
+                self.assertLess(frame.get_height(), a.target_height)
+                a.update(a.walk_duration / 2)
+                self.assertEqual(a.fade_state, "out")
+                frame = a.current_frame()
+                bounds = frame.get_bounding_rect(128)
+                self.assertEqual((a.position[0] + bounds.centerx, a.position[1] + bounds.bottom), target)
+                before = a.position[:]
+                for _ in range(fps * 3):
+                    a.update(1 / fps)
+                    if a.fade_state == "out":
+                        self.assertEqual(a.position, before)
+                        self.assertIsNotNone(a.current_frame())
+                    if a.fade_state == "in":
+                        self.assertEqual(a.position, [a.idle_x, a.base_y])
+                    if a.walk_finished:
+                        break
+                self.assertTrue(a.walk_finished)
+                self.assertEqual(a.state, "idle")
+                self.assertEqual(a.current_frame().get_height(), a.target_height)
+                a.start_enter(target)
+                a.update(.2)
+                a.reset()
+                self.assertEqual(a.position, [a.idle_x, a.base_y])
+                self.assertEqual(a.entry_scale, 1)
+                self.assertFalse(a._entry_frames)
+
     def test_sword_reaches_enemy_silhouette_despite_transparent_margins(self):
         for style in ("2d", "3d"):
             with self.subTest(style=style):

@@ -8,6 +8,7 @@ from paths import res_path
 from battle_system import DEFAULT_DURABILITY
 from ui_theme import draw_panel, draw_button_face, shake_scene, BACKGROUND, TEXT, MUTED, AMBER, RED
 from log_scrollbar import get_log_viewport, draw_log_scrollbar
+from scene_details import can_enter_research, draw_scene_details
 
 
 def is_cinematic_mode(player: dict) -> bool:
@@ -72,6 +73,19 @@ UI_HEIGHT = UI_AREAS["inventory_preview"].bottom + 16
 BACKGROUND_DIR = ("assets", "background_ascii")
 DEFAULT_BACKGROUND = "bg001.png"
 
+# Older saves can retain these names even after the event itself was dismissed.
+# Those assets were duplicates of the exterior; resolve them to the new rooms.
+BACKGROUND_ALIASES = {
+    "bg022.png": "research_corridor.png",
+    "bg023.png": "research_corridor.png",
+    "bg025.png": "research_corridor.png",
+    "bg026.png": "research_archive.png",
+    "bg027.png": "research_corridor.png",
+    "bg028.png": "research_core.png",
+    "bg030.png": "research_core.png",
+    "bg032.png": "bg031.png",
+}
+
 # Cache scaled backgrounds so we only load and resize each file once.
 _BACKGROUND_CACHE: dict[str, pygame.Surface] = {}
 
@@ -79,6 +93,7 @@ _BACKGROUND_CACHE: dict[str, pygame.Surface] = {}
 def _load_background(name: str) -> pygame.Surface:
     if not name:
         name = DEFAULT_BACKGROUND
+    name = BACKGROUND_ALIASES.get(name, name)
     cached = _BACKGROUND_CACHE.get(name)
     if cached:
         return cached
@@ -457,6 +472,9 @@ def render_ui(
     screen.set_clip(areas["image"])
     background = get_background_surface(background_name)
     screen.blit(background, areas["image"].topleft)
+    if not ending_cinematic:
+        draw_scene_details(screen, areas["image"], background_name, player,
+                           ui_feedback.reading_time if ui_feedback else 0.0)
 
     # 若有傳入立繪則繪製玩家與敵人（結局動畫不繪製）
     player_bottom = areas["image"].bottom - 16
@@ -595,7 +613,8 @@ def render_ui(
             hover, pressed = ui_feedback.button_state(wait_rect, enabled=can_interact, hovered=is_hover) if ui_feedback else (float(is_hover), False)
             face = draw_button_face(screen, wait_rect, hover=hover, pressed=pressed, enabled=can_interact)
             if can_interact:
-                draw_text(screen, "前進", face, font, center=True, color=TEXT)
+                label = "進入研究所" if can_enter_research(background_name, player) else "前進"
+                draw_text(screen, label, face, font, center=True, color=TEXT)
     elif sub_state == "show_event" and current_event:
         options = current_event.get("options", [])
         show_option_text = not typewriter_active or bool(action_status)

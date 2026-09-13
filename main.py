@@ -19,6 +19,7 @@ import sound_manager
 import save_manager
 import settings_manager
 from window_resize import WindowsAspectResize, proportional_size
+from scene_details import can_enter_research, research_door_target
 
 BGM_START_MENU = "Music-0.mp3"
 BGM_CHAPTER_TRACKS = {
@@ -1800,6 +1801,10 @@ while running:
                 ):
                     if player.pop("skip_walk_once", None):
                         player_animator.start_transition_fade()
+                        pending_walk_event = True
+                        sub_state = "walking"
+                    elif can_enter_research(current_background_name, player):
+                        player_animator.start_enter(research_door_target(UI_AREAS["image"]))
                         pending_walk_event = True
                         sub_state = "walking"
                     else:
