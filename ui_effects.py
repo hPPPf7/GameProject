@@ -4,6 +4,9 @@ import math
 import pygame
 from ui_theme import AMBER, RED
 
+PHOTO_DURATION = 1.25
+BLINK_DURATION = 1.10
+
 
 class UIFeedback:
     def __init__(self):
@@ -16,6 +19,12 @@ class UIFeedback:
 
     def reset_player(self):
         self.reading_time = 0.0
+        self.photo_time = 0.0
+        self.photo_background = None
+        self._photo_overlay = None
+        self._photo_thumbnail = None
+        self.blink_time = 0.0
+        self.blink_background = None
         self.previous = None
         self.durability_delta = 0
         self.durability_time = 0.0
@@ -51,8 +60,96 @@ class UIFeedback:
 
     def update_player(self, dt):
         self.reading_time += dt
+        self.photo_time = max(0.0, self.photo_time - dt)
+        self.blink_time = max(0.0, self.blink_time - dt)
         self.durability_time = max(0, self.durability_time - dt)
         self.item_times = {i: t - dt for i, t in self.item_times.items() if t > dt}
+
+    def start_photo(self, background_name):
+        self.photo_time = PHOTO_DURATION
+        self.photo_background = background_name
+        self._photo_thumbnail = None
+
+    def start_blink(self, background_name):
+        self.blink_time = BLINK_DURATION
+        self.blink_background = background_name
+
+    def draw_blink(self, surface, area, background_name):
+        """Two brief eyelid closures, using stepped pixels only inside the scene."""
+        if self.blink_time <= 0 or self.blink_background != background_name:
+            return
+        elapsed = BLINK_DURATION - self.blink_time
+        closure = 0.0
+        for onset in (0.0, .58):
+            age = elapsed - onset
+            if 0 <= age < .40:
+                if age < .12:
+                    closure = age / .12
+                elif age < .18:
+                    closure = 1.0
+                else:
+                    closure = 1.0 - (age - .18) / .22
+                break
+        if closure <= 0:
+            return
+        color = (7, 12, 15)
+        if closure >= 1:
+            surface.fill(color, area)
+            return
+        # The corners close a little earlier, leaving an eye-shaped opening.
+        curve = math.sin(math.pi * closure) * area.h * .18
+        for x in range(0, area.w, 4):
+            edge = (2 * (x + 2) / area.w - 1) ** 2
+            depth = round((area.h * .5 * closure + curve * edge) / 2) * 2
+            depth = min((area.h + 1) // 2, depth)
+            width = min(4, area.w - x)
+            surface.fill(color, (area.x + x, area.y, width, depth))
+            surface.fill(color, (area.x + x, area.bottom - depth, width, depth))
+
+    def draw_photo(self, surface, area, background_name):
+        if self.photo_time <= 0 or self.photo_background != background_name:
+            return
+        elapsed = PHOTO_DURATION - self.photo_time
+        if self._photo_thumbnail is None:
+            # Capture the scene before adding flash or framing marks.
+            size = (max(1, round(area.w * .22)), max(1, round(area.h * .22)))
+            shot = pygame.transform.scale(surface.subsurface(area), size)
+            self._photo_thumbnail = pygame.Surface((size[0] + 8, size[1] + 12))
+            self._photo_thumbnail.fill((228, 230, 217))
+            self._photo_thumbnail.blit(shot, (4, 4))
+        # A single crisp exposure, confined to the scene, followed by the photo.
+        alpha = round(205 * max(0.0, 1.0 - max(0, elapsed - .035) / .22))
+        if alpha:
+            if self._photo_overlay is None or self._photo_overlay.get_size() != area.size:
+                self._photo_overlay = pygame.Surface(area.size)
+                self._photo_overlay.fill((237, 245, 241))
+            self._photo_overlay.set_alpha(alpha)
+            surface.blit(self._photo_overlay, area.topleft)
+        if elapsed < .42:
+            # Brief, chunky viewfinder corners, without a persistent scene border.
+            frame = area.inflate(-round(area.w * .24), -round(area.h * .24))
+            for x, y, dx, dy in ((frame.left, frame.top, 1, 1), (frame.right, frame.top, -1, 1),
+                                  (frame.left, frame.bottom, 1, -1), (frame.right, frame.bottom, -1, -1)):
+                points = ((x + dx * 20, y), (x, y), (x, y + dy * 16))
+                pygame.draw.lines(surface, (24, 34, 36), False, points, 7)
+                pygame.draw.lines(surface, (239, 245, 231), False, points, 3)
+        if elapsed >= .18:
+            shot = self._photo_thumbnail
+            slide = max(0.0, 1.0 - (elapsed - .18) / .18)
+            x = area.right - shot.get_width() - 12
+            y = area.bottom - shot.get_height() - 12 + round(8 * slide)
+            opacity = round(255 * min(1.0, self.photo_time / .22))
+            shot.set_alpha(opacity)
+            surface.blit(shot, (x, y))
+            # A solid upload arrow rises beside the captured photo.
+            icon = pygame.Surface((24, 28), pygame.SRCALPHA)
+            pygame.draw.rect(icon, (22, 40, 39, 235), (0, 0, 24, 28))
+            rise = round(3 * min(1, (elapsed - .18) / .5))
+            pygame.draw.polygon(icon, (158, 231, 193), ((12, 5-rise), (4, 13-rise),
+                (9, 13-rise), (9, 21-rise), (15, 21-rise), (15, 13-rise), (20, 13-rise)))
+            pygame.draw.rect(icon, (158, 231, 193), (5, 23, 14, 2))
+            icon.set_alpha(opacity)
+            surface.blit(icon, (x - 30, y + shot.get_height() - 28))
 
     def observe(self, player):
         state = player.get('battle_state') or {}

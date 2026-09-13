@@ -1402,6 +1402,11 @@ def apply_result_and_advance(result, *, from_battle_action: bool = False) -> boo
         return False
     previous_chapter = player.get("chapter", 1)
 
+    if result.get("scene_action") == "photo":
+        ui_feedback.start_photo(current_background_name)
+        sound_manager.play_sfx("camera_shutter")
+    elif result.get("scene_action") == "blink":
+        ui_feedback.start_blink(current_background_name)
     handle_event_result(player, result)
 
     render_ui(

@@ -33,6 +33,7 @@ _pending_bgm_track: str | None = None
 
 SFX_FILES = {
     "ui_click": "button_click.wav",
+    "camera_shutter": "camera_shutter.wav",
     "typewriter": "typewriter_tick.wav",
     "heal": "healing.wav",
     "attack": "attack.wav",

@@ -503,6 +503,9 @@ def render_ui(
     if combat_feedback and not ending_cinematic:
         combat_feedback.draw(screen, areas["image"], font, player_position, enemy_position, player_image, enemy_image)
         shake_scene(screen, areas["image"], combat_feedback.camera_offset())
+    if ui_feedback and not ending_cinematic:
+        ui_feedback.draw_photo(screen, areas["image"], background_name)
+        ui_feedback.draw_blink(screen, areas["image"], background_name)
     # 恢復全局裁切，後續 UI 不受限
     screen.set_clip(old_clip)
 
