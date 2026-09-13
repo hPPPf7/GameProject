@@ -17,7 +17,7 @@ class AnimationSequencePreview:
 
     @property
     def label(self):
-        return {"idle": "待機", "attack_approach": "接近", "attacking": "攻擊", "attack_return": "返回"}[self.actor.state]
+        return {"idle": "待機", "attack_approach": "接近", "attacking": "攻擊", "attack_return": "後跳"}[self.actor.state]
 
     def update(self, dt):
         dt = min(dt, .1)

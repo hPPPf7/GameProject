@@ -537,7 +537,7 @@ def action_status():
     if enemy_attack_active:
         return "敵方行動"
     if pending_result_requires_attack:
-        return "返回中" if player_animator.state == "attack_return" else "攻擊中"
+        return "後跳中" if player_animator.state == "attack_return" else "攻擊中"
     return None
 
 

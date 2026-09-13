@@ -284,8 +284,9 @@ class PlayerAnimator:
         self.attack_start_x = self.idle_x
         distance = abs(self.attack_target_x - self.attack_start_x)
         self.attack_approach_duration = max(0.01, distance / self.movement_speed)
-        self.attack_return_duration = self.attack_approach_duration
-        self.position[0] = self.idle_x
+        # A short recovery hop holds the weapon pose instead of rewinding a walk.
+        self.attack_return_duration = max(.22, min(.38, distance / (self.movement_speed * 1.8)))
+        self.position[:] = [self.idle_x, self.base_y]
         self.attack_sfx_played = False
 
     def update(self, dt: float):
@@ -342,9 +343,12 @@ class PlayerAnimator:
         if self.state == "entering":
             # Hold the small doorway pose until the screen is fully black.
             return self._entry_frame()
+        if self.state == "attack_return":
+            frames = self.attack_frames or self.idle_frames
+            return frames[-1] if frames else None
         if self.state == "attacking":
             frames = self.attack_frames
-        elif self.state in ("attack_approach", "attack_return", "walking"):
+        elif self.state in ("attack_approach", "walking"):
             frames = self.walk_frames
         else:
             frames = self.idle_frames
@@ -427,14 +431,18 @@ class PlayerAnimator:
                         self.walk_progress = 0.0
                         self.attack_return_start_x = self.position[0]
         elif self.state == "attack_return":
-            self._advance_frames(self.walk_frames, self.walk_frame_time, dt, direction=-1)
             duration = max(0.01, self.attack_return_duration)
             self.walk_progress += dt / duration
             self.walk_progress = min(self.walk_progress, 1.0)
             start_x = self.attack_return_start_x
             delta_x = self.idle_x - start_x
-            self.position[0] = start_x + delta_x * self.walk_progress
+            progress = self.walk_progress
+            eased = progress * progress * (3 - 2 * progress)
+            self.position[0] = start_x + delta_x * eased
+            height = min(self.target_height * .15, abs(delta_x) * .15)
+            self.position[1] = self.base_y - round(4 * height * progress * (1 - progress))
             if self.walk_progress >= 1.0:
+                self.position[:] = [self.idle_x, self.base_y]
                 self.state = "idle"
                 self.frame_index = 0
                 self.frame_timer = 0.0

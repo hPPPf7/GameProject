@@ -115,7 +115,7 @@ class PlayerAnimationTests(unittest.TestCase):
                 self.sfx.assert_called_once_with("attack")
                 self.assertEqual(a.state, "attack_return")
 
-    def test_movement_uses_distance_and_retreat_reverses_the_walk_cycle(self):
+    def test_approach_uses_distance_and_recovery_hops_without_replaying_walk(self):
         a = self.animator
         a.start_attack(enemy_width=100, enemy_position=(250, 200))
         near_duration = a.attack_approach_duration
@@ -126,9 +126,20 @@ class PlayerAnimationTests(unittest.TestCase):
         a.update(a.attack_approach_duration + .001)
         a.update(len(a.attack_frames) * a.attack_frame_time + .001)
         before = a.position[0]
-        a.update(a.walk_frame_time + .001)
-        self.assertEqual(a.frame_index, len(a.walk_frames) - 1)
-        self.assertLess(a.position[0], before)
+        pose = a.current_frame()
+        self.assertIs(pose, a.attack_frames[-1])
+        self.assertLessEqual(a.attack_return_duration, .38)
+        a.update(a.attack_return_duration / 2)
+        self.assertIs(a.current_frame(), pose, 'Recovery must hold the weapon pose')
+        self.assertAlmostEqual(a.position[0], (before + a.idle_x) / 2)
+        self.assertLess(a.position[1], a.base_y, 'The recovery should visibly leave the ground')
+        airborne = a.position[:]
+        a.update(0)
+        self.assertEqual(a.position, airborne, 'Paused recovery must stay in place')
+        a.update(a.attack_return_duration / 2)
+        self.assertTrue(a.attack_finished)
+        self.assertEqual(a.position, [a.idle_x, a.base_y])
+        self.assertEqual(a.state, 'idle')
 
     def test_hit_is_one_pulse_and_reset_clears_transient_state(self):
         a = self.animator
