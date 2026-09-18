@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="菜鳥調查隊日誌 Logo" width="200">
+  <img src="assets/icon.png" alt="菜鳥調查隊日誌 Logo" width="200">
 </p>
 
 <h1 align="center">菜鳥調查隊日誌</h1>
